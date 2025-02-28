@@ -2,6 +2,16 @@ import { MCPChatService } from '../services/mcpChatService';
 import { LLMService } from '../services/llmService';
 import { Message, ToolCall } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import { dirname, resolve } from 'path';
+
+// 获取当前文件的目录路径
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 加载根目录的.env文件
+dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 /**
  * MCP 聊天示例
@@ -10,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 async function runMCPChatExample() {
   try {
     // 初始化服务
+    const model = 'anthropic/claude-3.5-sonnet'
     const mcpService = new MCPChatService();
     const llmService = new LLMService();
     
@@ -49,18 +60,38 @@ async function runMCPChatExample() {
     console.log('\n用户: ' + userMessage.content);
     
     // 发送请求给 LLM，包含工具定义
-    const response = await llmService.sendChatRequest({
-      model: 'gpt-4o',
-      messages,
-      tools: mcpTools,
-      tool_choice: 'auto'
-    });
+    console.log(`\n发送请求给模型 ${model}...`);
     
-    // 处理 LLM 响应
-    const assistantMessage = response.choices[0].message;
-    messages.push(assistantMessage);
+    // 预定义助手消息变量
+    let assistantMessage;
     
-    console.log('\n助手: ' + (assistantMessage.content || ''));
+    try {
+      const response = await llmService.sendChatRequest({
+        model: model,
+        messages,
+        tools: mcpTools,
+        tool_choice: 'auto'
+      });
+      
+      // 检查响应格式
+      if (!response || !response.choices || !response.choices.length) {
+        throw new Error('LLM 返回了无效的响应格式');
+      }
+      
+      // 处理 LLM 响应
+      assistantMessage = response.choices[0].message;
+      if (!assistantMessage) {
+        throw new Error('LLM 响应中没有助手消息');
+      }
+      
+      messages.push(assistantMessage);
+      
+      console.log('\n助手: ' + (assistantMessage.content || ''));
+    } catch (error) {
+      console.error('处理 LLM 响应时出错:', error);
+      // 出错后结束执行
+      return;
+    }
     
     // 检查是否有工具调用
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
@@ -76,6 +107,7 @@ async function runMCPChatExample() {
         
         try {
           // 执行工具调用
+          console.log('call',call);
           const result = await mcpService.executeToolCall(call.name, call.args);
           
           // 创建工具响应消息
@@ -84,8 +116,13 @@ async function runMCPChatExample() {
             tool_call_id: assistantMessage.tool_calls?.find((tc: ToolCall) => tc.function.name === call.name)?.id || '',
             content: result.content
           };
+
+          console.log('toolMessage',toolMessage);
           
           console.log(`工具响应: ${result.content}`);
+
+          console.log('result',result);
+          return
           
           // 添加到消息历史
           messages.push(toolMessage);
@@ -107,7 +144,7 @@ async function runMCPChatExample() {
       // 再次发送请求，包含工具调用结果
       console.log('\n发送工具响应给 LLM...');
       const followUpResponse = await llmService.sendChatRequest({
-        model: 'gpt-4o',
+        model: model,
         messages,
       });
       
@@ -126,7 +163,10 @@ async function runMCPChatExample() {
 }
 
 // 如果直接运行此文件，则执行示例
-if (require.main === module) {
+// 在 ESM 中检测主模块
+const currentFilePath = fileURLToPath(import.meta.url);
+const importCallerFilePath = process?.argv[1] ? fileURLToPath(new URL(process.argv[1], 'file:')) : '';
+if (currentFilePath === importCallerFilePath) {
   runMCPChatExample().catch(console.error);
 }
 

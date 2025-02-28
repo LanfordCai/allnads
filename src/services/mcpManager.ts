@@ -116,40 +116,6 @@ export class MCPManager {
   }
 
   /**
-   * 流式调用工具 - 格式: serverId__toolName
-   */
-  async streamToolCall(
-    fullToolName: string, 
-    args: Record<string, any>,
-    onEvent: (event: ToolCallResult) => void,
-    onError?: (error: Error) => void,
-    onDone?: () => void
-  ): Promise<void> {
-    const [serverId, toolName] = this.parseToolName(fullToolName);
-    
-    const client = this.clients.get(serverId);
-    if (!client) {
-      throw new Error(`MCP server '${serverId}' not found`);
-    }
-    
-    await client.streamToolCall(
-      { toolName, args },
-      onEvent,
-      onError,
-      onDone
-    );
-  }
-
-  /**
-   * 取消正在进行的所有调用
-   */
-  abortAll(): void {
-    this.clients.forEach(client => {
-      client.abort();
-    });
-  }
-
-  /**
    * 关闭所有连接
    */
   closeAll(): void {

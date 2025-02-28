@@ -34,12 +34,13 @@ export class MCPClient {
       // 获取可用工具
       const toolsResult = await this.client.listTools();
       const tools = toolsResult.tools || [];
+      console.log('tools',tools);
       
       // 转换为我们的工具格式
       this.availableTools = tools.map((tool: any) => ({
         name: tool.name,
         description: tool.description || '',
-        inputSchema: tool.parameters || {}
+        inputSchema: tool.inputSchema || {}
       }));
       
       return this.availableTools;
@@ -72,11 +73,15 @@ export class MCPClient {
         throw new Error(`Tool not found: ${request.toolName}`);
       }
 
+      console.log(`name`, request.toolName);
+      console.log(`args`, request.args);
       // 调用 MCP 工具
       const result = await this.client.callTool({
         name: request.toolName,
         arguments: request.args
       });
+
+      console.log('result',result);
       
       return {
         content: typeof result.result === 'string' ? result.result : JSON.stringify(result.result),
