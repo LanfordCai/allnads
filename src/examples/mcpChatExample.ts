@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { dirname, resolve } from 'path';
+import { TextContent, ImageContent, EmbeddedResource } from '../types/mcp';
 
 // 获取当前文件的目录路径
 const __filename = fileURLToPath(import.meta.url);
@@ -12,6 +13,164 @@ const __dirname = dirname(__filename);
 
 // 加载根目录的.env文件
 dotenv.config({ path: resolve(__dirname, '../../.env') });
+
+/**
+ * LLM调用重试配置
+ */
+const LLM_RETRY_CONFIG = {
+  maxRetries: 3,         // 最大重试次数
+  initialDelay: 1000,    // 初始延迟时间(毫秒)
+  maxDelay: 10000,       // 最大延迟时间(毫秒)
+  timeoutMs: 60000,      // 超时时间(毫秒)
+};
+
+/**
+ * 错误类型枚举
+ */
+enum ErrorType {
+  NETWORK = 'NETWORK_ERROR',
+  TIMEOUT = 'TIMEOUT_ERROR',
+  API = 'API_ERROR',
+  RESPONSE_FORMAT = 'RESPONSE_FORMAT_ERROR',
+  UNKNOWN = 'UNKNOWN_ERROR',
+}
+
+/**
+ * 判断错误类型
+ */
+function determineErrorType(error: unknown): ErrorType {
+  if (error instanceof Error) {
+    const errorMessage = error.message.toLowerCase();
+    
+    if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+      return ErrorType.TIMEOUT;
+    } else if (
+      errorMessage.includes('network') || 
+      errorMessage.includes('connection') || 
+      errorMessage.includes('econnrefused') ||
+      errorMessage.includes('econnreset')
+    ) {
+      return ErrorType.NETWORK;
+    } else if (
+      errorMessage.includes('status code') || 
+      errorMessage.includes('rate limit') || 
+      errorMessage.includes('api')
+    ) {
+      return ErrorType.API;
+    } else if (
+      errorMessage.includes('format') || 
+      errorMessage.includes('invalid') || 
+      errorMessage.includes('parse')
+    ) {
+      return ErrorType.RESPONSE_FORMAT;
+    }
+  }
+  
+  return ErrorType.UNKNOWN;
+}
+
+/**
+ * 延迟函数
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 带超时的Promise
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`${message} (timeout after ${timeoutMs}ms)`));
+    }, timeoutMs);
+    
+    promise
+      .then(result => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch(error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
+/**
+ * 带重试和超时的LLM调用
+ */
+async function callLLMWithRetry(llmService: LLMService, requestData: any): Promise<any> {
+  let lastError: Error | null = null;
+  let retryCount = 0;
+  
+  while (retryCount < LLM_RETRY_CONFIG.maxRetries) {
+    try {
+      if (retryCount > 0) {
+        console.log(`重试 LLM 调用 (${retryCount}/${LLM_RETRY_CONFIG.maxRetries})...`);
+      }
+      
+      // 带超时的LLM调用
+      const response = await withTimeout(
+        llmService.sendChatRequest(requestData),
+        LLM_RETRY_CONFIG.timeoutMs,
+        'LLM 调用超时'
+      );
+      
+      // 验证响应格式
+      if (!response || !response.choices || !response.choices.length) {
+        throw new Error('LLM 返回了无效的响应格式');
+      }
+      
+      const message = response.choices[0].message;
+      if (!message) {
+        throw new Error('LLM 响应中没有助手消息');
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const errorType = determineErrorType(error);
+      
+      console.error(`LLM 调用失败 (${errorType}): ${lastError.message}`);
+      
+      // 对于不同类型的错误采取不同的重试策略
+      if (errorType === ErrorType.TIMEOUT || errorType === ErrorType.NETWORK) {
+        // 网络错误和超时可以重试
+        retryCount++;
+        
+        // 指数退避延迟
+        const delayMs = Math.min(
+          LLM_RETRY_CONFIG.initialDelay * Math.pow(2, retryCount - 1),
+          LLM_RETRY_CONFIG.maxDelay
+        );
+        
+        console.log(`等待 ${delayMs}ms 后重试...`);
+        await delay(delayMs);
+      } else if (errorType === ErrorType.API && lastError.message.includes('rate limit')) {
+        // 速率限制，等待更长时间
+        retryCount++;
+        const delayMs = Math.min(
+          LLM_RETRY_CONFIG.initialDelay * Math.pow(3, retryCount - 1), // 更长的等待
+          LLM_RETRY_CONFIG.maxDelay * 2
+        );
+        
+        console.log(`遇到速率限制，等待 ${delayMs}ms 后重试...`);
+        await delay(delayMs);
+      } else {
+        // 其他错误类型（格式错误、API错误等）直接失败
+        break;
+      }
+    }
+  }
+  
+  // 达到最大重试次数或者非可重试错误
+  if (lastError) {
+    throw lastError;
+  }
+  
+  throw new Error('LLM 调用失败，但没有捕获到具体错误');
+}
 
 /**
  * MCP 聊天示例
@@ -53,7 +212,7 @@ async function runMCPChatExample() {
     // 用户输入
     const userMessage: Message = {
       role: 'user',
-      content: '请查询以太坊主网的当前 gas 价格'
+      content: '请查询 Polygon 的当前 gas 价格'
     };
     messages.push(userMessage);
     
@@ -66,29 +225,29 @@ async function runMCPChatExample() {
     let assistantMessage;
     
     try {
-      const response = await llmService.sendChatRequest({
+      // 使用带重试和超时的LLM调用
+      const response = await callLLMWithRetry(llmService, {
         model: model,
         messages,
         tools: mcpTools,
         tool_choice: 'auto'
       });
       
-      // 检查响应格式
-      if (!response || !response.choices || !response.choices.length) {
-        throw new Error('LLM 返回了无效的响应格式');
-      }
-      
       // 处理 LLM 响应
       assistantMessage = response.choices[0].message;
-      if (!assistantMessage) {
-        throw new Error('LLM 响应中没有助手消息');
-      }
-      
       messages.push(assistantMessage);
       
       console.log('\n助手: ' + (assistantMessage.content || ''));
     } catch (error) {
-      console.error('处理 LLM 响应时出错:', error);
+      console.error('LLM 调用最终失败:', error);
+      console.log('\n告知用户 LLM 服务暂时不可用...');
+      
+      // 创建一个错误消息给用户
+      messages.push({
+        role: 'assistant',
+        content: '很抱歉，我目前无法处理您的请求。AI服务遇到了技术问题，请稍后再试。'
+      });
+      
       // 出错后结束执行
       return;
     }
@@ -107,25 +266,46 @@ async function runMCPChatExample() {
         
         try {
           // 执行工具调用
-          console.log('call',call);
+          console.log('call', call);
           const result = await mcpService.executeToolCall(call.name, call.args);
+          
+          // 从结果中提取内容
+          let resultContent = '';
+          if (result.content && result.content.length > 0) {
+            // 遍历所有内容项
+            for (const contentItem of result.content) {
+              // 根据内容类型处理
+              if (contentItem.type === 'text') {
+                // 处理文本内容
+                resultContent += (contentItem as TextContent).text;
+              } else if (contentItem.type === 'image') {
+                // 处理图像内容
+                const imageContent = contentItem as ImageContent;
+                resultContent += `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
+              } else if (contentItem.type === 'embedded_resource') {
+                // 处理嵌入资源
+                const resourceContent = contentItem as EmbeddedResource;
+                resultContent += `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
+              }
+            }
+          }
+          
+          console.log(`工具响应: ${resultContent}`);
           
           // 创建工具响应消息
           const toolMessage: Message = {
             role: 'tool',
             tool_call_id: assistantMessage.tool_calls?.find((tc: ToolCall) => tc.function.name === call.name)?.id || '',
-            content: result.content
+            content: resultContent
           };
-
-          console.log('toolMessage',toolMessage);
-          
-          console.log(`工具响应: ${result.content}`);
-
-          console.log('result',result);
-          return
           
           // 添加到消息历史
           messages.push(toolMessage);
+          
+          // 如果工具调用出错，记录错误信息
+          if (result.isError) {
+            console.error(`工具调用返回错误: ${resultContent}`);
+          }
         } catch (error) {
           console.error(`工具调用失败: ${error}`);
           
@@ -143,15 +323,30 @@ async function runMCPChatExample() {
       
       // 再次发送请求，包含工具调用结果
       console.log('\n发送工具响应给 LLM...');
-      const followUpResponse = await llmService.sendChatRequest({
-        model: model,
-        messages,
-      });
       
-      const followUpMessage = followUpResponse.choices[0].message;
-      messages.push(followUpMessage);
-      
-      console.log('\n助手: ' + (followUpMessage.content || ''));
+      try {
+        // 使用带重试和超时的LLM调用
+        const followUpResponse = await callLLMWithRetry(llmService, {
+          model: model,
+          messages,
+        });
+        
+        const followUpMessage = followUpResponse.choices[0].message;
+        messages.push(followUpMessage);
+        
+        console.log('\n助手: ' + (followUpMessage.content || ''));
+      } catch (error) {
+        console.error('处理工具结果的 LLM 调用失败:', error);
+        
+        // 创建一个简单的回退消息
+        const fallbackMessage: Message = {
+          role: 'assistant',
+          content: '很抱歉，我在处理工具调用结果时遇到了问题。我已收到数据，但无法为您生成完整回应。请稍后再试。'
+        };
+        
+        messages.push(fallbackMessage);
+        console.log('\n助手 (fallback): ' + fallbackMessage.content);
+      }
     }
     
     // 清理资源

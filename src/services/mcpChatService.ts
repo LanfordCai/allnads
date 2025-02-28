@@ -1,5 +1,5 @@
 import { MCPManager } from './mcpManager';
-import { MCPServerConfig, MCPTool, ToolCallResult as MCPToolCallResult } from '../types/mcp';
+import { MCPServerConfig, MCPTool, ToolCallResult } from '../types/mcp';
 import { Message, ChatCompletionTool, ToolCall } from '../types/chat';
 
 /**
@@ -46,12 +46,25 @@ export class MCPChatService {
       }
       
       // 构建 LLM 工具格式
+      // 确保parameters是一个有效的JSON Schema
+      const parameters = tool.inputSchema || {};
+      
+      // 如果没有type字段，添加一个默认的object类型
+      if (!parameters.type) {
+        parameters.type = 'object';
+      }
+      
+      // 如果没有properties字段且type为object，添加一个空的properties对象
+      if (parameters.type === 'object' && !parameters.properties) {
+        parameters.properties = {};
+      }
+      
       return {
         type: 'function',
         function: {
           name: `mcp__${serverId}__${tool.name}`,
           description: tool.description,
-          parameters: tool.inputSchema
+          parameters: parameters
         }
       };
     });
@@ -62,7 +75,7 @@ export class MCPChatService {
    * @param toolName 工具名，格式: mcp__serverId__toolName
    * @param args 工具参数
    */
-  async executeToolCall(toolName: string, args: Record<string, any>): Promise<MCPToolCallResult> {
+  async executeToolCall(toolName: string, args: Record<string, any>): Promise<ToolCallResult> {
     // 解析工具名
     const segments = toolName.split('__');
     if (segments.length !== 3 || segments[0] !== 'mcp') {

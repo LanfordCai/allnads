@@ -2,7 +2,7 @@
 // import type { Tool } from '@modelcontextprotocol/sdk/types';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { MCPServerConfig, MCPTool, ToolCallRequest, ToolCallResult } from '../types/mcp';
+import { MCPServerConfig, MCPTool, ToolCallRequest, ToolCallResult, TextContent, ImageContent } from '../types/mcp';
 
 export class MCPClient {
   private serverConfig: MCPServerConfig;
@@ -81,16 +81,67 @@ export class MCPClient {
         arguments: request.args
       });
 
-      console.log('result',result);
+      console.log('result', result);
+      
+      // 根据MCP规范格式化返回结果
+      const resultContent = result.result !== undefined ? result.result : result;
+      
+      // 创建符合MCP规范的响应对象
+      let content: (TextContent | ImageContent)[] = [];
+      
+      // 将结果转换为符合规范的内容对象
+      if (typeof resultContent === 'string') {
+        // 文本内容
+        content = [{
+          type: 'text',
+          text: resultContent
+        }];
+      } else if (resultContent !== null && typeof resultContent === 'object') {
+        // 如果是对象，检查是否有图像数据
+        // 使用类型守卫检查是否为可能的图像内容
+        const maybeImage = resultContent as Record<string, unknown>;
+        if (
+          maybeImage.type === 'image' && 
+          typeof maybeImage.data === 'string' && 
+          typeof maybeImage.mimeType === 'string'
+        ) {
+          // 已经是符合规范的图像内容，使用类型断言
+          content = [{
+            type: 'image',
+            data: maybeImage.data,
+            mimeType: maybeImage.mimeType
+          }];
+        } else {
+          // 普通对象，转换为JSON字符串作为文本内容
+          content = [{
+            type: 'text',
+            text: JSON.stringify(resultContent)
+          }];
+        }
+      } else {
+        // 其他类型转换为字符串
+        content = [{
+          type: 'text',
+          text: String(resultContent)
+        }];
+      }
       
       return {
-        content: typeof result.result === 'string' ? result.result : JSON.stringify(result.result),
-        metadata: typeof result.result === 'object' && result.result !== null ? result.result as Record<string, any> : undefined
+        content,
+        isError: false
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Error calling tool: ${errorMessage}`);
-      throw error;
+      
+      // 返回错误结果
+      return {
+        content: [{
+          type: 'text',
+          text: `错误: ${errorMessage}`
+        }],
+        isError: true
+      };
     }
   }
 
