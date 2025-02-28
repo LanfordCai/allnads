@@ -6,6 +6,9 @@ const router = express.Router();
 // POST /api/chat - 发送聊天消息
 router.post('/', ChatController.chat as RequestHandler);
 
+// POST /api/chat/tools - 直接调用工具
+router.post('/tools', ChatController.callTool as RequestHandler);
+
 // GET /api/chat/sessions - 获取所有会话
 router.get('/sessions', ChatController.getAllSessions as RequestHandler);
 

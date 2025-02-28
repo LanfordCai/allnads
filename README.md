@@ -7,7 +7,8 @@
 - 基于 TypeScript 和 Express 构建的 API 服务
 - 使用 LangChain.js 框架集成 AI 模型
 - 支持 OpenRouter 作为 LLM 提供商
-- 实现工具调用(MCP)功能
+- 支持多MCP服务器配置和动态管理
+- 实现工具调用(MCP)功能，支持调用区块链数据查询等工具
 
 ## 项目结构
 
@@ -21,6 +22,7 @@ wenads-agent/
 │   ├── types/            # 类型定义
 │   ├── utils/            # 工具函数
 │   └── index.ts          # 应用入口
+├── mcp.json              # MCP服务器配置文件
 ├── .env                  # 环境变量
 ├── .env.example          # 环境变量示例
 ├── .gitignore            # Git 忽略文件
@@ -75,7 +77,85 @@ npm start
 
 ## API 端点
 
+### 健康检查
 - `GET /api/health` - 健康检查端点
+
+### 聊天API
+- `POST /api/chat` - 发送聊天消息
+- `GET /api/chat/sessions` - 获取所有会话
+- `GET /api/chat/sessions/:sessionId` - 获取会话历史
+- `DELETE /api/chat/sessions/:sessionId` - 删除会话
+- `POST /api/chat/tools` - 直接调用工具
+
+### MCP服务管理API
+- `GET /api/mcp/servers` - 获取所有MCP服务器
+- `GET /api/mcp/tools` - 获取所有工具（可选参数server）
+- `POST /api/mcp/servers` - 添加MCP服务器
+- `DELETE /api/mcp/servers/:id` - 删除MCP服务器
+
+## MCP 多服务器配置
+
+### 配置文件
+
+MCP服务器配置存储在项目根目录的 `mcp.json` 文件中。该文件包含两个主要部分：
+
+1. `servers`: 服务器列表
+2. `settings`: 全局设置
+
+### 服务器配置示例
+
+```json
+{
+  "servers": [
+    {
+      "name": "ethereum",
+      "url": "https://ethereum-mcp.example.com",
+      "description": "以太坊主网MCP服务器"
+    },
+    {
+      "name": "optimism",
+      "url": "https://optimism-mcp.example.com",
+      "description": "Optimism L2网络MCP服务器"
+    }
+  ],
+  "settings": {
+    "defaultServer": "ethereum",
+    "connectionTimeout": 30000,
+    "callTimeout": 30000,
+    "maxRetries": 2,
+    "retryInterval": 1000
+  }
+}
+```
+
+### 服务器配置字段
+
+每个服务器配置包含以下字段：
+
+- `name`: 服务器ID，用于在工具调用中引用（格式：`serverId__toolName`）
+- `url`: 服务器URL
+- `description`: 可选，服务器描述
+
+### 全局设置字段
+
+- `defaultServer`: 默认服务器ID
+- `connectionTimeout`: 连接超时时间（毫秒）
+- `callTimeout`: 调用超时时间（毫秒）
+- `maxRetries`: 最大重试次数
+- `retryInterval`: 重试间隔时间（毫秒）
+
+### 工具调用方式
+
+调用工具时，使用`serverId__toolName`格式指定工具:
+
+```json
+{
+  "toolName": "ethereum__evm_gas_price",
+  "args": {
+    "chain": "ethereum"
+  }
+}
+```
 
 ## 许可证
 

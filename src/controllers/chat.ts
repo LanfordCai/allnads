@@ -2,6 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { ChatService } from '../services/chat';
 import { SessionService } from '../services/session';
 import { chatRequestSchema } from '../types/chat';
+import { z } from 'zod';
+import { mcpManager } from '../services/mcpService';
+
+// 工具调用请求验证模式
+const toolCallRequestSchema = z.object({
+  toolName: z.string().min(1, "工具名不能为空"),
+  args: z.record(z.unknown()).optional().default({})
+});
 
 /**
  * 聊天控制器
@@ -34,6 +42,63 @@ export class ChatController {
         status: 'success',
         data: response,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  /**
+   * 直接调用工具
+   */
+  static async callTool(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // 验证请求数据
+      const result = toolCallRequestSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        res.status(400).json({
+          status: 'error',
+          error: {
+            message: '无效的工具调用请求',
+            details: result.error.format(),
+          },
+        });
+        return;
+      }
+      
+      const { toolName, args } = result.data;
+      
+      // 检查工具名格式
+      if (!toolName.includes('__')) {
+        res.status(400).json({
+          status: 'error',
+          error: {
+            message: '无效的工具名格式，应为: serverId__toolName',
+          },
+        });
+        return;
+      }
+      
+      try {
+        // 调用工具
+        const toolResult = await mcpManager.callTool(toolName, args);
+        
+        // 返回成功响应
+        res.status(200).json({
+          status: 'success',
+          data: {
+            result: toolResult,
+          },
+        });
+      } catch (error) {
+        // 处理工具调用错误
+        res.status(500).json({
+          status: 'error',
+          error: {
+            message: `工具调用失败: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        });
+      }
     } catch (error) {
       next(error);
     }

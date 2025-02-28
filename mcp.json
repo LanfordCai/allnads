@@ -1,0 +1,16 @@
+{
+  "servers": [
+    {
+      "name": "evm_tool",
+      "url": "http://localhost:8080/sse",
+      "description": "EVM 区块链查询工具"
+    }
+  ],
+  "settings": {
+    "defaultServer": "default",
+    "connectionTimeout": 30000,
+    "callTimeout": 30000,
+    "maxRetries": 2,
+    "retryInterval": 1000
+  }
+} 
