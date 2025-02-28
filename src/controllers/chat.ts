@@ -4,6 +4,7 @@ import { SessionService } from '../services/session';
 import { chatRequestSchema } from '../types/chat';
 import { z } from 'zod';
 import { mcpManager } from '../services/mcpService';
+import { authenticate } from '../middleware/auth';
 
 // 工具调用请求验证模式
 const toolCallRequestSchema = z.object({

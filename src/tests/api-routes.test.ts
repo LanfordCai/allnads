@@ -26,7 +26,7 @@ const COLORS = {
 const TEST_CONFIG = {
   // 从.env加载或使用默认值
   apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000/api',
-  apiKey: process.env.API_KEY || 'test-api-key',
+  apiKey: process.env.SERVICE_API_KEY || 'test-api-key',
   timeoutMs: 60000,
 };
 
@@ -254,7 +254,7 @@ async function runApiRoutesTest() {
   // 测试8: 通过聊天接口触发工具调用
   await runTest('聊天触发工具调用', async () => {
     // 首先检查是否有启用MCP工具的参数
-    let toolEnabled = false;
+    let toolEnabled = true;
     let chatWithToolResponse;
     
     // 尝试different方式启用工具

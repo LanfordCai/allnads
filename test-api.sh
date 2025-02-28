@@ -32,7 +32,7 @@ if [ ! -f .env ]; then
   echo "MCP_SERVER_URL=http://localhost:8080/sse" >> .env
   echo "MCP_SERVER_NAME=evm_tool" >> .env
   echo "API_BASE_URL=http://localhost:3000/api" >> .env
-  echo "API_KEY=test-api-key" >> .env
+  echo "SERVICE_API_KEY=test-api-key" >> .env
   echo -e "${GREEN}已创建.env文件，请根据需要修改配置${NC}\n"
 fi
 

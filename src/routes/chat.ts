@@ -1,7 +1,11 @@
 import express, { RequestHandler } from 'express';
 import { ChatController } from '../controllers/chat';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
+
+// 应用鉴权中间件
+router.use(authenticate);
 
 // POST /api/chat - 发送聊天消息
 router.post('/', ChatController.chat as RequestHandler);

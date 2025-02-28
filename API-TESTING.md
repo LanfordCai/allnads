@@ -26,7 +26,7 @@ LLM_MODEL=anthropic/claude-3.5-sonnet  # 使用的LLM模型
 MCP_SERVER_URL=http://localhost:8080/sse  # MCP服务器URL
 MCP_SERVER_NAME=evm_tool  # MCP服务器名称
 API_BASE_URL=http://localhost:3000/api  # API基础URL
-API_KEY=test-api-key  # API密钥
+SERVICE_API_KEY=test-api-key  # API密钥
 ```
 
 请根据您的环境修改这些配置。
@@ -246,7 +246,7 @@ API返回标准HTTP状态码：
 1. **API测试前提**：确保API服务已启动并正在监听对应端口
 2. **MCP服务依赖**：确保MCP服务器已启动并可访问，否则工具调用测试将失败
 3. **超时设置**：长时间运行的测试可能需要调整超时参数（在`.env`中）
-4. **授权测试**：确保`API_KEY`配置正确，否则授权测试将无法模拟实际情况
+4. **授权测试**：确保`SERVICE_API_KEY`配置正确，否则授权测试将无法模拟实际情况
 
 ## 自定义测试
 
