@@ -123,7 +123,7 @@ export class ChatController {
       }
       
       // 获取会话历史
-      const history = SessionService.getHistory(sessionId);
+      const history = await SessionService.getHistory(sessionId);
       
       // 返回成功响应
       res.status(200).json({
@@ -156,7 +156,7 @@ export class ChatController {
       }
       
       // 删除会话
-      const success = SessionService.deleteSession(sessionId);
+      const success = await SessionService.deleteSession(sessionId);
       
       if (!success) {
         res.status(404).json({
@@ -186,7 +186,7 @@ export class ChatController {
   static async getAllSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // 获取所有会话 ID
-      const sessionIds = SessionService.getAllSessionIds();
+      const sessionIds = await SessionService.getAllSessionIds();
       
       // 返回成功响应
       res.status(200).json({

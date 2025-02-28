@@ -16,6 +16,16 @@ const envSchema = z.object({
   
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  
+  // API Authentication
+  SERVICE_API_KEY: z.string(),
+  
+  // PostgreSQL
+  POSTGRES_HOST: z.string().default('localhost'),
+  POSTGRES_PORT: z.string().default('5432'),
+  POSTGRES_USER: z.string().default('postgres'),
+  POSTGRES_PASSWORD: z.string(),
+  POSTGRES_DB: z.string().default('wenads_agent'),
 });
 
 // Parse and validate environment variables

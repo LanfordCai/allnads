@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, ChatRole, ChatSession } from '../types/chat';
+import { db } from '../config/database';
+import { sessions, messages } from '../models/schema';
+import { eq, desc } from 'drizzle-orm';
 
-// 内存中存储会话数据（生产环境应使用数据库）
-const sessions = new Map<string, ChatSession>();
+// 内存缓存，提高性能
+const sessionsCache = new Map<string, ChatSession>();
 
 /**
  * 会话管理服务
@@ -11,9 +14,16 @@ export class SessionService {
   /**
    * 创建新的聊天会话
    */
-  static createSession(systemPrompt?: string): ChatSession {
+  static async createSession(systemPrompt?: string): Promise<ChatSession> {
     const sessionId = uuidv4();
     const now = new Date();
+    
+    // 创建会话记录
+    await db.insert(sessions).values({
+      id: sessionId,
+      createdAt: now,
+      updatedAt: now,
+    });
     
     const session: ChatSession = {
       id: sessionId,
@@ -24,15 +34,26 @@ export class SessionService {
     
     // 如果提供了系统提示，添加为第一条消息
     if (systemPrompt) {
-      session.messages.push({
+      const systemMessage: ChatMessage = {
         role: ChatRole.SYSTEM,
         content: systemPrompt,
         timestamp: now,
+      };
+      
+      // 添加系统消息
+      await db.insert(messages).values({
+        sessionId,
+        role: systemMessage.role,
+        content: systemMessage.content,
+        timestamp: systemMessage.timestamp,
+        createdAt: now,
       });
+      
+      session.messages.push(systemMessage);
     }
     
-    // 存储会话
-    sessions.set(sessionId, session);
+    // 添加到缓存
+    sessionsCache.set(sessionId, session);
     
     return session;
   }
@@ -40,25 +61,80 @@ export class SessionService {
   /**
    * 获取会话
    */
-  static getSession(sessionId: string): ChatSession | undefined {
-    return sessions.get(sessionId);
+  static async getSession(sessionId: string): Promise<ChatSession | undefined> {
+    // 先从缓存中获取
+    if (sessionsCache.has(sessionId)) {
+      return sessionsCache.get(sessionId);
+    }
+    
+    // 如果缓存中没有，从数据库获取
+    try {
+      // 查询会话
+      const sessionResults = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+      
+      if (sessionResults.length === 0) {
+        return undefined;
+      }
+      
+      const sessionData = sessionResults[0];
+      
+      // 查询会话的所有消息
+      const messageResults = await db.select().from(messages)
+        .where(eq(messages.sessionId, sessionId))
+        .orderBy(messages.timestamp);
+      
+      // 构建会话对象
+      const session: ChatSession = {
+        id: sessionData.id,
+        createdAt: sessionData.createdAt,
+        updatedAt: sessionData.updatedAt,
+        messages: messageResults.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+        })),
+      };
+      
+      // 添加到缓存
+      sessionsCache.set(sessionId, session);
+      
+      return session;
+    } catch (error) {
+      console.error(`Error fetching session ${sessionId}:`, error);
+      return undefined;
+    }
   }
   
   /**
    * 添加消息到会话
    */
-  static addMessage(sessionId: string, message: ChatMessage): ChatSession {
-    const session = sessions.get(sessionId);
+  static async addMessage(sessionId: string, message: ChatMessage): Promise<ChatSession> {
+    // 获取会话
+    const session = await this.getSession(sessionId);
     
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
     }
     
-    session.messages.push(message);
-    session.updatedAt = new Date();
+    // 更新会话的最后修改时间
+    const now = new Date();
+    await db.update(sessions)
+      .set({ updatedAt: now })
+      .where(eq(sessions.id, sessionId));
     
-    // 更新会话
-    sessions.set(sessionId, session);
+    // 添加新消息
+    await db.insert(messages).values({
+      sessionId,
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp || now,
+      createdAt: now,
+    });
+    
+    // 更新缓存
+    session.messages.push(message);
+    session.updatedAt = now;
+    sessionsCache.set(sessionId, session);
     
     return session;
   }
@@ -66,27 +142,89 @@ export class SessionService {
   /**
    * 获取会话历史消息
    */
-  static getHistory(sessionId: string): ChatMessage[] {
-    const session = sessions.get(sessionId);
-    
-    if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
+  static async getHistory(sessionId: string): Promise<ChatMessage[]> {
+    // 优先使用缓存
+    if (sessionsCache.has(sessionId)) {
+      const session = sessionsCache.get(sessionId)!;
+      return [...session.messages];
     }
     
-    return [...session.messages];
+    // 如果未缓存，从数据库获取消息
+    try {
+      // 检查会话存在
+      const sessionExists = await db.select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId));
+      
+      if (sessionExists.length === 0) {
+        throw new Error(`Session not found: ${sessionId}`);
+      }
+      
+      // 查询消息
+      const messageResults = await db.select().from(messages)
+        .where(eq(messages.sessionId, sessionId))
+        .orderBy(messages.timestamp);
+      
+      return messageResults.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      }));
+    } catch (error) {
+      console.error(`Error fetching history for session ${sessionId}:`, error);
+      throw error;
+    }
   }
   
   /**
    * 删除会话
    */
-  static deleteSession(sessionId: string): boolean {
-    return sessions.delete(sessionId);
+  static async deleteSession(sessionId: string): Promise<boolean> {
+    try {
+      // 会话表有级联删除约束，因此删除会话会自动删除所有关联消息
+      const result = await db.delete(sessions)
+        .where(eq(sessions.id, sessionId));
+      
+      // 从缓存中移除
+      sessionsCache.delete(sessionId);
+      
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      console.error(`Error deleting session ${sessionId}:`, error);
+      return false;
+    }
   }
   
   /**
    * 获取所有会话 ID
    */
-  static getAllSessionIds(): string[] {
-    return Array.from(sessions.keys());
+  static async getAllSessionIds(): Promise<string[]> {
+    try {
+      const results = await db.select({ id: sessions.id }).from(sessions);
+      return results.map(result => result.id);
+    } catch (error) {
+      console.error('Error getting all session IDs:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * 加载所有会话到缓存
+   */
+  static async loadAllSessions(): Promise<void> {
+    try {
+      const sessionIds = await this.getAllSessionIds();
+      console.log(`Found ${sessionIds.length} sessions in database`);
+      
+      let loadedCount = 0;
+      for (const sessionId of sessionIds) {
+        await this.getSession(sessionId);
+        loadedCount++;
+      }
+      
+      console.log(`Loaded ${loadedCount} sessions into cache`);
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    }
   }
 } 

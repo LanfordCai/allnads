@@ -7,8 +7,10 @@
 - 基于 TypeScript 和 Express 构建的 API 服务
 - 使用 LangChain.js 框架集成 AI 模型
 - 支持 OpenRouter 作为 LLM 提供商
+- 使用 PostgreSQL 和 Drizzle ORM 持久化聊天会话数据
 - 支持多MCP服务器配置和动态管理
 - 实现工具调用(MCP)功能，支持调用区块链数据查询等工具
+- 为 RAG（检索增强生成）集成做好准备
 
 ## 项目结构
 
@@ -17,7 +19,10 @@ wenads-agent/
 ├── src/                  # 源代码目录
 │   ├── config/           # 配置文件
 │   ├── controllers/      # 控制器
+│   ├── models/           # 数据库模型
+│   ├── migrations/       # 数据库迁移
 │   ├── routes/           # 路由
+│   ├── scripts/          # 脚本文件
 │   ├── services/         # 服务
 │   ├── types/            # 类型定义
 │   ├── utils/            # 工具函数
@@ -26,6 +31,8 @@ wenads-agent/
 ├── .env                  # 环境变量
 ├── .env.example          # 环境变量示例
 ├── .gitignore            # Git 忽略文件
+├── drizzle.config.ts     # Drizzle ORM 配置
+├── DATABASE.md           # 数据库使用说明
 ├── package.json          # 项目依赖
 ├── tsconfig.json         # TypeScript 配置
 └── README.md             # 项目说明
@@ -37,6 +44,7 @@ wenads-agent/
 
 - Node.js 18+
 - npm 或 yarn
+- PostgreSQL 12+
 
 ### 安装
 
@@ -57,6 +65,15 @@ cp .env.example .env
 # 编辑 .env 文件，填写必要的配置
 ```
 
+4. 设置数据库
+```bash
+# 创建数据库
+psql -U postgres -c "CREATE DATABASE wenads_agent;"
+
+# 创建表结构
+npm run db:create-tables
+```
+
 ### 开发
 
 ```bash
@@ -74,6 +91,16 @@ npm run build
 ```bash
 npm start
 ```
+
+## 数据库
+
+项目使用 PostgreSQL 数据库和 Drizzle ORM 进行数据持久化：
+
+- 会话和消息数据保存在数据库，防止服务重启导致数据丢失
+- 使用内存缓存提升读取性能
+- 支持未来集成 pgvector 实现 RAG 功能
+
+详细的数据库设置和配置说明请参阅 [DATABASE.md](DATABASE.md)。
 
 ## API 端点
 

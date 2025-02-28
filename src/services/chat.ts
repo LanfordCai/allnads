@@ -12,9 +12,7 @@ import { LLMService } from './llmService';
  * 聊天服务
  */
 export class ChatService {
-  // 存储聊天会话
-  private static sessions: Map<string, ChatMessage[]> = new Map();
-  // LLM服务实例
+  // 移除内部会话存储，改用SessionService
   private static llmService = new LLMService();
 
   /**
@@ -157,40 +155,41 @@ export class ChatService {
     const { sessionId = uuidv4(), message, systemPrompt, enableTools } = request;
     
     // 获取或创建会话
-    let history = this.sessions.get(sessionId) || [];
+    let session;
+    let history: ChatMessage[] = [];
+    
+    // 如果提供了会话ID，尝试获取现有会话
+    if (sessionId) {
+      session = await SessionService.getSession(sessionId);
+      if (session) {
+        history = session.messages;
+      }
+    }
+    
+    // 如果没有找到会话或是新会话ID，创建新会话
+    if (!session) {
+      session = await SessionService.createSession(systemPrompt);
+      history = session.messages;
+    }
     
     // 构建LLM消息
     const llmMessages: Message[] = [];
     
-    // 如果有系统提示并且是新会话，添加系统消息
-    if (systemPrompt && history.length === 0) {
-      history.push({
-        role: ChatRole.SYSTEM,
-        content: systemPrompt,
-        timestamp: new Date()
-      });
-      
+    // 添加系统消息（如果有）
+    const systemMessage = history.find(msg => msg.role === ChatRole.SYSTEM);
+    if (systemMessage) {
       llmMessages.push({
         role: 'system',
-        content: systemPrompt
+        content: systemMessage.content
       });
-    } else if (history.length > 0) {
-      // 如果已经有历史记录，添加系统消息（如果有）
-      const systemMessage = history.find(msg => msg.role === ChatRole.SYSTEM);
-      if (systemMessage) {
-        llmMessages.push({
-          role: 'system',
-          content: systemMessage.content
-        });
-      }
-      
-      // 添加历史消息（不包括系统消息）
-      for (const msg of history.filter(msg => msg.role !== ChatRole.SYSTEM)) {
-        llmMessages.push({
-          role: msg.role === ChatRole.USER ? 'user' : 'assistant',
-          content: msg.content
-        });
-      }
+    }
+    
+    // 添加历史消息（不包括系统消息）
+    for (const msg of history.filter(msg => msg.role !== ChatRole.SYSTEM)) {
+      llmMessages.push({
+        role: msg.role === ChatRole.USER ? 'user' : 'assistant',
+        content: msg.content
+      });
     }
     
     // 添加用户消息
@@ -199,7 +198,9 @@ export class ChatService {
       content: message,
       timestamp: new Date()
     };
-    history.push(userMessage);
+    
+    // 将用户消息添加到会话
+    await SessionService.addMessage(session.id, userMessage);
     
     llmMessages.push({
       role: 'user',
@@ -332,40 +333,34 @@ export class ChatService {
       }
     }
     
-    // 创建助手响应
+    // 保存助手消息到会话
     assistantMessage = {
       role: ChatRole.ASSISTANT,
       content: assistantContent,
       timestamp: new Date()
     };
-    history.push(assistantMessage);
     
-    // 保存会话
-    this.sessions.set(sessionId, history);
+    await SessionService.addMessage(session.id, assistantMessage);
     
     // 返回响应
     return {
-      sessionId,
+      sessionId: session.id,
       message: assistantMessage,
-      history
+      history: await SessionService.getHistory(session.id)
     };
   }
   
   /**
-   * 获取会话历史
-   * @param sessionId 会话ID
-   * @returns 消息历史，若会话不存在则返回空数组
+   * 获取会话历史 - 已废弃，使用 SessionService.getHistory 替代
    */
-  static getSessionHistory(sessionId: string): ChatMessage[] {
-    return this.sessions.get(sessionId) || [];
+  static async getSessionHistory(sessionId: string): Promise<ChatMessage[]> {
+    return SessionService.getHistory(sessionId);
   }
   
   /**
-   * 删除会话
-   * @param sessionId 会话ID
-   * @returns 是否成功删除
+   * 删除会话 - 已废弃，使用 SessionService.deleteSession 替代
    */
-  static deleteSession(sessionId: string): boolean {
-    return this.sessions.delete(sessionId);
+  static async deleteSession(sessionId: string): Promise<boolean> {
+    return SessionService.deleteSession(sessionId);
   }
 } 
