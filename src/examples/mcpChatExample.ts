@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { dirname, resolve } from 'path';
 import { TextContent, ImageContent, EmbeddedResource } from '../types/mcp';
+import { MCPError, MCPErrorType } from '../services/mcpManager';
 
 // 获取当前文件的目录路径
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +23,16 @@ const LLM_RETRY_CONFIG = {
   initialDelay: 1000,    // 初始延迟时间(毫秒)
   maxDelay: 10000,       // 最大延迟时间(毫秒)
   timeoutMs: 60000,      // 超时时间(毫秒)
+};
+
+/**
+ * MCP服务配置
+ */
+const MCP_SERVICE_CONFIG = {
+  toolCallTimeout: 30000,      // 30秒工具调用超时
+  serverConnectionTimeout: 15000, // 15秒连接超时
+  maxRetries: 2,               // 最多重试2次
+  retryInterval: 1000          // 1秒重试间隔
 };
 
 /**
@@ -173,33 +184,76 @@ async function callLLMWithRetry(llmService: LLMService, requestData: any): Promi
 }
 
 /**
+ * 处理MCP异常，确保返回用户友好的消息
+ */
+function handleMCPException(error: unknown): string {
+  if (error instanceof MCPError) {
+    switch (error.type) {
+      case MCPErrorType.CONNECTION:
+        return '无法连接到MCP服务器。请检查网络连接和服务器状态。';
+      case MCPErrorType.TIMEOUT:
+        return 'MCP服务器响应超时。请稍后再试。';
+      case MCPErrorType.TOOL_NOT_FOUND:
+        return `工具未找到: ${error.toolName || '未知工具'}`;
+      case MCPErrorType.INVALID_ARGS:
+        return '工具调用参数无效。请检查参数格式和必填项。';
+      case MCPErrorType.SERVER_ERROR:
+        return 'MCP服务器内部错误。请联系系统管理员。';
+      default:
+        return `MCP错误: ${error.message}`;
+    }
+  } else if (error instanceof Error) {
+    return `发生错误: ${error.message}`;
+  } else {
+    return '发生未知错误';
+  }
+}
+
+/**
  * MCP 聊天示例
  * 展示如何将 MCP 工具集成到 LLM 聊天中
  */
 async function runMCPChatExample() {
+  let mcpService: MCPChatService | null = null;
+  
   try {
     // 初始化服务
     const model = 'anthropic/claude-3.5-sonnet'
-    const mcpService = new MCPChatService();
+    mcpService = new MCPChatService(MCP_SERVICE_CONFIG);
     const llmService = new LLMService();
     
     console.log('正在连接 MCP 服务器...');
     
-    // 注册 MCP 服务器 (evm_tool 工具服务)
-    await mcpService.registerServer({
-      name: 'evm_tool',
-      url: 'http://localhost:8080/sse', // 本地测试 SSE 服务器
-      description: 'EVM 区块链工具集'
-    });
-    
-    console.log('MCP 服务器连接成功!');
+    try {
+      // 注册 MCP 服务器 (evm_tool 工具服务)
+      await mcpService.registerServer({
+        name: 'evm_tool',
+        url: 'http://localhost:8080/sse', // 本地测试 SSE 服务器
+        description: 'EVM 区块链工具集'
+      });
+      
+      console.log('MCP 服务器连接成功!');
+    } catch (error) {
+      // 处理MCP服务器连接错误
+      const errorMessage = handleMCPException(error);
+      console.error(`MCP服务器连接失败: ${errorMessage}`);
+      
+      // 创建一个用户友好的错误消息
+      console.log('\n无法连接到区块链工具服务。将继续但没有工具可用。');
+      
+      // 继续执行，但没有工具可用
+    }
     
     // 获取可用工具
     const mcpTools = mcpService.getAvailableToolsForLLM();
-    console.log(`发现 ${mcpTools.length} 个可用工具:`);
-    mcpTools.forEach(tool => {
-      console.log(`- ${tool.function.name}: ${tool.function.description}`);
-    });
+    if (mcpTools.length > 0) {
+      console.log(`发现 ${mcpTools.length} 个可用工具:`);
+      mcpTools.forEach(tool => {
+        console.log(`- ${tool.function.name}: ${tool.function.description}`);
+      });
+    } else {
+      console.log('未发现可用工具');
+    }
     
     // 创建聊天历史
     const messages: Message[] = [
@@ -229,8 +283,8 @@ async function runMCPChatExample() {
       const response = await callLLMWithRetry(llmService, {
         model: model,
         messages,
-        tools: mcpTools,
-        tool_choice: 'auto'
+        tools: mcpTools.length > 0 ? mcpTools : undefined, // 只有当有工具可用时才包含工具定义
+        tool_choice: mcpTools.length > 0 ? 'auto' : undefined
       });
       
       // 处理 LLM 响应
@@ -243,17 +297,17 @@ async function runMCPChatExample() {
       console.log('\n告知用户 LLM 服务暂时不可用...');
       
       // 创建一个错误消息给用户
-      messages.push({
-        role: 'assistant',
+      assistantMessage = {
+        role: 'assistant' as const,
         content: '很抱歉，我目前无法处理您的请求。AI服务遇到了技术问题，请稍后再试。'
-      });
+      };
+      messages.push(assistantMessage);
       
-      // 出错后结束执行
-      return;
+      // 出错后继续执行，尝试正常关闭资源
     }
     
     // 检查是否有工具调用
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+    if (assistantMessage && assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       console.log(`\n检测到 ${assistantMessage.tool_calls.length} 个工具调用请求`);
       
       // 解析工具调用
@@ -266,7 +320,6 @@ async function runMCPChatExample() {
         
         try {
           // 执行工具调用
-          console.log('call', call);
           const result = await mcpService.executeToolCall(call.name, call.args);
           
           // 从结果中提取内容
@@ -307,17 +360,20 @@ async function runMCPChatExample() {
             console.error(`工具调用返回错误: ${resultContent}`);
           }
         } catch (error) {
-          console.error(`工具调用失败: ${error}`);
+          // 处理工具调用异常
+          const errorMessage = handleMCPException(error);
+          console.error(`工具调用失败: ${errorMessage}`);
           
           // 创建错误响应
-          const errorMessage: Message = {
+          const errorContent = `Error: ${errorMessage}`;
+          const errorMessage2: Message = {
             role: 'tool',
             tool_call_id: assistantMessage.tool_calls?.find((tc: ToolCall) => tc.function.name === call.name)?.id || '',
-            content: `Error: ${error}`
+            content: errorContent
           };
           
           // 添加到消息历史
-          messages.push(errorMessage);
+          messages.push(errorMessage2);
         }
       }
       
@@ -349,11 +405,17 @@ async function runMCPChatExample() {
       }
     }
     
-    // 清理资源
-    mcpService.close();
-    
   } catch (error) {
     console.error('运行示例时出错:', error);
+  } finally {
+    // 确保始终清理资源
+    if (mcpService) {
+      try {
+        mcpService.close();
+      } catch (error) {
+        console.warn('关闭MCP服务失败:', error);
+      }
+    }
   }
 }
 

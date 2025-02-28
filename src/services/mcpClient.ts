@@ -3,6 +3,22 @@
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { MCPServerConfig, MCPTool, ToolCallRequest, ToolCallResult, TextContent, ImageContent } from '../types/mcp';
+import { MCPError, MCPErrorType } from './mcpManager';
+
+/**
+ * MCP客户端配置
+ */
+interface MCPClientConfig {
+  /**
+   * 连接超时时间 (毫秒)
+   */
+  connectionTimeout?: number;
+  
+  /**
+   * 调用超时时间 (毫秒)
+   */
+  callTimeout?: number;
+}
 
 export class MCPClient {
   private serverConfig: MCPServerConfig;
@@ -10,14 +26,46 @@ export class MCPClient {
   private client: Client;
   private availableTools: MCPTool[] = [];
   private isConnected: boolean = false;
+  private clientConfig: MCPClientConfig;
 
-  constructor(serverConfig: MCPServerConfig) {
+  constructor(serverConfig: MCPServerConfig, clientConfig?: MCPClientConfig) {
     this.serverConfig = serverConfig;
     const serverUrl = new URL(serverConfig.url);
     this.transport = new SSEClientTransport(serverUrl);
     this.client = new Client({
       name: serverConfig.name || 'MCP Client',
       version: '1.0.0'
+    });
+    this.clientConfig = {
+      connectionTimeout: 30000,  // 默认30秒
+      callTimeout: 30000,        // 默认30秒
+      ...clientConfig
+    };
+  }
+
+  /**
+   * 带超时的Promise
+   * @private
+   */
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new MCPError(
+          `${message} (timeout after ${timeoutMs}ms)`,
+          MCPErrorType.TIMEOUT,
+          this.serverConfig.name
+        ));
+      }, timeoutMs);
+      
+      promise
+        .then(result => {
+          clearTimeout(timeoutId);
+          resolve(result);
+        })
+        .catch(error => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
     });
   }
 
@@ -27,14 +75,23 @@ export class MCPClient {
   async initialize(): Promise<MCPTool[]> {
     try {
       if (!this.isConnected) {
-        await this.client.connect(this.transport);
+        // 添加连接超时
+        await this.withTimeout(
+          this.client.connect(this.transport),
+          this.clientConfig.connectionTimeout || 30000,
+          `MCP 服务器 '${this.serverConfig.name}' 连接超时`
+        );
         this.isConnected = true;
       }
       
-      // 获取可用工具
-      const toolsResult = await this.client.listTools();
+      // 获取可用工具，添加超时
+      const toolsResult = await this.withTimeout(
+        this.client.listTools(),
+        this.clientConfig.callTimeout || 30000,
+        `从服务器 '${this.serverConfig.name}' 获取工具列表超时`
+      );
+      
       const tools = toolsResult.tools || [];
-      console.log('tools',tools);
       
       // 转换为我们的工具格式
       this.availableTools = tools.map((tool: any) => ({
@@ -45,9 +102,33 @@ export class MCPClient {
       
       return this.availableTools;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error initializing MCP client: ${errorMessage}`);
-      throw error;
+      // 分类错误类型
+      let mcpError: MCPError;
+      
+      if (error instanceof MCPError) {
+        mcpError = error;
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let errorType = MCPErrorType.UNKNOWN;
+        
+        // 根据错误消息判断类型
+        if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('timed out')) {
+          errorType = MCPErrorType.TIMEOUT;
+        } else if (errorMessage.toLowerCase().includes('connect') || errorMessage.toLowerCase().includes('connection')) {
+          errorType = MCPErrorType.CONNECTION;
+        } else if (errorMessage.toLowerCase().includes('server')) {
+          errorType = MCPErrorType.SERVER_ERROR;
+        }
+        
+        mcpError = new MCPError(
+          `MCP客户端初始化错误: ${errorMessage}`,
+          errorType,
+          this.serverConfig.name
+        );
+      }
+      
+      console.error(`Error initializing MCP client: ${mcpError.message} (${mcpError.type})`);
+      throw mcpError;
     }
   }
 
@@ -70,18 +151,23 @@ export class MCPClient {
       // 检查工具是否可用
       const tool = this.availableTools.find(t => t.name === request.toolName);
       if (!tool) {
-        throw new Error(`Tool not found: ${request.toolName}`);
+        throw new MCPError(
+          `工具未找到: ${request.toolName}`,
+          MCPErrorType.TOOL_NOT_FOUND,
+          this.serverConfig.name,
+          request.toolName
+        );
       }
 
-      console.log(`name`, request.toolName);
-      console.log(`args`, request.args);
-      // 调用 MCP 工具
-      const result = await this.client.callTool({
-        name: request.toolName,
-        arguments: request.args
-      });
-
-      console.log('result', result);
+      // 调用 MCP 工具，添加超时
+      const result = await this.withTimeout(
+        this.client.callTool({
+          name: request.toolName,
+          arguments: request.args
+        }),
+        this.clientConfig.callTimeout || 30000,
+        `调用工具 '${request.toolName}' 超时`
+      );
       
       // 根据MCP规范格式化返回结果
       const resultContent = result.result !== undefined ? result.result : result;
@@ -131,14 +217,41 @@ export class MCPClient {
         isError: false
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Error calling tool: ${errorMessage}`);
+      // 分类错误类型
+      let mcpError: MCPError;
+      
+      if (error instanceof MCPError) {
+        mcpError = error;
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let errorType = MCPErrorType.UNKNOWN;
+        
+        // 根据错误消息判断类型
+        if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('timed out')) {
+          errorType = MCPErrorType.TIMEOUT;
+        } else if (errorMessage.toLowerCase().includes('not found') || errorMessage.toLowerCase().includes('unknown tool')) {
+          errorType = MCPErrorType.TOOL_NOT_FOUND;
+        } else if (errorMessage.toLowerCase().includes('argument') || errorMessage.toLowerCase().includes('parameter')) {
+          errorType = MCPErrorType.INVALID_ARGS;
+        } else if (errorMessage.toLowerCase().includes('server') || errorMessage.toLowerCase().includes('internal')) {
+          errorType = MCPErrorType.SERVER_ERROR;
+        }
+        
+        mcpError = new MCPError(
+          `调用工具错误: ${errorMessage}`,
+          errorType,
+          this.serverConfig.name,
+          request.toolName
+        );
+      }
+      
+      console.error(`Error calling tool ${request.toolName}: ${mcpError.message} (${mcpError.type})`);
       
       // 返回错误结果
       return {
         content: [{
           type: 'text',
-          text: `错误: ${errorMessage}`
+          text: `错误 (${mcpError.type}): ${mcpError.message}`
         }],
         isError: true
       };
@@ -153,8 +266,9 @@ export class MCPClient {
       try {
         // 使用 Client 的 close 方法关闭连接
         this.client.close();
-      } catch (e) {
-        console.warn('Failed to close client connection:', e);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`关闭客户端连接失败: ${errorMessage}`);
       }
       this.isConnected = false;
     }
