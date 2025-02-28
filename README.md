@@ -8,6 +8,7 @@
 - 使用 LangChain.js 框架集成 AI 模型
 - 支持 OpenRouter 作为 LLM 提供商
 - 使用 PostgreSQL 和 Drizzle ORM 持久化聊天会话数据
+- 集成 Privy 提供强大的用户认证和管理功能
 - 支持多MCP服务器配置和动态管理
 - 实现工具调用(MCP)功能，支持调用区块链数据查询等工具
 - 为 RAG（检索增强生成）集成做好准备
@@ -19,6 +20,7 @@ wenads-agent/
 ├── src/                  # 源代码目录
 │   ├── config/           # 配置文件
 │   ├── controllers/      # 控制器
+│   ├── middleware/       # 中间件
 │   ├── models/           # 数据库模型
 │   ├── migrations/       # 数据库迁移
 │   ├── routes/           # 路由
@@ -102,6 +104,37 @@ npm start
 
 详细的数据库设置和配置说明请参阅 [DATABASE.md](DATABASE.md)。
 
+## 用户认证与管理
+
+本项目使用 Privy 作为用户认证和管理解决方案：
+
+### 特点
+
+- 支持多种认证方式，包括 Web3 钱包、邮箱、社交账户等
+- 集成嵌入式钱包功能，无需用户安装额外软件
+- 安全的 Token 验证机制
+- 简化的用户管理 API
+
+### 配置 Privy
+
+1. 在 [Privy 官网](https://privy.io/) 注册并创建应用
+2. 获取应用 ID、API Key 和 API Secret
+3. 在 `.env` 文件中配置 Privy 凭据:
+   ```
+   PRIVY_APP_ID=your_privy_app_id
+   PRIVY_API_KEY=your_privy_api_key
+   PRIVY_API_SECRET=your_privy_api_secret
+   ```
+
+### 认证流程
+
+1. 前端使用 Privy 的客户端 SDK 进行用户认证
+2. 用户登录后获得 ID 令牌
+3. 令牌随请求发送到后端
+4. 后端使用中间件验证令牌并提取用户信息
+
+详细的 Privy 集成文档请参考 [Privy 官方文档](https://docs.privy.io/guide/server/)。
+
 ## API 端点
 
 ### 健康检查
@@ -113,6 +146,11 @@ npm start
 - `GET /api/chat/sessions/:sessionId` - 获取会话历史
 - `DELETE /api/chat/sessions/:sessionId` - 删除会话
 - `POST /api/chat/tools` - 直接调用工具
+
+### 用户API
+- `GET /api/users/me` - 获取当前认证用户信息
+- `GET /api/users/:userId` - 获取特定用户信息
+- `DELETE /api/users/:userId` - 删除用户
 
 ### MCP服务管理API
 - `GET /api/mcp/servers` - 获取所有MCP服务器

@@ -10,7 +10,7 @@
     "lint": "eslint src --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:generate": "drizzle-kit generate:pg",
-    "db:migrate": "node --loader ts-node/esm src/migrations/run.ts",
+    "db:migrate": "ts-node src/scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:create-tables": "node --loader ts-node/esm src/scripts/create-tables.ts"
   },
@@ -33,6 +33,7 @@
     "@langchain/openai": "^0.4.4",
     "@modelcontextprotocol/sdk": "^1.6.0",
     "@neondatabase/serverless": "^0.10.4",
+    "@privy-io/server-auth": "^1.18.10",
     "@types/uuid": "^10.0.0",
     "axios": "^1.8.1",
     "cors": "^2.8.5",

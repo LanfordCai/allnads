@@ -19,7 +19,7 @@ export class ChatController {
   /**
    * 处理聊天请求
    */
-  static async chat(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async chat(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
       // 验证请求数据
       const result = chatRequestSchema.safeParse(req.body);
@@ -35,8 +35,37 @@ export class ChatController {
         return;
       }
       
+      const chatData = result.data;
+      
+      // 处理用户关联
+      if (req.user && !chatData.sessionId) {
+        // 创建新会话并关联用户
+        const session = await SessionService.createSession(
+          chatData.systemPrompt,
+          req.user.id
+        );
+        chatData.sessionId = session.id;
+      } else if (req.user && chatData.sessionId) {
+        // 验证会话所有权
+        const isOwner = await SessionService.validateSessionOwnership(
+          chatData.sessionId,
+          req.user.id
+        );
+        
+        if (!isOwner) {
+          res.status(403).json({
+            status: 'error',
+            error: {
+              message: '您无权访问此会话',
+              code: 'SESSION_FORBIDDEN',
+            }
+          });
+          return;
+        }
+      }
+      
       // 处理聊天请求
-      const response = await ChatService.processChat(result.data);
+      const response = await ChatService.processChat(chatData);
       
       // 返回成功响应
       res.status(200).json({
@@ -108,7 +137,7 @@ export class ChatController {
   /**
    * 获取会话历史
    */
-  static async getSessionHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async getSessionHistory(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
       const { sessionId } = req.params;
       
@@ -120,6 +149,21 @@ export class ChatController {
           },
         });
         return;
+      }
+      
+      // 验证用户所有权
+      if (req.user) {
+        const isOwner = await SessionService.validateSessionOwnership(sessionId, req.user.id);
+        if (!isOwner) {
+          res.status(403).json({
+            status: 'error',
+            error: {
+              message: '您无权访问此会话',
+              code: 'SESSION_FORBIDDEN',
+            }
+          });
+          return;
+        }
       }
       
       // 获取会话历史
@@ -141,7 +185,7 @@ export class ChatController {
   /**
    * 删除会话
    */
-  static async deleteSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async deleteSession(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
       const { sessionId } = req.params;
       
@@ -153,6 +197,21 @@ export class ChatController {
           },
         });
         return;
+      }
+      
+      // 验证用户所有权
+      if (req.user) {
+        const isOwner = await SessionService.validateSessionOwnership(sessionId, req.user.id);
+        if (!isOwner) {
+          res.status(403).json({
+            status: 'error',
+            error: {
+              message: '您无权删除此会话',
+              code: 'SESSION_FORBIDDEN',
+            }
+          });
+          return;
+        }
       }
       
       // 删除会话
@@ -183,10 +242,17 @@ export class ChatController {
   /**
    * 获取所有会话 ID
    */
-  static async getAllSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async getAllSessions(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
-      // 获取所有会话 ID
-      const sessionIds = await SessionService.getAllSessionIds();
+      let sessionIds: string[] = [];
+      
+      // 如果用户已认证，只返回属于该用户的会话
+      if (req.user) {
+        sessionIds = await SessionService.getUserSessionIds(req.user.id);
+      } else {
+        // 获取所有会话 ID
+        sessionIds = await SessionService.getAllSessionIds();
+      }
       
       // 返回成功响应
       res.status(200).json({

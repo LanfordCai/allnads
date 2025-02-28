@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, ChatRole, ChatSession } from '../types/chat';
 import { db } from '../config/database';
 import { sessions, messages } from '../models/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 // 内存缓存，提高性能
 const sessionsCache = new Map<string, ChatSession>();
@@ -14,19 +14,21 @@ export class SessionService {
   /**
    * 创建新的聊天会话
    */
-  static async createSession(systemPrompt?: string): Promise<ChatSession> {
+  static async createSession(systemPrompt?: string, privyUserId?: string): Promise<ChatSession> {
     const sessionId = uuidv4();
     const now = new Date();
     
     // 创建会话记录
     await db.insert(sessions).values({
       id: sessionId,
+      privyUserId,
       createdAt: now,
       updatedAt: now,
     });
     
     const session: ChatSession = {
       id: sessionId,
+      privyUserId,
       createdAt: now,
       updatedAt: now,
       messages: [],
@@ -86,6 +88,7 @@ export class SessionService {
       // 构建会话对象
       const session: ChatSession = {
         id: sessionData.id,
+        privyUserId: sessionData.privyUserId || undefined,
         createdAt: sessionData.createdAt,
         updatedAt: sessionData.updatedAt,
         messages: messageResults.map(msg => ({
@@ -205,6 +208,42 @@ export class SessionService {
     } catch (error) {
       console.error('Error getting all session IDs:', error);
       return [];
+    }
+  }
+  
+  /**
+   * 获取用户的所有会话 ID
+   */
+  static async getUserSessionIds(privyUserId: string): Promise<string[]> {
+    try {
+      const results = await db.select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.privyUserId, privyUserId))
+        .orderBy(desc(sessions.updatedAt));
+      
+      return results.map(result => result.id);
+    } catch (error) {
+      console.error(`Error getting session IDs for user ${privyUserId}:`, error);
+      return [];
+    }
+  }
+  
+  /**
+   * 验证用户是否拥有会话
+   */
+  static async validateSessionOwnership(sessionId: string, privyUserId: string): Promise<boolean> {
+    try {
+      const result = await db.select({ id: sessions.id })
+        .from(sessions)
+        .where(and(
+          eq(sessions.id, sessionId),
+          eq(sessions.privyUserId, privyUserId)
+        ));
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error(`Error validating session ownership: ${error}`);
+      return false;
     }
   }
   

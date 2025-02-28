@@ -4,6 +4,7 @@ import { env } from './config/env';
 import { healthRouter } from './routes/health';
 import { chatRouter } from './routes/chat';
 import { mcpRouter } from './routes/mcp';
+import { userRouter } from './routes/user';
 import { notFoundHandler, errorHandler } from './middleware/error';
 import { initializeMCPServers } from './services/mcpService';
 import { SessionService } from './services/session';
@@ -22,6 +23,7 @@ async function initializeServer() {
   app.use('/api/health', healthRouter);
   app.use('/api/chat', chatRouter);
   app.use('/api/mcp', mcpRouter);
+  app.use('/api/users', userRouter);
 
   // 404 处理中间件
   app.use(notFoundHandler);
@@ -60,6 +62,7 @@ async function initializeServer() {
     console.log(`👉 健康检查: http://localhost:${PORT}/api/health`);
     console.log(`👉 聊天 API: http://localhost:${PORT}/api/chat`);
     console.log(`👉 MCP API: http://localhost:${PORT}/api/mcp`);
+    console.log(`👉 用户 API: http://localhost:${PORT}/api/users`);
   });
 
   // 处理进程退出

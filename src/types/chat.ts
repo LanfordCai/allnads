@@ -17,6 +17,7 @@ export interface ChatMessage {
 // 聊天会话
 export interface ChatSession {
   id: string;
+  privyUserId?: string;
   createdAt: Date;
   updatedAt: Date;
   messages: ChatMessage[];

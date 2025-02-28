@@ -1,9 +1,10 @@
-import { pgTable, serial, uuid, timestamp, text, json } from 'drizzle-orm/pg-core';
+import { pgTable, serial, uuid, timestamp, text, json, varchar, jsonb } from 'drizzle-orm/pg-core';
 import { ChatRole } from '../types/chat';
 
 // 定义会话表结构
 export const sessions = pgTable('sessions', {
-  id: uuid('id').primaryKey().notNull(),
+  id: varchar('id', { length: 36 }).primaryKey().notNull(),
+  privyUserId: varchar('privy_user_id', { length: 255 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -27,4 +28,15 @@ export const chatEmbeddings = pgTable('chat_embeddings', {
   embedding: vector('embedding', { dimensions: 1536 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
-*/ 
+*/
+
+// 用户引用表 - 关联 Privy 用户和应用内数据
+export const userReferences = pgTable('user_references', {
+  id: serial('id').primaryKey(),
+  privyUserId: varchar('privy_user_id', { length: 255 }).notNull().unique(),
+  username: varchar('username', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  lastLoginAt: timestamp('last_login_at'),
+  metadata: jsonb('metadata'),
+}); 
