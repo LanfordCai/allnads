@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -55,7 +56,7 @@ interface IERC6551Executable {
  * @notice Implementation of ERC6551 token bound accounts for AllNads
  * @dev This contract is used to create accounts for each AllNads NFT
  */
-contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executable, IERC1155Receiver {
+contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executable, IERC1155Receiver, IERC721Receiver {
     // Operation types
     uint8 public constant OPERATION_CALL = 0;
     uint8 public constant OPERATION_DELEGATECALL = 1;
@@ -108,6 +109,19 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
         bytes calldata
     ) external pure returns (bytes4) {
         return IERC1155Receiver.onERC1155BatchReceived.selector;
+    }
+
+    /**
+     * @notice Receives ERC-721 tokens
+     * @dev Required to implement IERC721Receiver
+     */
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /**
@@ -260,6 +274,7 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
         return
             interfaceId == type(IERC165).interfaceId ||
             interfaceId == type(IERC1155Receiver).interfaceId ||
+            interfaceId == type(IERC721Receiver).interfaceId ||
             interfaceId == type(IERC6551Account).interfaceId ||
             interfaceId == type(IERC6551Executable).interfaceId;
     }
@@ -270,11 +285,28 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
     receive() external payable {}
 
     /**
-     * @notice Fallback function that delegates calls to owner
-     * @dev Only callable by authorized senders
+     * @notice Event emitted when an unknown function is called
+     * @param sender The sender of the call
+     * @param value The ETH value sent with the call
+     * @param data The calldata of the call
+     */
+    event UnknownCallReceived(address indexed sender, uint256 value, bytes data);
+
+    /**
+     * @notice Fallback function for handling unknown calls
+     * @dev Only authorized users can trigger the fallback function
      */
     fallback() external payable {
-        // Optional: Implement forwarding fallback
+        // 确保只有授权用户可以触发fallback
+        if (!isAuthorized(msg.sender)) {
+            revert NotAuthorized();
+        }
+        
+        // 增加状态变量以防止重放攻击
+        state++;
+        
+        // 记录未知调用的事件，便于链下分析
+        emit UnknownCallReceived(msg.sender, msg.value, msg.data);
     }
 
     /**
@@ -336,5 +368,108 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
             MessageHashUtils.toEthSignedMessageHash(hash), 
             signature
         );
+    }
+    
+    /**
+     * @notice Helper function to transfer ERC20 tokens
+     * @param token ERC20 token address
+     * @param to Recipient address
+     * @param amount Amount to transfer
+     * @return success Whether the transfer was successful
+     */
+    function transferERC20(
+        address token,
+        address to,
+        uint256 amount
+    ) external onlyAuthorized returns (bool) {
+        state++;
+        (bool success, bytes memory data) = token.call(
+            abi.encodeWithSelector(0xa9059cbb, to, amount) // transfer(address,uint256)
+        );
+        
+        if (!success) {
+            assembly {
+                revert(add(data, 32), mload(data))
+            }
+        }
+        
+        return abi.decode(data, (bool));
+    }
+    
+    /**
+     * @notice Helper function to transfer multiple ERC20 tokens
+     * @param tokens Array of ERC20 token addresses
+     * @param to Recipient address
+     * @param amounts Array of amounts to transfer
+     */
+    function batchTransferERC20(
+        address[] calldata tokens,
+        address to,
+        uint256[] calldata amounts
+    ) external onlyAuthorized {
+        require(tokens.length == amounts.length, "Array length mismatch");
+        
+        state++;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            (bool success, bytes memory data) = tokens[i].call(
+                abi.encodeWithSelector(0xa9059cbb, to, amounts[i])
+            );
+            
+            if (!success) {
+                assembly {
+                    revert(add(data, 32), mload(data))
+                }
+            }
+        }
+    }
+    
+    /**
+     * @notice Helper function to transfer ERC721 tokens
+     * @param token ERC721 token address
+     * @param to Recipient address
+     * @param tokenId Token ID to transfer
+     */
+    function transferERC721(
+        address token,
+        address to,
+        uint256 tokenId
+    ) external onlyAuthorized {
+        state++;
+        (bool success, bytes memory data) = token.call(
+            abi.encodeWithSelector(0x42842e0e, address(this), to, tokenId) // safeTransferFrom(address,address,uint256)
+        );
+        
+        if (!success) {
+            assembly {
+                revert(add(data, 32), mload(data))
+            }
+        }
+    }
+    
+    /**
+     * @notice Helper function to transfer multiple ERC721 tokens
+     * @param tokens Array of ERC721 token addresses
+     * @param to Recipient address
+     * @param tokenIds Array of token IDs to transfer
+     */
+    function batchTransferERC721(
+        address[] calldata tokens,
+        address to,
+        uint256[] calldata tokenIds
+    ) external onlyAuthorized {
+        require(tokens.length == tokenIds.length, "Array length mismatch");
+        
+        state++;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            (bool success, bytes memory data) = tokens[i].call(
+                abi.encodeWithSelector(0x42842e0e, address(this), to, tokenIds[i])
+            );
+            
+            if (!success) {
+                assembly {
+                    revert(add(data, 32), mload(data))
+                }
+            }
+        }
     }
 } 

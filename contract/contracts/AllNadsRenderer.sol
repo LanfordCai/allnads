@@ -37,12 +37,12 @@ contract AllNadsRenderer is Ownable {
     }
 
     function generateTokenURI(AvatarData memory avatar) external view returns (string memory) {
-        // Get image URIs from component contract
-        AllNadsComponent.Template memory bg = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.backgroundId));
-        AllNadsComponent.Template memory head = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.headId));
-        AllNadsComponent.Template memory eyes = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.eyesId));
-        AllNadsComponent.Template memory mouth = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.mouthId));
-        AllNadsComponent.Template memory accessory = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.accessoryId));
+        // 使用单次调用获取组件数据
+        AllNadsComponent.Template memory bg = componentContract.getTokenFullTemplate(avatar.backgroundId);
+        AllNadsComponent.Template memory head = componentContract.getTokenFullTemplate(avatar.headId);
+        AllNadsComponent.Template memory eyes = componentContract.getTokenFullTemplate(avatar.eyesId);
+        AllNadsComponent.Template memory mouth = componentContract.getTokenFullTemplate(avatar.mouthId);
+        AllNadsComponent.Template memory accessory = componentContract.getTokenFullTemplate(avatar.accessoryId);
 
         string memory svg = generateSVG(bg.imageData, head.imageData, eyes.imageData, mouth.imageData, accessory.imageData);
         

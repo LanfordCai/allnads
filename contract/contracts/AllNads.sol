@@ -28,7 +28,7 @@ interface IERC6551Registry {
         bytes calldata initData
     ) external returns (address);
 
-    function account(
+    function getAccount(
         address implementation,
         uint256 chainId,
         address tokenContract,
@@ -419,7 +419,7 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     
     // Get the token bound account address for an NFT
     function accountForToken(uint256 tokenId) public view returns (address) {
-        return registry.account(
+        return registry.getAccount(
             accountImplementation,
             block.chainid,
             address(this),
@@ -431,6 +431,7 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     // Update avatar name
     function updateName(uint256 tokenId, string memory newName) external {
         require(_isAuthorized(_ownerOf(tokenId), msg.sender, tokenId), "Not authorized");
+        require(bytes(newName).length <= 50, "Name too long");
         
         _avatars[tokenId].name = newName;
         emit AvatarNameUpdated(tokenId, newName);

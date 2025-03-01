@@ -473,6 +473,17 @@ contract AllNadsComponent is ERC1155, Ownable {
         return _isEquipped[tokenId];
     }
 
+    /**
+     * @notice 从Token ID直接获取完整的模板数据
+     * @param tokenId 组件令牌ID
+     * @return 模板完整数据
+     */
+    function getTokenFullTemplate(uint256 tokenId) external view returns (Template memory) {
+        uint256 templateId = _tokenTemplate[tokenId];
+        require(templateId != 0, "Token does not exist");
+        return _templates[templateId];
+    }
+
     //------------------------------------------------------------------------
     // 7. 内部辅助函数
     //------------------------------------------------------------------------
