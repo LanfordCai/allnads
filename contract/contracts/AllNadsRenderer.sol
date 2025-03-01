@@ -1,241 +1,107 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "./lib/SmallSolady.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./AllNadsComponent.sol";
-import "./AllNads.sol";
+import "./lib/SmallSolady.sol";
 
-/**
- * @title AllNadsRenderer
- * @notice Handles on-chain generation of metadata and rendering for AllNads avatars
- * @dev This contract is responsible for generating the metadata and SVG for AllNads avatars
- */
 contract AllNadsRenderer is Ownable {
     using Strings for uint256;
-
-    // Reference to the AllNads avatar contract
-    AllNads public allNadsContract;
-    
     // Reference to the component contract
     AllNadsComponent public componentContract;
-    
-    // Default body image data (Base64 encoded)
+
+    string constant PNG_HEADER = "iVBORw0KGgoAAAANSUhEUgAA";
     string public defaultBodyData;
 
-    /**
-     * @notice Constructor for AllNadsRenderer
-     * @param _defaultBodyData Default body image data (Base64 encoded)
-     */
-    constructor(string memory _defaultBodyData) Ownable(msg.sender) {
+    struct AvatarData {
+        string name;
+        uint256 backgroundId;
+        uint256 headId;
+        uint256 eyesId;
+        uint256 mouthId;
+        uint256 accessoryId;
+    }
+
+    constructor(address _componentContract, string memory _defaultBodyData) Ownable(msg.sender) {
+        componentContract = AllNadsComponent(_componentContract);
         defaultBodyData = _defaultBodyData;
     }
 
-    /**
-     * @notice Set the avatar and component contracts
-     * @param _allNadsContract AllNads contract address
-     * @param _componentContract AllNadsComponent contract address
-     */
-    function setContracts(address _allNadsContract, address _componentContract) external onlyOwner {
-        allNadsContract = AllNads(_allNadsContract);
+    function setComponentContract(address _componentContract) external onlyOwner {
         componentContract = AllNadsComponent(_componentContract);
     }
 
-    /**
-     * @notice Update the default body data
-     * @param _defaultBodyData New default body data (Base64 encoded)
-     */
     function setDefaultBodyData(string memory _defaultBodyData) external onlyOwner {
         defaultBodyData = _defaultBodyData;
     }
 
-    /**
-     * @notice Generate metadata for a token
-     * @param _tokenId Token ID to generate metadata for
-     * @return Metadata JSON for the token
-     */
-    function tokenURI(uint256 _tokenId) external view returns (string memory) {
-        AllNads.Avatar memory avatar = allNadsContract.getAvatar(_tokenId);
+    function generateTokenURI(AvatarData memory avatar) external view returns (string memory) {
+        // Get image URIs from component contract
+        AllNadsComponent.Template memory bg = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.backgroundId));
+        AllNadsComponent.Template memory head = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.headId));
+        AllNadsComponent.Template memory eyes = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.eyesId));
+        AllNadsComponent.Template memory mouth = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.mouthId));
+        AllNadsComponent.Template memory accessory = componentContract.getTemplate(componentContract.getTokenTemplate(avatar.accessoryId));
+
+        string memory svg = generateSVG(bg.imageData, head.imageData, eyes.imageData, mouth.imageData, accessory.imageData);
         
-        // Generate SVG directly
-        string memory svgData = generateSVG(_tokenId, avatar);
-        
-        // Get the account address for this token
-        address accountAddress = allNadsContract.accountForToken(_tokenId);
-        
-        // Base64 encode the SVG
-        string memory encodedSVG = SmallSolady.encode(bytes(svgData));
-        
-        // Build the JSON metadata
-        bytes memory jsonData = abi.encodePacked(
-            '{"name":"AllNads #',
-            _tokenId.toString(),
-            '", "description":"AllNads Avatar NFT with ERC6551 Token Bound Account", ',
-            '"image":"data:image/svg+xml;base64,',
-            encodedSVG,
-            '", ',
-            '"attributes":[',
-            '{"trait_type":"Name","value":"',
-            avatar.name,
-            '"},',
-            '{"trait_type":"Token Bound Account","value":"',
-            addressToString(accountAddress),
-            '"}'
-        );
-        
-        // Add component traits
-        jsonData = abi.encodePacked(
-            jsonData,
-            getComponentAttributes(avatar),
-            ']}'
-        );
-        
-        return string(
-            abi.encodePacked(
-                "data:application/json,",
-                jsonData
-            )
-        );
+        return formatJSON(avatar, svg);
     }
 
-    /**
-     * @notice Generate SVG for a token
-     * @param _tokenId Token ID to generate SVG for
-     * @param _avatar Avatar struct for the token
-     * @return SVG for the token
-     */
-    function generateSVG(uint256 _tokenId, AllNads.Avatar memory _avatar) public view returns (string memory) {
-        bytes memory svg = abi.encodePacked(
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" width="500" height="500">',
-            '<style>',
-            '.avatar { image-rendering: pixelated; image-rendering: crisp-edges; }',
-            '</style>'
-        );
-        
-        // Add background (directly using backgroundId from avatar)
-        svg = abi.encodePacked(
-            svg,
-            generateImageLayer(componentContract.getTokenTemplate(_avatar.backgroundId))
-        );
-        
-        // Add default body
-        svg = abi.encodePacked(
-            svg,
-            '<image class="avatar" x="0" y="0" width="72" height="72" href="data:image/png;base64,',
-            defaultBodyData,
-            '" />'
-        );
-        
-        // Add the rest of the components in order (directly using fields from avatar)
-        svg = abi.encodePacked(
-            svg,
-            generateImageLayer(componentContract.getTokenTemplate(_avatar.hairstyleId))
-        );
-        
-        svg = abi.encodePacked(
-            svg,
-            generateImageLayer(componentContract.getTokenTemplate(_avatar.eyesId))
-        );
-        
-        svg = abi.encodePacked(
-            svg,
-            generateImageLayer(componentContract.getTokenTemplate(_avatar.mouthId))
-        );
-        
-        svg = abi.encodePacked(
-            svg,
-            generateImageLayer(componentContract.getTokenTemplate(_avatar.accessoryId))
-        );
-        
-        // Close the SVG
-        svg = abi.encodePacked(svg, '</svg>');
-        
-        return string(svg);
-    }
-
-    /**
-     * @notice Generate an image layer for a component
-     * @param _templateId Template ID for the component
-     * @return SVG fragment for the component
-     */
-    function generateImageLayer(uint256 _templateId) internal view returns (string memory) {
-        AllNadsComponent.Template memory template = componentContract.getTemplate(_templateId);
-        
+    function generateSVG(
+        string memory backgroundUri,
+        string memory headUri,
+        string memory eyesUri,
+        string memory mouthUri,
+        string memory accessoryUri
+    ) public view returns (string memory) {
         return string(abi.encodePacked(
-            '<image class="avatar" x="0" y="0" width="72" height="72" href="data:image/png;base64,',
-            template.imageData,
-            '" />'
+            '<svg viewBox="0 0 72 72" width="256" height="256" xmlns="http://www.w3.org/2000/svg">',
+            generateImageLayer(backgroundUri),
+            generateImageLayer(defaultBodyData),
+            generateImageLayer(headUri),
+            generateImageLayer(eyesUri),
+            generateImageLayer(mouthUri),
+            generateImageLayer(accessoryUri),
+            '</svg>'
         ));
     }
 
-    /**
-     * @notice Get JSON attributes for components
-     * @param _avatar Avatar struct containing component IDs
-     * @return JSON attributes string for the components
-     */
-    function getComponentAttributes(AllNads.Avatar memory _avatar) internal view returns (string memory) {
-        bytes memory attributes = "";
-        
-        // Add background component attribute
-        uint256 bgTemplateId = componentContract.getTokenTemplate(_avatar.backgroundId);
-        AllNadsComponent.Template memory bgTemplate = componentContract.getTemplate(bgTemplateId);
-        attributes = abi.encodePacked(
-            attributes,
-            '{"trait_type":"Background","value":"',
-            bgTemplate.name,
-            '"}'
-        );
-        
-        // Add hairstyle component attribute
-        uint256 hairstyleTemplateId = componentContract.getTokenTemplate(_avatar.hairstyleId);
-        AllNadsComponent.Template memory hairstyleTemplate = componentContract.getTemplate(hairstyleTemplateId);
-        attributes = abi.encodePacked(
-            attributes,
-            ',{"trait_type":"Hairstyle","value":"',
-            hairstyleTemplate.name,
-            '"}'
-        );
-        
-        // Add eyes component attribute
-        uint256 eyesTemplateId = componentContract.getTokenTemplate(_avatar.eyesId);
-        AllNadsComponent.Template memory eyesTemplate = componentContract.getTemplate(eyesTemplateId);
-        attributes = abi.encodePacked(
-            attributes,
-            ',{"trait_type":"Eyes","value":"',
-            eyesTemplate.name,
-            '"}'
-        );
-        
-        // Add mouth component attribute
-        uint256 mouthTemplateId = componentContract.getTokenTemplate(_avatar.mouthId);
-        AllNadsComponent.Template memory mouthTemplate = componentContract.getTemplate(mouthTemplateId);
-        attributes = abi.encodePacked(
-            attributes,
-            ',{"trait_type":"Mouth","value":"',
-            mouthTemplate.name,
-            '"}'
-        );
-        
-        // Add accessory component attribute
-        uint256 accessoryTemplateId = componentContract.getTokenTemplate(_avatar.accessoryId);
-        AllNadsComponent.Template memory accessoryTemplate = componentContract.getTemplate(accessoryTemplateId);
-        attributes = abi.encodePacked(
-            attributes,
-            ',{"trait_type":"Accessory","value":"',
-            accessoryTemplate.name,
-            '"}'
-        );
-        
-        return string(attributes);
+    function generateImageLayer(string memory imageUri) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '<foreignObject x="0" y="0" width="100%" height="100%">',
+            '<div xmlns="http://www.w3.org/1999/xhtml">',
+            '<img width="100%" height="100%" src="data:image/png;base64,', 
+            PNG_HEADER,
+            imageUri,
+            '" alt="Layer" />',
+            '</div>',
+            '</foreignObject>'
+        ));
     }
 
-    /**
-     * @notice Convert address to string
-     * @param _address Address to convert
-     * @return String representation of the address
-     */
-    function addressToString(address _address) internal pure returns (string memory) {
-        return Strings.toHexString(uint160(_address), 20);
+    function formatJSON(AvatarData memory avatar, string memory svg) public pure returns (string memory) {
+        // Base64 encode the SVG using Solady's implementation
+        string memory base64EncodedSvg = string(
+            abi.encodePacked(
+                "data:image/svg+xml;base64,",
+                SmallSolady.encode(bytes(svg))
+            )
+        );
+
+        return string(abi.encodePacked(
+            'data:application/json,{"name":"',
+            avatar.name,
+            '", "description":"AllNads Avatar NFT", ',
+            '"image": "', base64EncodedSvg, '",',
+            '"attributes":[',
+            '{"trait_type":"Background","value":"', avatar.backgroundId.toString(), '"},',
+            '{"trait_type":"Head","value":"', avatar.headId.toString(), '"},',
+            '{"trait_type":"Eyes","value":"', avatar.eyesId.toString(), '"},',
+            '{"trait_type":"Mouth","value":"', avatar.mouthId.toString(), '"},',
+            '{"trait_type":"Accessory","value":"', avatar.accessoryId.toString(), '"}',
+            ']}'
+        ));
     }
 } 
