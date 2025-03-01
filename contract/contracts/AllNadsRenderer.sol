@@ -5,13 +5,13 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./AllNadsComponent.sol";
 import "./lib/SmallSolady.sol";
+import "./lib/PNGHeaderLib.sol";
 
 contract AllNadsRenderer is Ownable {
     using Strings for uint256;
     // Reference to the component contract
     AllNadsComponent public componentContract;
 
-    string constant PNG_HEADER = "iVBORw0KGgoAAAANSUhEUgAA";
     string public defaultBodyData;
 
     struct AvatarData {
@@ -73,7 +73,7 @@ contract AllNadsRenderer is Ownable {
             '<foreignObject x="0" y="0" width="100%" height="100%">',
             '<div xmlns="http://www.w3.org/1999/xhtml">',
             '<img width="100%" height="100%" src="data:image/png;base64,', 
-            PNG_HEADER,
+            PNGHeaderLib.PNG_HEADER,
             imageUri,
             '" alt="Layer" />',
             '</div>',

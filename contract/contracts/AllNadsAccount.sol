@@ -237,6 +237,7 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
      * @return isAuth Whether the caller is authorized
      */
     function isAuthorized(address caller) public view returns (bool) {
+        // Production code follows
         (uint256 chainId, address tokenContract, uint256 tokenId) = token();
         
         // If the token is on another chain, no one is authorized
@@ -371,19 +372,20 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
     }
     
     /**
-     * @notice Helper function to transfer ERC20 tokens
-     * @param token ERC20 token address
+     * @notice Transfer ERC20 tokens from this account
+     * @dev Only authorized addresses can call
+     * @param tokenContract ERC20 token address
      * @param to Recipient address
      * @param amount Amount to transfer
      * @return success Whether the transfer was successful
      */
     function transferERC20(
-        address token,
+        address tokenContract,
         address to,
         uint256 amount
     ) external onlyAuthorized returns (bool) {
         state++;
-        (bool success, bytes memory data) = token.call(
+        (bool success, bytes memory data) = tokenContract.call(
             abi.encodeWithSelector(0xa9059cbb, to, amount) // transfer(address,uint256)
         );
         
@@ -424,18 +426,19 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
     }
     
     /**
-     * @notice Helper function to transfer ERC721 tokens
-     * @param token ERC721 token address
+     * @notice Transfer ERC721 tokens from this account
+     * @dev Only authorized addresses can call
+     * @param tokenContract NFT contract address
      * @param to Recipient address
      * @param tokenId Token ID to transfer
      */
     function transferERC721(
-        address token,
+        address tokenContract,
         address to,
         uint256 tokenId
     ) external onlyAuthorized {
         state++;
-        (bool success, bytes memory data) = token.call(
+        (bool success, bytes memory data) = tokenContract.call(
             abi.encodeWithSelector(0x42842e0e, address(this), to, tokenId) // safeTransferFrom(address,address,uint256)
         );
         

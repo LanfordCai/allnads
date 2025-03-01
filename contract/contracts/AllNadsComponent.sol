@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "./lib/SmallSolady.sol";
+import "./lib/PNGHeaderLib.sol";
 
 /**
  * @title AllNadsComponent
@@ -13,6 +13,7 @@ import "./lib/SmallSolady.sol";
  */
 contract AllNadsComponent is ERC1155, Ownable {
     using Strings for uint256;
+    using PNGHeaderLib for string;
 
     // AllNads main contract address 
     address public allNadsContract;
@@ -25,10 +26,6 @@ contract AllNadsComponent is ERC1155, Ownable {
         MOUTH,
         ACCESSORY
     }
-
-    // PNG header constant used to save gas by not storing this standard prefix with each image
-    // This is concatenated with the stored image data when serving the URI
-    string constant PNG_HEADER = "iVBORw0KGgoAAAANSUhEUgAA";
 
     // Component template structure
     struct Template {
@@ -135,7 +132,7 @@ contract AllNadsComponent is ERC1155, Ownable {
         require(msg.value == templateCreationFee, "Must pay template creation fee");
         
         // 移除图片数据中的 PNG 头部
-        string memory cleanImageData = _removeHeader(_imageData);
+        string memory cleanImageData = PNGHeaderLib.removeHeader(_imageData);
         
         uint256 templateId = nextTemplateId++;
         
@@ -414,7 +411,7 @@ contract AllNadsComponent is ERC1155, Ownable {
             ' #',
             _tokenId.toString(),
             '", "description":"AllNads Component NFT", "image":"data:image/png;base64,',
-            PNG_HEADER,
+            PNGHeaderLib.PNG_HEADER,
             template.imageData,
             '", "attributes":[{"trait_type":"Component Type","value":"',
             getComponentTypeName(template.componentType),
@@ -487,41 +484,6 @@ contract AllNadsComponent is ERC1155, Ownable {
     //------------------------------------------------------------------------
     // 7. 内部辅助函数
     //------------------------------------------------------------------------
-    
-    /**
-     * @notice 处理图像数据，移除PNG头部
-     * @param _imageData 原始图像数据
-     * @return 处理后的图像数据(如存在头部则移除)
-     * @dev 内部函数，用于节省gas
-     */
-    function _removeHeader(string memory _imageData) internal pure returns (string memory) {
-        bytes memory data = bytes(_imageData);
-        bytes memory header = bytes(PNG_HEADER);
-        
-        if (data.length < header.length) {
-            return _imageData;
-        }
-        
-        bool hasHeader = true;
-        for (uint i = 0; i < header.length; i++) {
-            if (data[i] != header[i]) {
-                hasHeader = false;
-                break;
-            }
-        }
-        
-        if (!hasHeader) {
-            return _imageData;
-        }
-        
-        // Create new bytes array without header
-        bytes memory result = new bytes(data.length - header.length);
-        for (uint i = 0; i < result.length; i++) {
-            result[i] = data[i + header.length];
-        }
-        
-        return string(result);
-    }
     
     /**
      * @notice 重写ERC1155的_update函数，防止转移已装备的组件
