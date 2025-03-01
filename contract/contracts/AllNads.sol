@@ -13,7 +13,14 @@ import "./interfaces/IERC6551Account.sol";
 
 // Interface for AllNadsRenderer
 interface IAllNadsRenderer {
-    function tokenURI(uint256 tokenId) external view returns (string memory);
+    function renderAvatar(
+        string memory name,
+        uint256 backgroundId,
+        uint256 hairstyleId,
+        uint256 eyesId,
+        uint256 mouthId,
+        uint256 accessoryId
+    ) external view returns (string memory);
 }
 
 contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
@@ -427,7 +434,18 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
         require(_exists(tokenId), "Token does not exist");
         require(rendererContract != address(0), "Renderer not set");
         
-        return IAllNadsRenderer(rendererContract).tokenURI(tokenId);
+        // Get avatar data
+        Avatar memory avatar = _avatars[tokenId];
+        
+        // Pass all the necessary data to the renderer
+        return IAllNadsRenderer(rendererContract).renderAvatar(
+            avatar.name,
+            avatar.backgroundId,
+            avatar.hairstyleId,
+            avatar.eyesId,
+            avatar.mouthId,
+            avatar.accessoryId
+        );
     }
     
     // Withdraw funds

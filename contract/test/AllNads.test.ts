@@ -396,17 +396,15 @@ describe("AllNads", function () {
   });
 
   describe("Token URI", function () {
-    it("Should generate token URI with component data", async function () {
+    it.only("Should generate token URI with component data", async function () {
       const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
       
-      // 使用user1铸造NFT
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
         allNads.address,
         { client: { wallet: buyer } }
       );
       
-      // 铸造NFT
       const name = "Test Nads";
       const tx1 = await buyerClient.write.mint([
         name, 

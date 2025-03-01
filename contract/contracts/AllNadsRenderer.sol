@@ -36,7 +36,39 @@ contract AllNadsRenderer is Ownable {
         defaultBodyData = _defaultBodyData;
     }
 
-    function generateTokenURI(AvatarData memory avatar) external view returns (string memory) {
+    /**
+     * @notice Generate avatar token URI based on component data
+     * @param name The name of the avatar
+     * @param backgroundId The background component ID
+     * @param hairstyleId The hairstyle component ID
+     * @param eyesId The eyes component ID
+     * @param mouthId The mouth component ID
+     * @param accessoryId The accessory component ID
+     * @return The token URI as a string
+     */
+    function renderAvatar(
+        string memory name,
+        uint256 backgroundId,
+        uint256 hairstyleId,
+        uint256 eyesId,
+        uint256 mouthId,
+        uint256 accessoryId
+    ) external view returns (string memory) {
+        // Create AvatarData struct from parameters
+        AvatarData memory avatarData = AvatarData({
+            name: name,
+            backgroundId: backgroundId,
+            headId: hairstyleId,
+            eyesId: eyesId,
+            mouthId: mouthId,
+            accessoryId: accessoryId
+        });
+        
+        // Generate the token URI using the existing method
+        return generateTokenURI(avatarData);
+    }
+
+    function generateTokenURI(AvatarData memory avatar) public view returns (string memory) {
         // 使用单次调用获取组件数据
         AllNadsComponent.Template memory bg = componentContract.getTokenFullTemplate(avatar.backgroundId);
         AllNadsComponent.Template memory head = componentContract.getTokenFullTemplate(avatar.headId);
