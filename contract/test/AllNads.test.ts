@@ -342,24 +342,17 @@ describe("AllNads", function () {
     });
 
     it("Should allow token owner to execute transactions through the account", async function () {
-      const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
-      
-      // 使用user1铸造NFT
-      const buyerClient = await hre.viem.getContractAt(
-        "AllNads",
-        allNads.address,
-        { client: { wallet: buyer } }
-      );
+      const { allNads, account, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
       
       // 铸造NFT
-      const tx1 = await buyerClient.write.mint([
+      const tx1 = await allNads.write.mint([
         "Test Nads", 
         templateIds[0], // 背景
         templateIds[1], // 发型
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05") });
+      ], { value: parseEther("0.05"), account: buyer.account });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
       
       const tokenId = 1n;
@@ -373,20 +366,17 @@ describe("AllNads", function () {
         value: parseEther("0.1")
       });
       await publicClient.waitForTransactionReceipt({ hash: sendEthTx });
+
+      const beforeAccountBalance = await publicClient.getBalance({ address: accountAddr });
+      console.log("beforeAccountBalance", beforeAccountBalance);
       
       // 准备调用数据
-      const target = getAddress(buyer.account.address); // 修改为 user1 作为目标地址
+      const target = getAddress(buyer.account.address); // 修改为 buyer 作为目标地址
       const value = parseEther("0.05");
       const callData = "0x";
       
-      // 获取账户接口 - 这里需要根据实际情况调整
-      const accountContract = await hre.viem.getContractAt(
-        "AllNadsAccount",
-        accountAddr
-      );
-      
       // 用户直接通过账户合约执行调用
-      const executeCallTx = await accountContract.write.executeCall([
+      const executeCallTx = await account.write.executeCall([
         target,
         value,
         callData,
@@ -396,8 +386,9 @@ describe("AllNads", function () {
       await publicClient.waitForTransactionReceipt({ hash: executeCallTx });
       
       // 检查余额是否减少
-      const accountBalance = await publicClient.getBalance({ address: accountAddr });
-      expect(accountBalance < parseEther("0.1")).to.be.true;
+      const afterAccountBalance = await publicClient.getBalance({ address: accountAddr });
+      console.log("afterAccountBalance", afterAccountBalance);
+      expect(afterAccountBalance < beforeAccountBalance).to.be.true;
     });
   });
 

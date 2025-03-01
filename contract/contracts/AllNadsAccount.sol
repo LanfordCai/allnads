@@ -83,6 +83,13 @@ contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executabl
         _;
     }
 
+    event DebugToken(uint256 chainId, address tokenContract, uint256 tokenId);
+
+function debugToken() external {
+    (uint256 chainId, address tokenContract, uint256 tokenId) = token();
+    emit DebugToken(chainId, tokenContract, tokenId);
+}
+
     /**
      * @notice Receives ERC-1155 tokens
      * @dev Required to implement IERC1155Receiver
