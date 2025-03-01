@@ -127,7 +127,7 @@ describe("AllNadsRegistry", function () {
       );
       
       // 获取预计的账户地址
-      const expectedAccount = await registry.read.getAccount([
+      const expectedAccount = await registry.read.account([
         accountImpl.address,
         chainId,
         testNFT.address,
@@ -148,7 +148,7 @@ describe("AllNadsRegistry", function () {
       await publicClient.waitForTransactionReceipt({ hash: createTx });
       
       // 再次使用getAccount检查地址
-      const accountAddress = await registry.read.getAccount([
+      const accountAddress = await registry.read.account([
         accountImpl.address,
         chainId,
         testNFT.address,
@@ -234,7 +234,7 @@ describe("AllNadsRegistry", function () {
       const salt2 = 2n;
       
       // 获取预期地址
-      const expectedAccount1 = await registry.read.getAccount([
+      const expectedAccount1 = await registry.read.account([
         accountImpl.address,
         chainId,
         testNFT.address,
@@ -242,7 +242,7 @@ describe("AllNadsRegistry", function () {
         salt1
       ]);
       
-      const expectedAccount2 = await registry.read.getAccount([
+      const expectedAccount2 = await registry.read.account([
         accountImpl.address,
         chainId,
         testNFT.address,
@@ -278,7 +278,7 @@ describe("AllNadsRegistry", function () {
       await publicClient.waitForTransactionReceipt({ hash: createTx2 });
       
       // 获取两个账户地址
-      const account1 = await registry.read.getAccount([
+      const account1 = await registry.read.account([
         accountImpl.address,
         chainId,
         testNFT.address,
@@ -286,7 +286,7 @@ describe("AllNadsRegistry", function () {
         salt1
       ]);
       
-      const account2 = await registry.read.getAccount([
+      const account2 = await registry.read.account([
         accountImpl.address,
         chainId,
         testNFT.address,
