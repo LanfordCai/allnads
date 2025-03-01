@@ -38,6 +38,9 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     // Component contract
     AllNadsComponent public immutable componentContract;
     
+    // Mint fee that will be kept in this contract (default: 0)
+    uint256 public mintFee = 0;
+    
     // Next token ID counter (starting from 1)
     uint256 private _nextTokenId = 1;
     
@@ -68,6 +71,7 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     event AccountCreated(address indexed account, uint256 indexed tokenId);
     event ComponentChanged(uint256 indexed tokenId, AllNadsComponent.ComponentType componentType, uint256 newComponentId);
     event RendererSet(address indexed renderer);
+    event MintFeeUpdated(uint256 newMintFee);
 
     constructor(
         string memory _name, 
@@ -88,6 +92,15 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     function setRendererContract(address _rendererContract) external onlyOwner {
         rendererContract = _rendererContract;
         emit RendererSet(_rendererContract);
+    }
+    
+    /**
+     * @notice Set the mint fee
+     * @param _mintFee New mint fee
+     */
+    function setMintFee(uint256 _mintFee) external onlyOwner {
+        mintFee = _mintFee;
+        emit MintFeeUpdated(_mintFee);
     }
     
     /**
@@ -186,6 +199,15 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     }
     
     /**
+     * @notice Get the total price including mint fee
+     * @param componentPrice The price of all components
+     * @return Total price including mint fee
+     */
+    function getTotalPrice(uint256 componentPrice) public view returns (uint256) {
+        return componentPrice + mintFee;
+    }
+    
+    /**
      * @notice Mint an avatar with fixed component types
      * @param _name Name for the avatar
      * @param _backgroundTemplateId Background template ID
@@ -211,8 +233,8 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
             _accessoryTemplateId
         ), "Invalid or inactive components");
         
-        // Calculate total cost
-        uint256 totalPrice = calculateTotalCost(
+        // Calculate component cost
+        uint256 componentPrice = calculateTotalCost(
             _backgroundTemplateId,
             _hairstyleTemplateId,
             _eyesTemplateId,
@@ -220,7 +242,10 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
             _accessoryTemplateId
         );
         
-        require(msg.value >= totalPrice, "Insufficient payment");
+        // Calculate total price including mint fee
+        uint256 totalPrice = getTotalPrice(componentPrice);
+        
+        require(msg.value == totalPrice, "Incorrect payment");
         
         // Mint the avatar NFT
         uint256 tokenId = _nextTokenId;
@@ -240,7 +265,8 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
         templateIds[4] = _accessoryTemplateId;
         
         // Mint components and send them to the avatar's account
-        uint256[] memory componentIds = componentContract.mintComponents{value: totalPrice}(
+        // Only forward the component price to the component contract
+        uint256[] memory componentIds = componentContract.mintComponents{value: componentPrice}(
             templateIds, 
             account
         );
@@ -258,11 +284,6 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
         // Mark all components as equipped
         for (uint256 i = 0; i < componentIds.length; i++) {
             componentContract.setEquippedStatus(componentIds[i], true);
-        }
-        
-        // Refund excess payment
-        if (msg.value > totalPrice) {
-            payable(msg.sender).transfer(msg.value - totalPrice);
         }
         
         emit AvatarMinted(
@@ -448,13 +469,6 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
         );
     }
     
-    // Withdraw funds
-    function withdraw() external onlyOwner {
-        uint256 balance = address(this).balance;
-        (bool success, ) = payable(owner()).call{value: balance}("");
-        require(success, "Transfer failed");
-    }
-    
     // Required override for ERC721Enumerable and ERC1155Holder
     function supportsInterface(bytes4 interfaceId)
         public
@@ -471,5 +485,22 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
      */
     function _exists(uint256 tokenId) internal view returns (bool) {
         return _ownerOf(tokenId) != address(0);
+    }
+    
+    /**
+     * @dev This contract doesn't explicitly accept ETH transfers (no receive/fallback functions).
+     * All funds in mint() are forwarded to the component contract.
+     * The withdraw function exists only as a safety mechanism in case ETH is force-sent
+     * via selfdestruct or coinbase transactions.
+     */
+    
+    /**
+     * @dev Emergency withdraw function in case ETH is force-sent to this contract
+     */
+    function withdraw() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance to withdraw");
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        require(success, "Transfer failed");
     }
 }

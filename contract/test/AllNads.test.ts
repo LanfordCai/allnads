@@ -102,6 +102,53 @@ describe("AllNads", function () {
     };
   }
 
+  // 类型定义
+  type BaseContract = {
+    address: string;
+    read: Record<string, (...args: any[]) => Promise<any>>;
+  };
+
+  type BaseWallet = {
+    account: {
+      address: string;
+    };
+  };
+
+  // 辅助函数：设置铸造费并获取总价格
+  async function setupMintFeeAndGetPrice(
+    allNads: { address: string; read: { mintFee: () => Promise<bigint> } }, 
+    owner: { account: { address: string } }, 
+    mintFee = 0n
+  ) {
+    // 设置 mintFee
+    if (mintFee > 0n) {
+      // 使用类型断言来处理复杂类型
+      const getContractAt = hre.viem.getContractAt as unknown as (
+        name: string, 
+        address: string, 
+        options: any
+      ) => Promise<{ write: { setMintFee: (args: [bigint]) => Promise<`0x${string}`> } }>;
+      
+      const ownerClient = await getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: owner } }
+      );
+      
+      await ownerClient.write.setMintFee([mintFee]);
+    }
+    
+    // 获取设置后的 mintFee 值确认
+    const currentMintFee = await allNads.read.mintFee();
+    
+    // 基础组件价格 (5个组件，每个0.01 ETH)
+    const componentPrice = parseEther("0.05");
+    // 计算总价格 (组件价格 + mintFee)
+    const totalPrice = componentPrice + currentMintFee;
+    
+    return { componentPrice, totalPrice, currentMintFee };
+  }
+
   describe("Deployment", function () {
     it("Should set the correct contract addresses", async function () {
       const { allNads, component, account, registry, renderer } = await loadFixture(deployAllNadsFixture);
@@ -110,6 +157,12 @@ describe("AllNads", function () {
       expect(await allNads.read.accountImplementation()).to.equal(getAddress(account.address));
       expect(await allNads.read.registry()).to.equal(getAddress(registry.address));
       expect(await allNads.read.rendererContract()).to.equal(getAddress(renderer.address));
+    });
+    
+    it("Should have default mintFee of 0", async function () {
+      const { allNads } = await loadFixture(deployAllNadsFixture);
+      const mintFee = await allNads.read.mintFee();
+      expect(mintFee).to.equal(0n);
     });
   });
 
@@ -145,11 +198,51 @@ describe("AllNads", function () {
     });
   });
 
+  describe("MintFee Management", function () {
+    it("Should allow owner to set mintFee", async function () {
+      const { allNads, owner, publicClient } = await loadFixture(deployAllNadsFixture);
+      
+      const mintFee = parseEther("0.01");
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: owner } }
+      );
+      
+      const tx = await ownerClient.write.setMintFee([mintFee]);
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      const newMintFee = await allNads.read.mintFee();
+      expect(newMintFee).to.equal(mintFee);
+    });
+    
+    it("Should correctly calculate total price with mintFee", async function () {
+      const { allNads, owner } = await loadFixture(deployAllNadsFixture);
+      
+      const mintFee = parseEther("0.01");
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: owner } }
+      );
+      await ownerClient.write.setMintFee([mintFee]);
+      
+      const componentPrice = parseEther("0.05");
+      const totalPrice = await allNads.read.getTotalPrice([componentPrice]);
+      
+      expect(totalPrice).to.equal(componentPrice + mintFee);
+    });
+  });
+
   describe("NFT Minting", function () {
     it("Should mint an NFT when paying the correct price", async function () {
       const { allNads, owner: contractOwner, creator, buyer, publicClient, templateIds, component } = await loadFixture(deployAllNadsFixture);
       
-      // 使用user1铸造NFT
+      // 设置 mintFee 并获取总价
+      const mintFee = parseEther("0.01");
+      const { componentPrice, totalPrice } = await setupMintFeeAndGetPrice(allNads, contractOwner, mintFee);
+      
+      // 使用buyer铸造NFT
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
         allNads.address,
@@ -159,13 +252,11 @@ describe("AllNads", function () {
       const name = "Test Nads";
       const beforeMintBalanceOwner = await publicClient.getBalance({ address: contractOwner.account.address });
       const beforeMintBalanceCreator = await publicClient.getBalance({ address: creator.account.address });
-      const beforeMintBalanceBuyer = await publicClient.getBalance({ address: buyer.account.address });
       
       // 准备铸造参数
-      const totalCost = parseEther("0.05"); // 所有组件的总成本
       const creatorRoyalty = await component.read.creatorRoyaltyPercentage();
       
-      // 铸造NFT - 使用正确的函数名和参数
+      // 铸造NFT - 使用正确的函数名和参数，包含 mintFee
       const tx = await buyerClient.write.mint([
         name, 
         templateIds[0], // 背景
@@ -173,15 +264,19 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: totalCost });
+      ], { value: totalPrice });
       await publicClient.waitForTransactionReceipt({ hash: tx });
       
-      // 检查余额增加
+      // 检查合约余额 - 应该有 mintFee
+      const contractBalance = await publicClient.getBalance({ address: allNads.address });
+      expect(contractBalance).to.equal(mintFee);
+      
+      // 检查余额增加 - 创建者和所有者分割组件价格
       const afterMintBalanceOwner = await publicClient.getBalance({ address: contractOwner.account.address });
       const afterMintBalanceCreator = await publicClient.getBalance({ address: creator.account.address });
 
-      expect(afterMintBalanceOwner).to.equal(beforeMintBalanceOwner + totalCost * (100n - creatorRoyalty) / 100n);
-      expect(afterMintBalanceCreator).to.equal(beforeMintBalanceCreator + totalCost * creatorRoyalty / 100n);
+      expect(afterMintBalanceOwner).to.equal(beforeMintBalanceOwner + componentPrice * (100n - creatorRoyalty) / 100n);
+      expect(afterMintBalanceCreator).to.equal(beforeMintBalanceCreator + componentPrice * creatorRoyalty / 100n);
       
       // 检查NFT持有者
       const tokenId = 1n;
@@ -190,9 +285,13 @@ describe("AllNads", function () {
     });
 
     it("Should revert when not paying enough", async function () {
-      const { allNads, buyer, templateIds } = await loadFixture(deployAllNadsFixture);
+      const { allNads, owner, buyer, templateIds } = await loadFixture(deployAllNadsFixture);
       
-      // 使用user1铸造NFT
+      // 设置 mintFee 并获取总价
+      const mintFee = parseEther("0.01");
+      const { componentPrice, totalPrice } = await setupMintFeeAndGetPrice(allNads, owner, mintFee);
+      
+      // 使用buyer铸造NFT
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
         allNads.address,
@@ -210,16 +309,19 @@ describe("AllNads", function () {
           templateIds[2], // 眼睛
           templateIds[3], // 嘴巴
           templateIds[4]  // 配饰
-        ], { value: parseEther("0.04") })
-      ).to.be.rejectedWith(/Insufficient payment/i);
+        ], { value: componentPrice }) // 只付组件价格，不含 mintFee
+      ).to.be.rejectedWith(/Incorrect payment/i);
     });
   });
 
   describe("Component Management", function () {
     it("Should allow minting components for a NAD", async function () {
-      const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      const { allNads, owner, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
       
-      // 使用user1铸造NFT
+      // 设置 mintFee 并获取总价
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // 使用buyer铸造NFT
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
         allNads.address,
@@ -234,7 +336,7 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05") });
+      ], { value: totalPrice });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
       
       const tokenId = 1n;
@@ -245,7 +347,10 @@ describe("AllNads", function () {
     });
 
     it("Should equip and unequip components", async function () {
-      const { allNads, component, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      const { allNads, component, owner, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      
+      // 设置 mintFee 并获取总价
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
       
       // 先铸造NFT
       const tx1 = await allNads.write.mint([
@@ -255,7 +360,7 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05"), account: buyer.account });
+      ], { value: totalPrice, account: buyer.account });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
       
       const avatarTokenId = 1n;
@@ -312,9 +417,12 @@ describe("AllNads", function () {
 
   describe("Account Integration", function () {
     it("Should create an account for each minted NFT", async function () {
-      const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      const { allNads, owner, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
       
-      // 使用user1铸造NFT
+      // 设置 mintFee 并获取总价
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // 使用buyer铸造NFT
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
         allNads.address,
@@ -329,7 +437,7 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05") });
+      ], { value: totalPrice });
       await publicClient.waitForTransactionReceipt({ hash: tx });
       
       const tokenId = 1n;
@@ -342,7 +450,10 @@ describe("AllNads", function () {
     });
 
     it("Should allow token owner to execute transactions through the account", async function () {
-      const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      const { allNads, owner, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      
+      // 设置 mintFee 并获取总价
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
       
       // 铸造NFT
       const tx1 = await allNads.write.mint([
@@ -352,7 +463,7 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05"), account: buyer.account });
+      ], { value: totalPrice, account: buyer.account });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
 
       const nftTokenId = 1n;
@@ -396,8 +507,11 @@ describe("AllNads", function () {
   });
 
   describe("Token URI", function () {
-    it.only("Should generate token URI with component data", async function () {
-      const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+    it("Should generate token URI with component data", async function () {
+      const { allNads, owner, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      
+      // 设置 mintFee 并获取总价
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
       
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
@@ -413,7 +527,7 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05") });
+      ], { value: totalPrice });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
       
       const tokenId = 1n;
@@ -431,14 +545,32 @@ describe("AllNads", function () {
     it("Should allow owner to withdraw funds", async function () {
       const { allNads, owner, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
       
-      // 使用user1铸造NFT
+      // 设置 mintFee
+      const mintFee = parseEther("0.01");
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: owner } }
+      );
+      await ownerClient.write.setMintFee([mintFee]);
+      
+      // 获取设置后的 mintFee 值确认
+      const currentMintFee = await allNads.read.mintFee();
+      expect(currentMintFee).to.equal(mintFee);
+      
+      // 使用buyer铸造NFT
       const buyerClient = await hre.viem.getContractAt(
         "AllNads",
         allNads.address,
         { client: { wallet: buyer } }
       );
       
-      // 铸造NFT
+      // 计算组件总价格
+      const componentPrice = parseEther("0.05");
+      // 计算总价格 (组件价格 + mintFee)
+      const totalPrice = componentPrice + mintFee;
+      
+      // 铸造NFT - 支付组件价格 + mintFee
       const tx1 = await buyerClient.write.mint([
         "Test Nads", 
         templateIds[0], // 背景
@@ -446,25 +578,26 @@ describe("AllNads", function () {
         templateIds[2], // 眼睛
         templateIds[3], // 嘴巴
         templateIds[4]  // 配饰
-      ], { value: parseEther("0.05") });
+      ], { value: totalPrice });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
       
-      // 获取合约余额
+      // 验证铸造交易成功
+      const receipt = await publicClient.getTransactionReceipt({ hash: tx1 });
+      console.log("receipt", receipt.status);
+      expect(receipt.status).to.equal('success');
+      
+      // 获取合约余额，应该等于 mintFee
       const contractBalance = await publicClient.getBalance({ address: allNads.address });
-      expect(contractBalance > 0n).to.be.true;
+      console.log("contractBalance", contractBalance);
+      expect(contractBalance).to.equal(mintFee);
       
       // 记录owner初始余额
       const initialOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
+      console.log("initialOwnerBalance", initialOwnerBalance);
       
       // 使用owner提取资金
-      const ownerClient = await hre.viem.getContractAt(
-        "AllNads",
-        allNads.address,
-        { client: { wallet: owner } }
-      );
-      
       const withdrawTx = await ownerClient.write.withdraw();
-      await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
+      const withdrawReceipt = await publicClient.waitForTransactionReceipt({ hash: withdrawTx });
       
       // 检查合约余额为0
       const newContractBalance = await publicClient.getBalance({ address: allNads.address });
@@ -472,9 +605,13 @@ describe("AllNads", function () {
       
       // 获取owner最终余额
       const finalOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
+      console.log("finalOwnerBalance", finalOwnerBalance);
       
-      // 验证owner余额变化 - 使用bigint原生比较
-      expect(finalOwnerBalance !== initialOwnerBalance).to.be.true;
+      // 计算gas消耗
+      const gasUsed = withdrawReceipt.gasUsed * withdrawReceipt.effectiveGasPrice;
+      
+      // 验证owner余额变化 - owner应该收到了mintFee减去gas费用
+      expect(finalOwnerBalance + gasUsed >= initialOwnerBalance + mintFee).to.be.true;
     });
   });
 }); 
