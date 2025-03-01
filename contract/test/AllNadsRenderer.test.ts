@@ -13,30 +13,20 @@ describe("AllNadsRenderer", function () {
     const pngHeaderLibFactory = await deployPNGHeaderLib();
     
     // 部署组件合约，链接库
-    const componentFactory = await hre.viem.deployContract("AllNadsComponent", [], {
+    const component = await hre.viem.deployContract("AllNadsComponent", [], {
       libraries: {
         "contracts/lib/PNGHeaderLib.sol:PNGHeaderLib": pngHeaderLibFactory.address
       }
     });
     
-    const component = await hre.viem.getContractAt(
-      "AllNadsComponent",
-      componentFactory.address
-    );
-    
     // 默认身体数据
     const defaultBodyData = "TestBodyData";
     
     // 部署渲染器合约
-    const rendererFactory = await hre.viem.deployContract("AllNadsRenderer", [
+    const renderer = await hre.viem.deployContract("AllNadsRenderer", [
       component.address,
       defaultBodyData
     ]);
-    
-    const renderer = await hre.viem.getContractAt(
-      "AllNadsRenderer",
-      rendererFactory.address
-    );
     
     // 公共客户端用于事务处理
     const publicClient = await hre.viem.getPublicClient();

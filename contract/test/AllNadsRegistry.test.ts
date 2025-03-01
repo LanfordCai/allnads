@@ -9,33 +9,19 @@ describe("AllNadsRegistry", function () {
     const [owner, user1, user2] = await hre.viem.getWalletClients();
     
     // 部署注册表合约
-    const registryFactory = await hre.viem.deployContract("AllNadsRegistry", []);
-    
-    const registry = await hre.viem.getContractAt(
-      "AllNadsRegistry",
-      registryFactory.address
-    );
+    const registry = await hre.viem.deployContract("AllNadsRegistry", []);
     
     // 部署一个简单的账户实现合约用于测试
-    const accountImplFactory = await hre.viem.deployContract("AllNadsAccount", []);
-    const accountImpl = await hre.viem.getContractAt(
-      "AllNadsAccount",
-      accountImplFactory.address
-    );
+    const accountImpl = await hre.viem.deployContract("AllNadsAccount", []);
     
     // 部署一个测试NFT合约
-    const testNFTFactory = await hre.viem.deployContract("AllNads", [
+    const testNFT = await hre.viem.deployContract("AllNads", [
       "TestNFT",
       "TNFT",
       registry.address,
       accountImpl.address,
       "0x0000000000000000000000000000000000000001" // 假的组件合约地址
     ]);
-    
-    const testNFT = await hre.viem.getContractAt(
-      "AllNads",
-      testNFTFactory.address
-    );
     
     // 测试数据
     const chainId = 31337n; // Hardhat默认链ID

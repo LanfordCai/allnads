@@ -24,16 +24,11 @@ describe("AllNadsComponent", function () {
     const pngHeaderLibFactory = await hre.viem.deployContract("PNGHeaderLib");
     
     // 部署组件合约，链接库
-    const componentFactory = await hre.viem.deployContract("AllNadsComponent", [], {
+    const component = await hre.viem.deployContract("AllNadsComponent", [], {
       libraries: {
         "contracts/lib/PNGHeaderLib.sol:PNGHeaderLib": pngHeaderLibFactory.address
       }
     });
-    
-    const component = await hre.viem.getContractAt(
-      "AllNadsComponent",
-      componentFactory.address
-    );
     
     // 设置 AllNadsContract 为 owner 地址 (模拟主合约)
     await component.write.setAllNadsContract([getAddress(owner.account.address)]);
