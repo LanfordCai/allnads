@@ -308,7 +308,7 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
         uint256 tokenId,
         uint256 componentId,
         AllNadsComponent.ComponentType componentType
-    ) external {
+    ) public {
         require(_isAuthorized(_ownerOf(tokenId), msg.sender, tokenId), "Not authorized");
         
         // Get the token bound account for the avatar
@@ -377,23 +377,23 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
         
         // Change components by calling changeComponent for each non-zero ID
         if (backgroundId > 0) {
-            this.changeComponent(tokenId, backgroundId, AllNadsComponent.ComponentType.BACKGROUND);
+            changeComponent(tokenId, backgroundId, AllNadsComponent.ComponentType.BACKGROUND);
         }
         
         if (hairstyleId > 0) {
-            this.changeComponent(tokenId, hairstyleId, AllNadsComponent.ComponentType.HAIRSTYLE);
+            changeComponent(tokenId, hairstyleId, AllNadsComponent.ComponentType.HAIRSTYLE);
         }
         
         if (eyesId > 0) {
-            this.changeComponent(tokenId, eyesId, AllNadsComponent.ComponentType.EYES);
+            changeComponent(tokenId, eyesId, AllNadsComponent.ComponentType.EYES);
         }
         
         if (mouthId > 0) {
-            this.changeComponent(tokenId, mouthId, AllNadsComponent.ComponentType.MOUTH);
+            changeComponent(tokenId, mouthId, AllNadsComponent.ComponentType.MOUTH);
         }
         
         if (accessoryId > 0) {
-            this.changeComponent(tokenId, accessoryId, AllNadsComponent.ComponentType.ACCESSORY);
+            changeComponent(tokenId, accessoryId, AllNadsComponent.ComponentType.ACCESSORY);
         }
     }
     

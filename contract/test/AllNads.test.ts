@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, assert } from "chai";
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
@@ -99,6 +100,67 @@ describe("AllNads", function () {
       buyer,
       publicClient,
       templateIds
+    };
+  }
+
+  // 部署合约并铸造一个NFT的测试夹具
+  async function deployAndMintNFTFixture() {
+    // 首先部署基本合约
+    const baseFixture = await deployAllNadsFixture();
+    const { 
+      allNads, 
+      component, 
+      owner, 
+      buyer, 
+      publicClient, 
+      templateIds 
+    } = baseFixture;
+    
+    // 使用buyer创建客户端
+    const buyerClient = await hre.viem.getContractAt(
+      "AllNads",
+      allNads.address,
+      { client: { wallet: buyer } }
+    );
+    
+    // 使用owner创建组件合约客户端
+    const allNadsOwnerClient = await hre.viem.getContractAt(
+      "AllNads",
+      allNads.address,
+      { client: { wallet: owner } }
+    );
+    
+    // 铸造一个NFT
+    const avatarName = "Test Avatar";
+    const mintTx = await buyerClient.write.mint([
+      avatarName,
+      templateIds[0],
+      templateIds[1],
+      templateIds[2],
+      templateIds[3],
+      templateIds[4]
+    ], { value: parseEther("0.05") }); // 5 x 0.01 ETH
+    
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: mintTx });
+    
+    // 从事件中获取铸造的代币ID
+    const mintEvents = await allNads.getEvents.AvatarMinted();
+    
+    const mintedTokenId = mintEvents[0].args.tokenId!;
+    const componentTokens = [
+      mintEvents[0].args.backgroundId!,
+      mintEvents[0].args.hairstyleId!,
+      mintEvents[0].args.eyesId!,
+      mintEvents[0].args.mouthId!,
+      mintEvents[0].args.accessoryId!
+    ];
+    
+    return {
+      ...baseFixture,
+      mintedTokenId,
+      componentTokens,
+      allNadsOwnerClient,
+      buyerClient
     };
   }
 
@@ -374,8 +436,6 @@ describe("AllNads", function () {
 
       // 获取头像的TBA (Token Bound Account)
       const tba = await allNads.read.accountForToken([avatarTokenId]);
-      console.log("Token Bound Account address:", tba);
-      
 
       const tx2 = await component.write.mintComponent([
         templateIds[5],
@@ -394,7 +454,6 @@ describe("AllNads", function () {
       
       // 从事件中提取tokenId
       const newComponentId = events[0].args.tokenId!;
-      console.log("newComponentId", newComponentId);
       const oldComponentId = 1n;
       
       // 卸下组件
@@ -583,17 +642,14 @@ describe("AllNads", function () {
       
       // 验证铸造交易成功
       const receipt = await publicClient.getTransactionReceipt({ hash: tx1 });
-      console.log("receipt", receipt.status);
       expect(receipt.status).to.equal('success');
       
       // 获取合约余额，应该等于 mintFee
       const contractBalance = await publicClient.getBalance({ address: allNads.address });
-      console.log("contractBalance", contractBalance);
       expect(contractBalance).to.equal(mintFee);
       
       // 记录owner初始余额
       const initialOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
-      console.log("initialOwnerBalance", initialOwnerBalance);
       
       // 使用owner提取资金
       const withdrawTx = await ownerClient.write.withdraw();
@@ -605,13 +661,606 @@ describe("AllNads", function () {
       
       // 获取owner最终余额
       const finalOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
-      console.log("finalOwnerBalance", finalOwnerBalance);
       
       // 计算gas消耗
       const gasUsed = withdrawReceipt.gasUsed * withdrawReceipt.effectiveGasPrice;
       
       // 验证owner余额变化 - owner应该收到了mintFee减去gas费用
       expect(finalOwnerBalance + gasUsed >= initialOwnerBalance + mintFee).to.be.true;
+    });
+  });
+
+  describe("Multiple Component Changes", function () {
+    it("Should change multiple components at once", async function () {
+      const { 
+        allNads, 
+        component,
+        owner,
+        buyer, 
+        publicClient, 
+        templateIds,
+        mintedTokenId 
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 获取token关联的账户地址
+      const accountAddress = await allNads.read.accountForToken([mintedTokenId]);
+      
+      // 创建组件合约的owner客户端
+      const componentOwnerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      // 创建5个新模板用于测试更改组件
+      const newTemplateIds = [];
+      const componentTypeNames = ["BACKGROUND", "HAIRSTYLE", "EYES", "MOUTH", "ACCESSORY"];
+      
+      for (let i = 0; i < 5; i++) {
+        const tx = await componentOwnerClient.write.createTemplate([
+          `New ${componentTypeNames[i]}`,
+          100n,
+          parseEther("0.01"),
+          `New${componentTypeNames[i]}ImageData`,
+          i
+        ], { value: parseEther("0.01") });
+        
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+        newTemplateIds.push(BigInt(templateIds.length + 1 + i));
+      }
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: buyer } }
+      );
+      
+      // 为账户铸造新组件
+      const newComponentIds = [];
+      for (let i = 0; i < newTemplateIds.length; i++) {
+        const tx = await component.write.mintComponent(
+          [newTemplateIds[i], accountAddress],
+          { account: owner.account, value: parseEther("0.01") }
+        );
+        
+        await publicClient.waitForTransactionReceipt({ hash: tx });
+        newComponentIds.push(BigInt(5 + i + 1)); // 原有5个组件+新组件
+      }
+      
+      // 获取当前头像组件
+      const originalComponents = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 更改多个组件（仅更改部分组件）
+      const tx = await buyerClient.write.changeComponents([
+        mintedTokenId,
+        newComponentIds[0], // 新背景
+        0n,                 // 保持现有发型
+        newComponentIds[2], // 新眼睛
+        0n,                 // 保持现有嘴巴
+        newComponentIds[4]  // 新配饰
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // 获取更新后的组件
+      const updatedComponents = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 验证更改的组件已更新
+      expect(updatedComponents[0]).to.equal(newComponentIds[0]); // 背景已更改
+      expect(updatedComponents[1]).to.equal(originalComponents[1]); // 发型未变
+      expect(updatedComponents[2]).to.equal(newComponentIds[2]); // 眼睛已更改
+      expect(updatedComponents[3]).to.equal(originalComponents[3]); // 嘴巴未变
+      expect(updatedComponents[4]).to.equal(newComponentIds[4]); // 配饰已更改
+      
+      // 确认原组件已解锁
+      expect(await component.read.isEquipped([originalComponents[0]])).to.be.false;
+      expect(await component.read.isEquipped([originalComponents[2]])).to.be.false;
+      expect(await component.read.isEquipped([originalComponents[4]])).to.be.false;
+      
+      // 确认新组件已锁定
+      expect(await component.read.isEquipped([newComponentIds[0]])).to.be.true;
+      expect(await component.read.isEquipped([newComponentIds[2]])).to.be.true;
+      expect(await component.read.isEquipped([newComponentIds[4]])).to.be.true;
+    });
+    
+    it("Should keep existing components when passing zero IDs", async function () {
+      const { 
+        allNads, 
+        buyer,
+        publicClient, 
+        mintedTokenId
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: buyer } }
+      );
+      
+      // 获取原始组件
+      const originalComponents = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 调用changeComponents但传入所有0值
+      const tx = await buyerClient.write.changeComponents([
+        mintedTokenId,
+        0n, 0n, 0n, 0n, 0n
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // 获取更新后的组件
+      const updatedComponents = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 验证所有组件保持不变
+      for (let i = 0; i < originalComponents.length; i++) {
+        expect(updatedComponents[i]).to.equal(originalComponents[i]);
+      }
+    });
+  });
+
+  describe("Edge Cases", function () {
+    it("Should fail to query non-existent avatar", async function () {
+      const { allNads } = await loadFixture(deployAllNadsFixture);
+      
+      // 尝试获取不存在的头像
+      const nonExistentTokenId = 999n;
+      await expect(allNads.read.getAvatar([nonExistentTokenId]))
+        .to.be.rejectedWith(/Token does not exist/);
+    });
+    
+    it("Should fail to get components for non-existent avatar", async function () {
+      const { allNads } = await loadFixture(deployAllNadsFixture);
+      
+      // 尝试获取不存在的头像的组件
+      const nonExistentTokenId = 999n;
+      await expect(allNads.read.getAvatarComponents([nonExistentTokenId]))
+        .to.be.rejectedWith(/Token does not exist/);
+    });
+    
+    it("Should revert when name is too long", async function () {
+      const { 
+        allNads, 
+        buyer, 
+        publicClient, 
+        mintedTokenId
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: buyer } }
+      );
+      
+      // 创建一个超过50个字符的名称
+      const longName = "a".repeat(51);
+      
+      // 尝试更新名称
+      await expect(buyerClient.write.updateName([mintedTokenId, longName]))
+        .to.be.rejectedWith(/Name too long/);
+    });
+  });
+
+  describe("Transfer and Authorization", function () {
+    it("Should allow transfer of NFT to another address", async function () {
+      const { 
+        allNads, 
+        buyer,
+        creator,
+        publicClient, 
+        mintedTokenId
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 获取地址
+      const buyerAddress = getAddress(buyer.account.address);
+      const creatorAddress = getAddress(creator.account.address);
+      
+      // 确认buyer是NFT的当前所有者
+      expect(await allNads.read.ownerOf([mintedTokenId])).to.equal(buyerAddress);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: buyer } }
+      );
+      
+      // 转移NFT到creator
+      const tx = await buyerClient.write.transferFrom([
+        buyerAddress,
+        creatorAddress,
+        mintedTokenId
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // 验证所有权已经转移
+      expect(await allNads.read.ownerOf([mintedTokenId])).to.equal(creatorAddress);
+    });
+    
+    it("Should allow approved address to change components", async function () {
+      const { 
+        allNads, 
+        component,
+        buyer,
+        creator,
+        owner,
+        publicClient, 
+        mintedTokenId,
+        templateIds
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 获取地址
+      const buyerAddress = getAddress(buyer.account.address);
+      const creatorAddress = getAddress(creator.account.address);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: buyer } }
+      );
+      
+      // buyer批准creator操作NFT
+      const approveTx = await buyerClient.write.approve([
+        creatorAddress,
+        mintedTokenId
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: approveTx });
+      
+      // 获取token关联的账户地址
+      const accountAddress = await allNads.read.accountForToken([mintedTokenId]);
+      
+      // 创建一个新的组件模板
+      const componentOwnerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      const createTemplateTx = await componentOwnerClient.write.createTemplate([
+        "New Background",
+        100n,
+        parseEther("0.01"),
+        "NewBackgroundImageData",
+        0 // BACKGROUND
+      ], { value: parseEther("0.01") });
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTemplateTx });
+      const newTemplateId = BigInt(templateIds.length + 1);
+      
+      // 为账户铸造新组件
+      const mintTx = await component.write.mintComponent(
+        [newTemplateId, accountAddress],
+        { account: owner.account, value: parseEther("0.01") }
+      );
+      
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      const newComponentId = 6n; // 原有5个组件+1
+      
+      // 获取原始组件
+      const originalComponents = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 使用creator创建客户端
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: creator } }
+      );
+      
+      // creator尝试更改组件
+      const changeTx = await creatorClient.write.changeComponent([
+        mintedTokenId,
+        newComponentId,
+        0 // BACKGROUND
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: changeTx });
+      
+      // 获取更新后的组件
+      const updatedComponents = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 验证组件已更改
+      expect(updatedComponents[0]).to.equal(newComponentId);
+      expect(updatedComponents[0]).to.not.equal(originalComponents[0]);
+    });
+  });
+
+  describe("Utility Functions", function () {
+    it("Should validate components correctly", async function () {
+      const { 
+        allNads, 
+        templateIds
+      } = await loadFixture(deployAllNadsFixture);
+      
+      // 使用有效的组件模板ID进行验证
+      const isValid = await allNads.read.validateComponents([
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
+      ]);
+      
+      expect(isValid).to.be.true;
+      
+      // 类型不匹配的验证（使用错误的组件类型）
+      const isInvalidType = await allNads.read.validateComponents([
+        templateIds[1], // hairstyle用作background
+        templateIds[0], // background用作hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
+      ]);
+      
+      expect(isInvalidType).to.be.false;
+    });
+    
+    it("Should calculate total cost correctly", async function () {
+      const { 
+        allNads, 
+        templateIds,
+        owner,
+        publicClient
+      } = await loadFixture(deployAllNadsFixture);
+      
+      // 计算没有mintFee时的总成本
+      const baseCost = await allNads.read.calculateTotalCost([
+        templateIds[0],
+        templateIds[1],
+        templateIds[2],
+        templateIds[3],
+        templateIds[4]
+      ]);
+      
+      const expectedBaseCost = parseEther("0.05"); // 5 components * 0.01 ETH
+      expect(baseCost).to.equal(expectedBaseCost);
+      
+      // 总价格应该等于组件成本+mintFee
+      const totalPrice = await allNads.read.getTotalPrice([baseCost]);
+      expect(totalPrice).to.equal(baseCost); // mintFee默认为0
+      
+      // 设置mintFee
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: owner } }
+      );
+      
+      const mintFee = parseEther("0.01");
+      const setFeeTx = await ownerClient.write.setMintFee([mintFee]);
+      await publicClient.waitForTransactionReceipt({ hash: setFeeTx });
+      
+      // 重新计算总价格
+      const newTotalPrice = await allNads.read.getTotalPrice([baseCost]);
+      expect(newTotalPrice).to.equal(baseCost + mintFee);
+    });
+    
+    it("Should get avatar components correctly", async function () {
+      const { 
+        allNads, 
+        mintedTokenId,
+        componentTokens
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 获取头像组件
+      const components = await allNads.read.getAvatarComponents([mintedTokenId]);
+      
+      // 验证返回的组件ID与铸造时使用的组件ID匹配
+      expect(components.length).to.equal(5);
+      
+      for (let i = 0; i < components.length; i++) {
+        expect(components[i]).to.equal(componentTokens[i]);
+      }
+    });
+  });
+
+  describe("Complete Avatar Creation and URI", function () {
+    it("Should create a complete avatar and return correct tokenURI", async function () {
+      const { 
+        allNads, 
+        component,
+        owner,
+        buyer,
+        renderer,
+        publicClient, 
+        templateIds
+      } = await loadFixture(deployAllNadsFixture);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNads",
+        allNads.address,
+        { client: { wallet: buyer } }
+      );
+      
+      // 铸造一个新头像
+      const avatarName = "Complete Test Avatar";
+      const mintTx = await buyerClient.write.mint([
+        avatarName,
+        templateIds[0],
+        templateIds[1],
+        templateIds[2],
+        templateIds[3],
+        templateIds[4]
+      ], { value: parseEther("0.05") }); // 5 x 0.01 ETH
+      
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 从事件中获取铸造的代币ID
+      const mintEvents = await allNads.getEvents.AvatarMinted();
+      
+      expect(mintEvents.length).to.be.greaterThan(0);
+      const tokenId = mintEvents[0].args.tokenId;
+      
+      // 获取头像详情
+      const avatar = await allNads.read.getAvatar([tokenId]);
+      expect(avatar.name).to.equal(avatarName);
+      
+      // 获取URI
+      const tokenURI = await allNads.read.tokenURI([tokenId]);
+      
+      // URI应该包含JSON
+      expect(tokenURI).to.include("data:application/json");
+      
+      // URI应该包含头像名称
+      expect(tokenURI).to.include(avatarName);
+      
+      // URI应该包含SVG图像
+      expect(tokenURI).to.include("image/svg+xml");
+      
+      // URI应该包含属性
+      expect(tokenURI).to.include("attributes");
+      
+      // 创建一个新模板
+      const componentOwnerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      const createTemplateTx = await componentOwnerClient.write.createTemplate([
+        "Updated Eyes",
+        100n,
+        parseEther("0.01"),
+        "UpdatedEyesImageData",
+        2 // EYES
+      ], { value: parseEther("0.01") });
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTemplateTx });
+      const newTemplateId = BigInt(templateIds.length + 1);
+      
+      // 获取token关联的账户地址
+      const accountAddress = await allNads.read.accountForToken([tokenId]);
+      
+      // 为账户铸造新组件
+      const mintCompTx = await component.write.mintComponent(
+        [newTemplateId, accountAddress],
+        { account: owner.account, value: parseEther("0.01") }
+      );
+      
+      await publicClient.waitForTransactionReceipt({ hash: mintCompTx });
+      const newComponentId = BigInt(5 + 1); // 5个原始组件+1个新组件
+      
+      // 更改组件
+      const changeTx = await buyerClient.write.changeComponent([
+        tokenId,
+        newComponentId,
+        2 // EYES
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: changeTx });
+      
+      // 获取更新后的URI
+      const updatedTokenURI = await allNads.read.tokenURI([tokenId]);
+      
+      // URI应该包含更新后的组件ID
+      expect(updatedTokenURI).to.include(`"trait_type":"Eyes","value":"${newComponentId.toString()}"`);
+    });
+  });
+
+  describe("Advanced Account Integration", function () {
+    it("Should allow token bound account to receive and send ETH", async function () {
+      const { 
+        allNads, 
+        buyer,
+        publicClient, 
+        mintedTokenId
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 获取token关联的账户地址
+      const accountAddress = await allNads.read.accountForToken([mintedTokenId]);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddress,
+        { client: { wallet: buyer } }
+      );
+      
+      // 发送ETH到账户
+      const sendAmount = parseEther("0.1");
+      const sendTx = await buyer.sendTransaction({
+        to: accountAddress,
+        value: sendAmount
+      });
+      
+      await publicClient.waitForTransactionReceipt({ hash: sendTx });
+      
+      // 检查账户余额
+      const balance = await publicClient.getBalance({ address: accountAddress });
+      expect(balance).to.equal(sendAmount);
+      
+      // 从账户发送ETH
+      const sendBackAmount = parseEther("0.05");
+      const sendBackTx = await buyerClient.write.send([
+        buyer.account.address,
+        sendBackAmount
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: sendBackTx });
+      
+      // 检查更新后的余额
+      const updatedBalance = await publicClient.getBalance({ address: accountAddress });
+      expect(Number(updatedBalance)).to.be.closeTo(Number(sendAmount - sendBackAmount), Number(parseEther("0.001"))); // 允许一点gas误差
+    });
+    
+    it("Should verify account nonce increments after transactions", async function () {
+      const { 
+        allNads, 
+        buyer,
+        publicClient, 
+        mintedTokenId
+      } = await loadFixture(deployAndMintNFTFixture);
+      
+      // 获取token关联的账户地址
+      const accountAddress = await allNads.read.accountForToken([mintedTokenId]);
+      
+      // 使用buyer创建客户端
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddress,
+        { client: { wallet: buyer } }
+      );
+      
+      // 发送ETH到账户
+      const sendTx = await buyer.sendTransaction({
+        to: accountAddress,
+        value: parseEther("0.1")
+      });
+      
+      await publicClient.waitForTransactionReceipt({ hash: sendTx });
+      
+      // 获取初始nonce
+      const initialNonce = await buyerClient.read.nonce();
+      expect(initialNonce).to.equal(0n);
+      
+      // 执行一个交易
+      const executeTx = await buyerClient.write.send([
+        buyer.account.address,
+        parseEther("0.01")
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: executeTx });
+      
+      // 检查nonce是否增加
+      const newNonce = await buyerClient.read.nonce();
+      expect(newNonce).to.equal(1n);
+      
+      // 执行另一个交易
+      const executeTx2 = await buyerClient.write.send([
+        buyer.account.address,
+        parseEther("0.01")
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: executeTx2 });
+      
+      // 再次检查nonce
+      const finalNonce = await buyerClient.read.nonce();
+      expect(finalNonce).to.equal(2n);
     });
   });
 }); 
