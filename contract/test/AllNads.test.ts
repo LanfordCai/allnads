@@ -342,7 +342,7 @@ describe("AllNads", function () {
     });
 
     it("Should allow token owner to execute transactions through the account", async function () {
-      const { allNads, account, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
+      const { allNads, buyer, publicClient, templateIds } = await loadFixture(deployAllNadsFixture);
       
       // 铸造NFT
       const tx1 = await allNads.write.mint([
@@ -354,11 +354,11 @@ describe("AllNads", function () {
         templateIds[4]  // 配饰
       ], { value: parseEther("0.05"), account: buyer.account });
       await publicClient.waitForTransactionReceipt({ hash: tx1 });
+
+      const nftTokenId = 1n;
       
-      const tokenId = 1n;
-      
-      // 获取账户地址
-      const accountAddr = await allNads.read.accountForToken([tokenId]);
+      // 获取 TBA 地址
+      const accountAddr = await allNads.read.accountForToken([nftTokenId]);
       
       // 向账户发送一些ETH以便测试
       const sendEthTx = await buyer.sendTransaction({
@@ -368,26 +368,29 @@ describe("AllNads", function () {
       await publicClient.waitForTransactionReceipt({ hash: sendEthTx });
 
       const beforeAccountBalance = await publicClient.getBalance({ address: accountAddr });
-      console.log("beforeAccountBalance", beforeAccountBalance);
-      
+
       // 准备调用数据
       const target = getAddress(buyer.account.address); // 修改为 buyer 作为目标地址
       const value = parseEther("0.05");
       const callData = "0x";
       
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: buyer } }
+      );
+
       // 用户直接通过账户合约执行调用
-      const executeCallTx = await account.write.executeCall([
+      const executeCallTx = await buyerClient.write.executeCall([
         target,
         value,
         callData,
-        0
-      ], { account: buyer.account });
+      ]);
       
       await publicClient.waitForTransactionReceipt({ hash: executeCallTx });
       
       // 检查余额是否减少
       const afterAccountBalance = await publicClient.getBalance({ address: accountAddr });
-      console.log("afterAccountBalance", afterAccountBalance);
       expect(afterAccountBalance < beforeAccountBalance).to.be.true;
     });
   });

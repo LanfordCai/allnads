@@ -1,40 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/utils/Create2.sol";
+import "./interfaces/IERC6551Registry.sol";
 
 /**
  * @title AllNadsRegistry
- * @notice Implementation of ERC6551 registry for AllNads
- * @dev This contract is used to create and lookup token bound accounts for AllNads NFTs
+ * @dev Registry for creating token-bound accounts for AllNads NFTs
  */
-contract AllNadsRegistry {
+contract AllNadsRegistry is IERC6551Registry {
+    error InitializationFailed();
+    
     /**
-     * @notice Emitted when a new account is created
-     * @param account The address of the created account
-     * @param implementation The implementation contract of the created account
-     * @param chainId The chainId the contract exists on
-     * @param tokenContract The address of the token contract
-     * @param tokenId The id of the token
-     * @param salt An arbitrary value to allow creating multiple accounts for the same token
-     */
-    event AccountCreated(
-        address account,
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt
-    );
-
-    /**
-     * @notice Creates a token bound account for a non-fungible token
-     * @dev The created account is a contract that can be used to manage assets associated with the token
+     * @dev Creates a new token-bound account for a given token
      * @param implementation The implementation contract for the account
-     * @param chainId The chainId of the token
+     * @param chainId The chainId where the token exists
      * @param tokenContract The address of the token contract
      * @param tokenId The id of the token
-     * @param salt An arbitrary value to allow creating multiple accounts for the same token
-     * @param initData Optional initialization data to configure the account
-     * @return account The address of the created account
+     * @param salt A salt to ensure unique account address generation
+     * @param initData Initialization data for the account
+     * @return The address of the created account
      */
     function createAccount(
         address implementation,
@@ -44,57 +29,24 @@ contract AllNadsRegistry {
         uint256 salt,
         bytes calldata initData
     ) external returns (address) {
-        bytes32 bytecodeHash = _getBytecodeHash(
-            implementation,
-            chainId,
-            tokenContract,
-            tokenId,
-            salt
+        bytes memory code = _creationCode(implementation, chainId, tokenContract, tokenId, salt);
+
+        address _account = Create2.computeAddress(
+            bytes32(salt),
+            keccak256(code)
         );
 
-        address account = _getAccountAddress(
-            implementation,
-            chainId,
-            tokenContract,
-            tokenId,
-            salt,
-            bytecodeHash
-        );
+        if (_account.code.length != 0) return _account;
 
-        uint256 codeSize;
-        assembly {
-            codeSize := extcodesize(account)
-        }
+        _account = Create2.deploy(0, bytes32(salt), code);
 
-        if (codeSize == 0) {
-            // Account does not exist yet, create it
-            bytes memory creationCode = _getCreationCode(
-                implementation,
-                chainId,
-                tokenContract,
-                tokenId,
-                salt
-            );
-
-            assembly {
-                account := create(0, add(creationCode, 0x20), mload(creationCode))
-            }
-
-            if (account == address(0)) {
-                revert("Account creation failed");
-            }
-
-            if (initData.length > 0) {
-                // Initialize the account
-                (bool success, ) = account.call(initData);
-                if (!success) {
-                    revert("Account initialization failed");
-                }
-            }
+        if (initData.length != 0) {
+            (bool success, ) = _account.call(initData);
+            if (!success) revert InitializationFailed();
         }
 
         emit AccountCreated(
-            account,
+            _account,
             implementation,
             chainId,
             tokenContract,
@@ -102,125 +54,54 @@ contract AllNadsRegistry {
             salt
         );
 
-        return account;
+        return _account;
     }
 
     /**
-     * @notice Returns the computed account address for a token
+     * @dev Computes the account address for a given token
      * @param implementation The implementation contract for the account
-     * @param chainId The chainId of the token
+     * @param chainId The chainId where the token exists
      * @param tokenContract The address of the token contract
      * @param tokenId The id of the token
-     * @param salt An arbitrary value to allow creating multiple accounts for the same token
-     * @return account The computed account address
+     * @param salt A salt for unique account address generation
+     * @return The computed address of the account
      */
-    function getAccount(
+    function account(
         address implementation,
         uint256 chainId,
         address tokenContract,
         uint256 tokenId,
         uint256 salt
     ) external view returns (address) {
-        bytes32 bytecodeHash = _getBytecodeHash(
-            implementation,
-            chainId,
-            tokenContract,
-            tokenId,
-            salt
+        bytes32 bytecodeHash = keccak256(
+            _creationCode(implementation, chainId, tokenContract, tokenId, salt)
         );
 
-        return _getAccountAddress(
-            implementation,
-            chainId,
-            tokenContract,
-            tokenId,
-            salt,
-            bytecodeHash
-        );
+        return Create2.computeAddress(bytes32(salt), bytecodeHash);
     }
 
     /**
-     * @notice Returns the bytecode hash for a token bound account
-     * @param implementation The implementation contract for the account
-     * @param chainId The chainId of the token
-     * @param tokenContract The address of the token contract
-     * @param tokenId The id of the token
-     * @param salt An arbitrary value to allow creating multiple accounts for the same token
-     * @return bytecodeHash The bytecode hash of the account
+     * @dev Generates the creation code for a token-bound account
+     * @param implementation_ The implementation contract address
+     * @param chainId_ The chainId where the token exists
+     * @param tokenContract_ The token contract address
+     * @param tokenId_ The token id
+     * @param salt_ The salt for unique address generation
+     * @return The creation code for the account
      */
-    function _getBytecodeHash(
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt
-    ) internal pure returns (bytes32) {
-        bytes memory creationCode = _getCreationCode(
-            implementation,
-            chainId,
-            tokenContract,
-            tokenId,
-            salt
-        );
-
-        return keccak256(creationCode);
-    }
-
-    /**
-     * @notice Returns the creation code for a token bound account
-     * @param implementation The implementation contract for the account
-     * @param chainId The chainId of the token
-     * @param tokenContract The address of the token contract
-     * @param tokenId The id of the token
-     * @param salt An arbitrary value to allow creating multiple accounts for the same token
-     * @return creationCode The creation code of the account
-     */
-    function _getCreationCode(
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt
+    function _creationCode(
+        address implementation_,
+        uint256 chainId_,
+        address tokenContract_,
+        uint256 tokenId_,
+        uint256 salt_
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            hex"3d602d80600a3d3981f3363d3d373d3d3d363d73",
-            implementation,
-            hex"5af43d82803e903d91602b57fd5bf3",
-            abi.encode(chainId, tokenContract, tokenId, salt)
-        );
+        return
+            abi.encodePacked(
+                hex"3d60ad80600a3d3981f3363d3d373d3d3d363d73",
+                implementation_,
+                hex"5af43d82803e903d91602b57fd5bf3",
+                abi.encode(salt_, chainId_, tokenContract_, tokenId_)
+            );
     }
-
-    /**
-     * @notice Returns the computed account address for a token
-     * @param implementation The implementation contract for the account
-     * @param chainId The chainId of the token
-     * @param tokenContract The address of the token contract
-     * @param tokenId The id of the token
-     * @param salt An arbitrary value to allow creating multiple accounts for the same token
-     * @param bytecodeHash The bytecode hash of the account
-     * @return account The computed account address
-     */
-    function _getAccountAddress(
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt,
-        bytes32 bytecodeHash
-    ) internal view returns (address) {
-        return address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            bytes1(0xff),
-                            address(this), // salt is applied by this contract
-                            keccak256(abi.encode(implementation, chainId, tokenContract, tokenId, salt)), // unique salt per account
-                            bytecodeHash
-                        )
-                    )
-                )
-            )
-        );
-    }
-} 
+}

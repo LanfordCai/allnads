@@ -8,44 +8,8 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "./AllNadsComponent.sol";
-
-interface IERC6551Registry {
-    event AccountCreated(
-        address account,
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt
-    );
-
-    function createAccount(
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt,
-        bytes calldata initData
-    ) external returns (address);
-
-    function getAccount(
-        address implementation,
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId,
-        uint256 salt
-    ) external view returns (address);
-}
-
-// Interface for AllNadsAccount
-interface IAllNadsAccount {
-    function executeCall(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation
-    ) external payable returns (bytes memory);
-}
+import "./interfaces/IERC6551Registry.sol";
+import "./interfaces/IERC6551Account.sol";
 
 // Interface for AllNadsRenderer
 interface IAllNadsRenderer {
@@ -419,7 +383,7 @@ contract AllNads is ERC721Enumerable, Ownable, ERC1155Holder {
     
     // Get the token bound account address for an NFT
     function accountForToken(uint256 tokenId) public view returns (address) {
-        return registry.getAccount(
+        return registry.account(
             accountImplementation,
             block.chainid,
             address(this),

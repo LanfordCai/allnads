@@ -1,98 +1,168 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "./interfaces/IERC6551Account.sol";
+import "./lib/Bytecode.sol";
 
 /**
- * @title IERC6551Account
- * @notice Interface for ERC6551 token bound accounts
+ * @title AllNadsAccount
+ * @dev Token-bound account implementation for AllNads NFTs with support for ERC721, ERC1155, and ERC20 tokens
  */
-interface IERC6551Account {
-    /**
-     * @notice Returns identifier of the ERC-721 token which owns the account
-     * @return chainId The chain id
-     * @return tokenContract The address of the token contract
-     * @return tokenId The id of the token
-     */
-    function token() external view returns (uint256 chainId, address tokenContract, uint256 tokenId);
+contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC721Receiver, IERC1155Receiver {
+    // Account nonce, incremented on each successful execution
+    uint256 private _nonce;
+
+    // Allows the account to receive ETH
+    receive() external payable {}
 
     /**
-     * @notice Executes a transaction from the account
-     * @param to The target address of the transaction
-     * @param value The native token value of the transaction
-     * @param data The data of the transaction
-     * @param operation The operation to execute
-     * @return The result of the transaction
+     * @dev Executes a call from this account to a target address
+     * @param to The target address
+     * @param value The amount of ETH to send
+     * @param data The calldata to send
+     * @return result The bytes returned from the call
      */
     function executeCall(
         address to,
         uint256 value,
-        bytes calldata data,
-        uint8 operation
-    ) external payable returns (bytes memory);
-}
+        bytes calldata data
+    ) external payable returns (bytes memory result) {
+        require(msg.sender == owner(), "Not token owner");
 
-/**
- * @title IERC6551Executable
- * @notice Interface for ERC6551 execution
- */
-interface IERC6551Executable {
-    function execute(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation
-    ) external payable returns (bytes memory);
-}
+        bool success;
+        (success, result) = to.call{value: value}(data);
 
-/**
- * @title AllNadsAccount
- * @notice Implementation of ERC6551 token bound accounts for AllNads
- * @dev This contract is used to create accounts for each AllNads NFT
- */
-contract AllNadsAccount is IERC165, IERC1271, IERC6551Account, IERC6551Executable, IERC1155Receiver, IERC721Receiver {
-    // Operation types
-    uint8 public constant OPERATION_CALL = 0;
-    uint8 public constant OPERATION_DELEGATECALL = 1;
-    uint8 public constant OPERATION_CREATE = 2;
-    uint8 public constant OPERATION_CREATE2 = 3;
-
-    // Track state changes
-    uint256 public state;
-
-    // Validation errors
-    error NotAuthorized();
-    error OperationNotSupported();
-    error InvalidNonce();
-    error InvalidSignature();
-    error EtherTransferFailed();
-
-    /**
-     * @notice Ensures the caller is authorized to execute on this account
-     */
-    modifier onlyAuthorized() {
-        if (!isAuthorized(msg.sender)) {
-            revert NotAuthorized();
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
         }
-        _;
+
+        _nonce++;
+        emit TransactionExecuted(to, value, data);
     }
 
-    event DebugToken(uint256 chainId, address tokenContract, uint256 tokenId);
+    /**
+     * @dev Returns token information bound to this account
+     * @return chainId The chainId of the token
+     * @return tokenContract The token contract address
+     * @return tokenId The token ID
+     */
+    function token()
+        external
+        view
+        returns (uint256 chainId, address tokenContract, uint256 tokenId)
+    {
+        uint256 length = address(this).code.length;
+        return
+            abi.decode(
+                Bytecode.codeAt(address(this), length - 0x60, length),
+                (uint256, address, uint256)
+            );
+    }
 
-function debugToken() external {
-    (uint256 chainId, address tokenContract, uint256 tokenId) = token();
-    emit DebugToken(chainId, tokenContract, tokenId);
-}
+    event LogCheckIsOwner(address sender, address owner, bool result);
+
+    function checkIsOwner() external returns (bool) {
+        bool result = msg.sender == owner();
+        emit LogCheckIsOwner(msg.sender, owner(), result);
+        return result;
+    }
 
     /**
-     * @notice Receives ERC-1155 tokens
-     * @dev Required to implement IERC1155Receiver
+     * @dev Returns the owner of the token bound to this account
+     * @return The address of the token owner
+     */
+    function owner() public view returns (address) {
+        (uint256 chainId, address tokenContract, uint256 tokenId) = this
+            .token();
+        if (chainId != block.chainid) return address(0);
+
+        return IERC721(tokenContract).ownerOf(tokenId);
+    }
+
+    /**
+     * @dev Implements IERC165 interface detection
+     * @param interfaceId The interface id to check
+     * @return True if the interface is supported
+     */
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
+        return (
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(IERC6551Account).interfaceId ||
+            interfaceId == type(IERC721Receiver).interfaceId ||
+            interfaceId == type(IERC1155Receiver).interfaceId
+        );
+    }
+
+    /**
+     * @dev Implements IERC1271 to validate signatures
+     * @param hash The hash of the data to be signed
+     * @param signature The signature to validate
+     * @return magicValue The magic value to indicate if signature is valid
+     */
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) external view returns (bytes4 magicValue) {
+        bool isValid = SignatureChecker.isValidSignatureNow(
+            owner(),
+            hash,
+            signature
+        );
+
+        if (isValid) {
+            return IERC1271.isValidSignature.selector;
+        }
+
+        return "";
+    }
+
+    /**
+     * @dev Returns the current nonce of the account
+     * @return The current nonce value
+     */
+    function nonce() external view override returns (uint256) {
+        return _nonce;
+    }
+
+    /**
+     * @dev Sends ETH from this account to a specified address
+     * @param to The recipient address
+     * @param amount The amount of ETH to send
+     */
+    function send(address payable to, uint256 amount) external {
+        require(msg.sender == owner(), "Not token owner");
+        require(address(this).balance >= amount, "Insufficient funds");
+        
+        // Increment nonce for each successful execution
+        _nonce++;
+        
+        to.transfer(amount);
+    }
+
+    /**
+     * @dev ERC721 receiver implementation
+     */
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+    /**
+     * @dev ERC1155 receiver implementation
      */
     function onERC1155Received(
         address,
@@ -100,13 +170,12 @@ function debugToken() external {
         uint256,
         uint256,
         bytes calldata
-    ) external pure returns (bytes4) {
+    ) external pure override returns (bytes4) {
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
     /**
-     * @notice Receives ERC-1155 batch transfers
-     * @dev Required to implement IERC1155Receiver
+     * @dev ERC1155 batch receiver implementation
      */
     function onERC1155BatchReceived(
         address,
@@ -114,372 +183,87 @@ function debugToken() external {
         uint256[] calldata,
         uint256[] calldata,
         bytes calldata
-    ) external pure returns (bytes4) {
+    ) external pure override returns (bytes4) {
         return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
     /**
-     * @notice Receives ERC-721 tokens
-     * @dev Required to implement IERC721Receiver
-     */
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure returns (bytes4) {
-        return IERC721Receiver.onERC721Received.selector;
-    }
-
-    /**
-     * @notice Returns the token that owns this account
-     * @return chainId The chainId of the token
-     * @return tokenContract The token contract address
-     * @return tokenId The token ID
-     */
-    function token() public view returns (uint256 chainId, address tokenContract, uint256 tokenId) {
-        bytes memory footprint = _getAccountStorage();
-
-        // Extract values from the footprint [chainid (32) + tokenContract (32) + tokenId (32)]
-        assembly {
-            chainId := mload(add(footprint, 32))
-            tokenContract := mload(add(footprint, 64))
-            tokenId := mload(add(footprint, 96))
-        }
-    }
-
-    /**
-     * @notice Returns the current account nonce
-     * @dev Used for replay protection
-     */
-    function nonce() public view returns (uint256) {
-        return state;
-    }
-
-    /**
-     * @notice Executes a transaction on behalf of the token bound account
-     * @param to The target address of the transaction
-     * @param value The native token value of the transaction
-     * @param data The data of the transaction
-     * @param operation The operation to execute
-     * @return result The result of the transaction
-     */
-    function executeCall(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation
-    ) external payable onlyAuthorized returns (bytes memory result) {
-        state++;
-
-        if (operation == OPERATION_CALL) {
-            bool success;
-            (success, result) = to.call{value: value}(data);
-            if (!success) {
-                assembly {
-                    revert(add(result, 32), mload(result))
-                }
-            }
-        } else if (operation == OPERATION_DELEGATECALL) {
-            // Delegatecall is not supported for simplicity and security reasons
-            revert OperationNotSupported();
-        } else {
-            revert OperationNotSupported();
-        }
-
-        return result;
-    }
-
-    /**
-     * @notice Executes a transaction from another contract
-     * @param to The target address of the transaction
-     * @param value The native token value of the transaction
-     * @param data The data of the transaction
-     * @param operation The operation to execute
-     * @return result The result of the transaction
-     */
-    function execute(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation
-    ) external payable virtual returns (bytes memory result) {
-        return this.executeCall(to, value, data, operation);
-    }
-
-    /**
-     * @notice Checks if a given signature is valid for this account
-     * @param hash The hash of the data being signed
-     * @param signature The signature to validate
-     * @return magicValue The ERC1271 magic value if valid
-     */
-    function isValidSignature(bytes32 hash, bytes memory signature)
-        external
-        view
-        virtual
-        returns (bytes4 magicValue)
-    {
-        (uint256 chainId, address tokenContract, uint256 tokenId) = token();
-        
-        if (chainId != block.chainid) {
-            return "";
-        }
-
-        address owner = IERC721(tokenContract).ownerOf(tokenId);
-        
-        if (_isValidERC1271Signature(owner, hash, signature)) {
-            return IERC1271.isValidSignature.selector;
-        }
-        
-        if (_isValidEOASignature(owner, hash, signature)) {
-            return IERC1271.isValidSignature.selector;
-        }
-        
-        return "";
-    }
-
-    /**
-     * @notice Checks if the caller is authorized to execute on this account
-     * @param caller The address to check
-     * @return isAuth Whether the caller is authorized
-     */
-    function isAuthorized(address caller) public view returns (bool) {
-        // Production code follows
-        (uint256 chainId, address tokenContract, uint256 tokenId) = token();
-        
-        // If the token is on another chain, no one is authorized
-        if (chainId != block.chainid) {
-            return false;
-        }
-
-        // Get owner of the token
-        address owner = IERC721(tokenContract).ownerOf(tokenId);
-        
-        // Authorize the owner of the token
-        if (caller == owner) {
-            return true;
-        }
-        
-        // Authorize approved operators
-        if (IERC721(tokenContract).isApprovedForAll(owner, caller)) {
-            return true;
-        }
-        
-        // Authorize approved address for this specific token
-        if (IERC721(tokenContract).getApproved(tokenId) == caller) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
-     * @notice Supports ERC165 interface detection
-     * @param interfaceId The interface ID to check
-     * @return Whether the interface is supported
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return
-            interfaceId == type(IERC165).interfaceId ||
-            interfaceId == type(IERC1155Receiver).interfaceId ||
-            interfaceId == type(IERC721Receiver).interfaceId ||
-            interfaceId == type(IERC6551Account).interfaceId ||
-            interfaceId == type(IERC6551Executable).interfaceId;
-    }
-
-    /**
-     * @notice Handles receiving native tokens
-     */
-    receive() external payable {}
-
-    /**
-     * @notice Event emitted when an unknown function is called
-     * @param sender The sender of the call
-     * @param value The ETH value sent with the call
-     * @param data The calldata of the call
-     */
-    event UnknownCallReceived(address indexed sender, uint256 value, bytes data);
-
-    /**
-     * @notice Fallback function for handling unknown calls
-     * @dev Only authorized users can trigger the fallback function
-     */
-    fallback() external payable {
-        // 确保只有授权用户可以触发fallback
-        if (!isAuthorized(msg.sender)) {
-            revert NotAuthorized();
-        }
-        
-        // 增加状态变量以防止重放攻击
-        state++;
-        
-        // 记录未知调用的事件，便于链下分析
-        emit UnknownCallReceived(msg.sender, msg.value, msg.data);
-    }
-
-    /**
-     * @notice Gets the account storage from the proxy
-     * @return result The account storage
-     */
-    function _getAccountStorage() internal view returns (bytes memory) {
-        uint256 size;
-        address self = address(this);
-        assembly {
-            size := extcodesize(self)
-        }
-        
-        bytes memory code = new bytes(size);
-        assembly {
-            extcodecopy(self, add(code, 0x20), 0, size)
-        }
-        
-        return code;
-    }
-
-    /**
-     * @notice Checks if a signature is valid for an ERC1271 contract
-     * @param signer The signing address
-     * @param hash The hash of the data being signed
-     * @param signature The signature to validate
-     * @return Whether the signature is valid
-     */
-    function _isValidERC1271Signature(
-        address signer,
-        bytes32 hash,
-        bytes memory signature
-    ) internal view returns (bool) {
-        (bool success, bytes memory result) = signer.staticcall(
-            abi.encodeWithSelector(IERC1271.isValidSignature.selector, hash, signature)
-        );
-        
-        return (
-            success &&
-            result.length >= 4 &&
-            abi.decode(result, (bytes4)) == IERC1271.isValidSignature.selector
-        );
-    }
-
-    /**
-     * @notice Checks if a signature is valid for an EOA
-     * @param signer The signing address
-     * @param hash The hash of the data being signed
-     * @param signature The signature to validate
-     * @return Whether the signature is valid
-     */
-    function _isValidEOASignature(
-        address signer,
-        bytes32 hash,
-        bytes memory signature
-    ) internal view returns (bool) {
-        return SignatureChecker.isValidSignatureNow(
-            signer, 
-            MessageHashUtils.toEthSignedMessageHash(hash), 
-            signature
-        );
-    }
-    
-    /**
-     * @notice Transfer ERC20 tokens from this account
-     * @dev Only authorized addresses can call
-     * @param tokenContract ERC20 token address
-     * @param to Recipient address
-     * @param amount Amount to transfer
-     * @return success Whether the transfer was successful
+     * @dev Transfer ERC20 tokens from this account to a specified address
+     * @param _token The ERC20 token contract address
+     * @param _to The recipient address
+     * @param _amount The amount of tokens to send
      */
     function transferERC20(
-        address tokenContract,
-        address to,
-        uint256 amount
-    ) external onlyAuthorized returns (bool) {
-        state++;
-        (bool success, bytes memory data) = tokenContract.call(
-            abi.encodeWithSelector(0xa9059cbb, to, amount) // transfer(address,uint256)
-        );
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external {
+        require(msg.sender == owner(), "Not token owner");
         
-        if (!success) {
-            assembly {
-                revert(add(data, 32), mload(data))
-            }
-        }
+        _nonce++;
         
-        return abi.decode(data, (bool));
+        IERC20(_token).transfer(_to, _amount);
     }
-    
+
     /**
-     * @notice Helper function to transfer multiple ERC20 tokens
-     * @param tokens Array of ERC20 token addresses
-     * @param to Recipient address
-     * @param amounts Array of amounts to transfer
-     */
-    function batchTransferERC20(
-        address[] calldata tokens,
-        address to,
-        uint256[] calldata amounts
-    ) external onlyAuthorized {
-        require(tokens.length == amounts.length, "Array length mismatch");
-        
-        state++;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            (bool success, bytes memory data) = tokens[i].call(
-                abi.encodeWithSelector(0xa9059cbb, to, amounts[i])
-            );
-            
-            if (!success) {
-                assembly {
-                    revert(add(data, 32), mload(data))
-                }
-            }
-        }
-    }
-    
-    /**
-     * @notice Transfer ERC721 tokens from this account
-     * @dev Only authorized addresses can call
-     * @param tokenContract NFT contract address
-     * @param to Recipient address
-     * @param tokenId Token ID to transfer
+     * @dev Transfer ERC721 token from this account to a specified address
+     * @param _token The ERC721 token contract address
+     * @param _to The recipient address
+     * @param _tokenId The token ID to transfer
      */
     function transferERC721(
-        address tokenContract,
-        address to,
-        uint256 tokenId
-    ) external onlyAuthorized {
-        state++;
-        (bool success, bytes memory data) = tokenContract.call(
-            abi.encodeWithSelector(0x42842e0e, address(this), to, tokenId) // safeTransferFrom(address,address,uint256)
-        );
+        address _token,
+        address _to,
+        uint256 _tokenId
+    ) external {
+        require(msg.sender == owner(), "Not token owner");
         
-        if (!success) {
-            assembly {
-                revert(add(data, 32), mload(data))
-            }
-        }
+        _nonce++;
+        
+        IERC721(_token).safeTransferFrom(address(this), _to, _tokenId);
     }
-    
+
     /**
-     * @notice Helper function to transfer multiple ERC721 tokens
-     * @param tokens Array of ERC721 token addresses
-     * @param to Recipient address
-     * @param tokenIds Array of token IDs to transfer
+     * @dev Transfer ERC1155 tokens from this account to a specified address
+     * @param _token The ERC1155 token contract address
+     * @param _to The recipient address
+     * @param _id The token ID to transfer
+     * @param _amount The amount of tokens to transfer
+     * @param _data Additional data with no specified format
      */
-    function batchTransferERC721(
-        address[] calldata tokens,
-        address to,
-        uint256[] calldata tokenIds
-    ) external onlyAuthorized {
-        require(tokens.length == tokenIds.length, "Array length mismatch");
+    function transferERC1155(
+        address _token,
+        address _to,
+        uint256 _id,
+        uint256 _amount,
+        bytes calldata _data
+    ) external {
+        require(msg.sender == owner(), "Not token owner");
         
-        state++;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            (bool success, bytes memory data) = tokens[i].call(
-                abi.encodeWithSelector(0x42842e0e, address(this), to, tokenIds[i])
-            );
-            
-            if (!success) {
-                assembly {
-                    revert(add(data, 32), mload(data))
-                }
-            }
-        }
+        _nonce++;
+        
+        IERC1155(_token).safeTransferFrom(address(this), _to, _id, _amount, _data);
     }
-} 
+
+    /**
+     * @dev Batch transfer ERC1155 tokens from this account to a specified address
+     * @param _token The ERC1155 token contract address
+     * @param _to The recipient address
+     * @param _ids An array of token IDs to transfer
+     * @param _amounts An array of amounts of tokens to transfer
+     * @param _data Additional data with no specified format
+     */
+    function batchTransferERC1155(
+        address _token,
+        address _to,
+        uint256[] calldata _ids,
+        uint256[] calldata _amounts,
+        bytes calldata _data
+    ) external {
+        require(msg.sender == owner(), "Not token owner");
+        
+        _nonce++;
+        
+        IERC1155(_token).safeBatchTransferFrom(address(this), _to, _ids, _amounts, _data);
+    }
+}
