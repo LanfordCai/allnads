@@ -16,21 +16,6 @@ export class ChatService {
   private static llmService = new LLMService();
 
   /**
-   * 检测是否需要调用MCP工具
-   * 简单实现：检查消息中是否包含触发词
-   */
-  private static shouldUseMCPTool(message: string): boolean {
-    const triggers = [
-      '使用工具', '调用工具', '用工具', 
-      '查询', '获取',
-      'gas', 'gas价格', '以太坊', 'eth', '币价', '账户余额',
-      '区块链', '智能合约'
-    ];
-    
-    return triggers.some(trigger => message.toLowerCase().includes(trigger.toLowerCase()));
-  }
-  
-  /**
    * 根据消息内容选择合适的MCP服务器
    * @private
    */
@@ -112,41 +97,6 @@ export class ChatService {
   }
   
   /**
-   * 解析工具调用
-   */
-  private static parseToolCalls(assistantMessage: Message): { name: string; args: Record<string, any> }[] {
-    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return [];
-    }
-    
-    return assistantMessage.tool_calls.map((toolCall: ToolCall) => {
-      // 只处理函数调用
-      if (toolCall.type !== 'function') {
-        return null;
-      }
-      
-      const name = toolCall.function.name;
-      let args: Record<string, any> = {};
-      
-      try {
-        args = typeof toolCall.function.arguments === 'string' 
-          ? JSON.parse(toolCall.function.arguments) 
-          : toolCall.function.arguments;
-      } catch (error) {
-        console.error(`解析工具参数错误: ${error}`);
-        
-        // 在参数解析失败时，返回错误信息作为参数
-        args = { 
-          error: `参数解析失败: ${error instanceof Error ? error.message : String(error)}`,
-          originalArguments: toolCall.function.arguments 
-        };
-      }
-      
-      return { name, args };
-    }).filter(Boolean) as { name: string; args: Record<string, any> }[];
-  }
-  
-  /**
    * 处理聊天请求
    * @param request 聊天请求
    * @returns 聊天响应
@@ -210,127 +160,133 @@ export class ChatService {
     let assistantContent = '';
     let assistantMessage: ChatMessage;
     
-    // 检查是否需要调用MCP工具
-    if (enableTools || this.shouldUseMCPTool(message)) {
-      try {
-        // 获取MCP工具定义
+    try {
+      // 准备初始请求参数
+      const requestOptions: any = {
+        model: 'anthropic/claude-3.5-sonnet',
+        messages: llmMessages,
+        temperature: 0.7
+      };
+      
+      // 如果启用了工具，添加工具定义
+      if (enableTools) {
         const mcpTools = this.getMCPToolDefinitions();
-        
         if (mcpTools.length > 0) {
           console.log(`发现 ${mcpTools.length} 个可用工具`);
+          requestOptions.tools = mcpTools;
+          requestOptions.tool_choice = 'auto';
+        } else {
+          console.log('未找到可用的MCP工具');
+        }
+      }
+      
+      // 发送初始请求
+      let response = await this.llmService.sendChatRequest(requestOptions);
+      let assistantResponseMessage = response.choices[0].message;
+      
+      // 处理初始响应
+      let finalResponseParts: string[] = [];
+      
+      // 检查是否有工具调用
+      if (enableTools && 
+          assistantResponseMessage.tool_calls && 
+          assistantResponseMessage.tool_calls.length > 0) {
+        
+        console.log(`检测到 ${assistantResponseMessage.tool_calls.length} 个工具调用请求`);
+        
+        // 保存初始响应文本
+        if (assistantResponseMessage.content) {
+          finalResponseParts.push(assistantResponseMessage.content);
+        }
+        
+        // 创建新的消息列表，包含初始对话和LLM响应
+        const updatedMessages = [...llmMessages, assistantResponseMessage];
+        console.log(assistantResponseMessage.tool_calls);
+        
+        // 处理工具调用
+        for (const toolCall of assistantResponseMessage.tool_calls) {
+          if (toolCall.type !== 'function') continue;
           
-          // 发送请求给LLM，包含工具定义
-          const response = await this.llmService.sendChatRequest({
-            model: 'anthropic/claude-3.5-sonnet',
-            messages: llmMessages,
-            tools: mcpTools,
-            tool_choice: 'auto'
-          });
+          const toolName = toolCall.function.name;
+          let toolArgs: Record<string, any> = {};
           
-          // 处理LLM响应
-          const assistantResponseMessage = response.choices[0].message;
-          
-          // 检查是否有工具调用
-          if (assistantResponseMessage.tool_calls && assistantResponseMessage.tool_calls.length > 0) {
-            console.log(`检测到 ${assistantResponseMessage.tool_calls.length} 个工具调用请求`);
-            
-            // 解析工具调用
-            const toolCalls = this.parseToolCalls(assistantResponseMessage);
-            
-            // 执行每个工具调用
-            for (const call of toolCalls) {
-              console.log(`执行工具调用: ${call.name}`);
-              console.log(`参数: ${JSON.stringify(call.args, null, 2)}`);
+          try {
+            toolArgs = typeof toolCall.function.arguments === 'string'
+              ? JSON.parse(toolCall.function.arguments)
+              : toolCall.function.arguments;
               
-              try {
-                // 执行工具调用
-                const result = await mcpManager.callTool(call.name, call.args);
-                
-                // 从结果中提取内容
-                let resultContent = '';
-                if (result.content && result.content.length > 0) {
-                  // 遍历所有内容项
-                  for (const contentItem of result.content) {
-                    // 根据内容类型处理
-                    if (contentItem.type === 'text') {
-                      // 处理文本内容
-                      resultContent += (contentItem as TextContent).text;
-                    } else if (contentItem.type === 'image') {
-                      // 处理图像内容
-                      const imageContent = contentItem as ImageContent;
-                      resultContent += `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
-                    } else if (contentItem.type === 'embedded_resource') {
-                      // 处理嵌入资源
-                      const resourceContent = contentItem as EmbeddedResource;
-                      resultContent += `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
-                    }
-                  }
+            console.log(`执行工具调用: ${toolName}`);
+            console.log(`参数: ${JSON.stringify(toolArgs, null, 2)}`);
+            
+            // 执行工具调用
+            const result = await mcpManager.callTool(toolName, toolArgs);
+            
+            // 从结果中提取内容
+            let resultContent = '';
+            if (result.content && result.content.length > 0) {
+              // 遍历所有内容项
+              for (const contentItem of result.content) {
+                // 根据内容类型处理
+                if (contentItem.type === 'text') {
+                  // 处理文本内容
+                  resultContent += (contentItem as TextContent).text;
+                } else if (contentItem.type === 'image') {
+                  // 处理图像内容
+                  const imageContent = contentItem as ImageContent;
+                  resultContent += `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
+                } else if (contentItem.type === 'embedded_resource') {
+                  // 处理嵌入资源
+                  const resourceContent = contentItem as EmbeddedResource;
+                  resultContent += `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
                 }
-                
-                console.log(`工具响应: ${resultContent}`);
-                
-                // 创建工具响应消息，添加到LLM消息队列
-                llmMessages.push({
-                  role: 'assistant',
-                  content: assistantResponseMessage.content || '',
-                  tool_calls: assistantResponseMessage.tool_calls
-                });
-                
-                llmMessages.push({
-                  role: 'tool',
-                  tool_call_id: assistantResponseMessage.tool_calls.find(tc => tc.function.name === call.name)?.id || '',
-                  content: resultContent
-                });
-                
-                // 再次发送请求，包含工具调用结果
-                console.log('发送工具响应给LLM...');
-                
-                const followUpResponse = await this.llmService.sendChatRequest({
-                  model: 'anthropic/claude-3.5-sonnet',
-                  messages: llmMessages,
-                  temperature: 0.7
-                });
-                
-                const followUpMessage = followUpResponse.choices[0].message;
-                assistantContent = followUpMessage.content || '';
-              } catch (error) {
-                console.error('工具调用失败:', error);
-                assistantContent = `很抱歉，在调用工具时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
               }
             }
-          } else {
-            // 没有工具调用，使用普通回复
-            assistantContent = assistantResponseMessage.content || '';
+            
+            console.log(`工具响应: ${resultContent}`);
+            finalResponseParts.push(`[工具调用: ${toolName}]\n${resultContent}`);
+            
+            // 将工具结果添加到消息列表
+            updatedMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: resultContent
+            });
+            
+          } catch (error) {
+            console.error(`工具调用失败: ${error}`);
+            const errorMessage = `工具调用失败: ${error instanceof Error ? error.message : String(error)}`;
+            finalResponseParts.push(`[工具调用错误: ${toolName}]\n${errorMessage}`);
+            
+            // 将错误结果添加到消息列表
+            updatedMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: errorMessage
+            });
           }
-        } else {
-          console.log('未找到可用的MCP工具，使用普通回复');
-          // 没有可用工具，使用普通回复
-          const response = await this.llmService.sendChatRequest({
-            model: 'anthropic/claude-3.5-sonnet',
-            messages: llmMessages,
-            temperature: 0.7
-          });
-          
-          assistantContent = response.choices[0].message.content || '';
         }
-      } catch (error) {
-        console.error('调用LLM或MCP工具失败:', error);
-        assistantContent = `很抱歉，在处理您的请求时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    } else {
-      // 不需要工具调用，直接使用普通回复
-      try {
-        const response = await this.llmService.sendChatRequest({
+        
+        // 在所有工具调用完成后，再次请求LLM生成最终响应
+        console.log('工具调用完成，发送结果给LLM获取最终响应');
+        response = await this.llmService.sendChatRequest({
           model: 'anthropic/claude-3.5-sonnet',
-          messages: llmMessages,
+          messages: updatedMessages,
           temperature: 0.7
         });
         
-        assistantContent = response.choices[0].message.content || '';
-      } catch (error) {
-        console.error('调用LLM失败:', error);
-        assistantContent = `很抱歉，在处理您的请求时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
+        const finalMessage = response.choices[0].message;
+        if (finalMessage.content) {
+          finalResponseParts.push(finalMessage.content);
+        }
+        
+        assistantContent = finalResponseParts.join('\n\n');
+      } else {
+        // 没有工具调用，直接使用LLM响应
+        assistantContent = assistantResponseMessage.content || '';
       }
+    } catch (error) {
+      console.error('处理聊天请求失败:', error);
+      assistantContent = `很抱歉，在处理您的请求时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
     }
     
     // 保存助手消息到会话
