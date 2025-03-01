@@ -15,6 +15,7 @@ export class SessionService {
    * 创建新的聊天会话
    */
   static async createSession(systemPrompt?: string, privyUserId?: string): Promise<ChatSession> {
+    // 生成一个正确格式的UUID
     const sessionId = uuidv4();
     const now = new Date();
     

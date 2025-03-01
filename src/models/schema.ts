@@ -3,7 +3,7 @@ import { ChatRole } from '../types/chat';
 
 // 定义会话表结构
 export const sessions = pgTable('sessions', {
-  id: varchar('id', { length: 36 }).primaryKey().notNull(),
+  id: uuid('id').primaryKey().notNull(),
   privyUserId: varchar('privy_user_id', { length: 255 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

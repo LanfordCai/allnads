@@ -1,6 +1,8 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import pg from 'pg';
 import { env } from './env';
+
+const { Pool } = pg;
 
 // 创建 PostgreSQL 连接池
 const pool = new Pool({
