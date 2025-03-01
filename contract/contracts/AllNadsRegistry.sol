@@ -114,7 +114,7 @@ contract AllNadsRegistry {
      * @param salt An arbitrary value to allow creating multiple accounts for the same token
      * @return account The computed account address
      */
-    function account(
+    function getAccount(
         address implementation,
         uint256 chainId,
         address tokenContract,
@@ -154,7 +154,7 @@ contract AllNadsRegistry {
         address tokenContract,
         uint256 tokenId,
         uint256 salt
-    ) internal view returns (bytes32) {
+    ) internal pure returns (bytes32) {
         bytes memory creationCode = _getCreationCode(
             implementation,
             chainId,
