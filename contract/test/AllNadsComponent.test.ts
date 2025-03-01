@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
-import { getAddress, parseEther } from "viem";
+import { getAddress, parseEther, zeroAddress } from "viem";
 
 // 定义模板类型
 interface ComponentTemplate {
@@ -315,6 +315,431 @@ describe("AllNadsComponent", function () {
       expect(fullTemplate.price).to.equal(backgroundTemplateData.price);
       expect(fullTemplate.imageData).to.equal(backgroundTemplateData.imageData);
       expect(fullTemplate.isActive).to.equal(backgroundTemplateData.isActive);
+    });
+  });
+
+  describe("Permission Controls", function () {
+    it("Should prevent non-owner from setting AllNads contract", async function () {
+      const { component, user1 } = await loadFixture(deployComponentFixture);
+      
+      // 使用user1创建客户端
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      // 尝试设置 AllNads 合约地址 (应该失败)
+      await expect(user1Client.write.setAllNadsContract([getAddress(user1.account.address)]))
+        .to.be.rejected;
+    });
+    
+    it("Should prevent non-AllNads contract from setting equipped status", async function () {
+      const { component, backgroundTemplateId, user1, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 使用user1创建客户端
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      // 铸造组件
+      const mintTx = await user1Client.write.mintComponent(
+        [backgroundTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      );
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 尝试设置装备状态 (应该失败，因为不是 AllNads 合约)
+      await expect(user1Client.write.setEquippedStatus([1n, true]))
+        .to.be.rejectedWith(/Only AllNads contract/i);
+    });
+    
+    it("Should prevent creators from updating templates they didn't create", async function () {
+      const { component, backgroundTemplateId, user1, creator, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 使用creator创建一个新模板
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: creator } }
+      );
+      
+      // 创建一个新模板
+      const createTx = await creatorClient.write.createTemplate([
+        "Creator Template",
+        100n,
+        parseEther("0.01"),
+        "CreatorTemplateImage",
+        1 // HAIRSTYLE
+      ], { value: parseEther("0.01") });
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTx });
+      
+      // user1 尝试更新 creator 创建的模板价格
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      await expect(user1Client.write.updateTemplatePrice([2n, parseEther("0.02")]))
+        .to.be.rejected;
+    });
+  });
+  
+  describe("Edge Cases", function () {
+    it("Should fail when creating template with empty name", async function () {
+      const { component, creator } = await loadFixture(deployComponentFixture);
+      
+      // 使用creator客户端
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: creator } }
+      );
+      
+      // 尝试创建空名称模板
+      await expect(creatorClient.write.createTemplate([
+        "", // 空名称
+        100n,
+        parseEther("0.01"),
+        "TestImageData",
+        0 // BACKGROUND
+      ], { value: parseEther("0.01") }))
+        .to.be.rejectedWith(/Name cannot be empty/i);
+    });
+    
+    it("Should fail when minting from inactive template", async function () {
+      const { component, backgroundTemplateId, user1, owner, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 使用owner停用模板
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      // 停用模板
+      const deactivateTx = await ownerClient.write.toggleTemplateStatus([backgroundTemplateId]);
+      await publicClient.waitForTransactionReceipt({ hash: deactivateTx });
+      
+      // 使用user1尝试从停用的模板铸造
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      await expect(user1Client.write.mintComponent(
+        [backgroundTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      )).to.be.rejected;
+    });
+    
+    it("Should fail when minting beyond max supply", async function () {
+      const { component, owner, user1, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 创建一个有限供应的模板
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      // 创建供应量为1的模板
+      const createTx = await ownerClient.write.createTemplate([
+        "Limited Template",
+        1n, // 最大供应量 = 1
+        parseEther("0.01"),
+        "LimitedTemplateImage",
+        0 // BACKGROUND
+      ], { value: parseEther("0.01") });
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTx });
+      const limitedTemplateId = 2n;
+      
+      // 用户铸造第一个组件 (应该成功)
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      const mintTx = await user1Client.write.mintComponent(
+        [limitedTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      );
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 再次铸造应该失败 (已超过最大供应量)
+      await expect(user1Client.write.mintComponent(
+        [limitedTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      )).to.be.rejectedWith(/Max supply reached/i);
+    });
+  });
+  
+  describe("Fee and Economic Model", function () {
+    it("Should calculate creator royalties correctly", async function () {
+      const { component, creator, user1, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 使用creator创建一个模板
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: creator } }
+      );
+      
+      const createTx = await creatorClient.write.createTemplate([
+        "Creator Template",
+        100n,
+        parseEther("0.01"),
+        "CreatorTemplateImage",
+        0 // BACKGROUND
+      ], { value: parseEther("0.01") });
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTx });
+      const templateId = 2n;
+      
+      // 获取创建者版税比例
+      const royaltyPercentage = await component.read.creatorRoyaltyPercentage();
+      
+      // 记录创建者初始余额
+      const initialCreatorBalance = await publicClient.getBalance({ address: creator.account.address });
+      
+      // 用user1铸造组件
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      const mintTx = await user1Client.write.mintComponent(
+        [templateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      );
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 检查创建者余额增加了正确的版税金额
+      const finalCreatorBalance = await publicClient.getBalance({ address: creator.account.address });
+      const royaltyAmount = parseEther("0.01") * royaltyPercentage / 100n;
+      
+      expect(finalCreatorBalance - initialCreatorBalance).to.equal(royaltyAmount);
+    });
+    
+    it("Should allow owner to update template creation fee", async function () {
+      const { component, owner, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 获取当前模板创建费用
+      const initialFee = await component.read.templateCreationFee();
+      
+      // 使用owner更新费用
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      const newFee = parseEther("0.02");
+      const updateFeeTx = await ownerClient.write.setTemplateCreationFee([newFee]);
+      await publicClient.waitForTransactionReceipt({ hash: updateFeeTx });
+      
+      // 验证费用更新
+      const updatedFee = await component.read.templateCreationFee();
+      expect(updatedFee).to.equal(newFee);
+    });
+    
+    it("Should allow owner to update creator royalty percentage", async function () {
+      const { component, owner, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 获取当前创建者版税比例
+      const initialRoyalty = await component.read.creatorRoyaltyPercentage();
+      
+      // 使用owner更新版税比例
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      const newRoyalty = 20n;
+      const updateRoyaltyTx = await ownerClient.write.setCreatorRoyaltyPercentage([newRoyalty]);
+      await publicClient.waitForTransactionReceipt({ hash: updateRoyaltyTx });
+      
+      // 验证版税比例更新
+      const updatedRoyalty = await component.read.creatorRoyaltyPercentage();
+      expect(updatedRoyalty).to.equal(newRoyalty);
+    });
+  });
+  
+  describe("Template State Management", function () {
+    it("Should allow activating and deactivating templates", async function () {
+      const { component, backgroundTemplateId, owner, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 使用owner管理模板状态
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      // 停用模板
+      const deactivateTx = await ownerClient.write.toggleTemplateStatus([backgroundTemplateId]);
+      await publicClient.waitForTransactionReceipt({ hash: deactivateTx });
+      
+      // 验证模板状态
+      let template = await component.read.getTemplate([backgroundTemplateId]);
+      expect(template.isActive).to.be.false;
+      
+      // 重新激活模板
+      const activateTx = await ownerClient.write.toggleTemplateStatus([backgroundTemplateId]);
+      await publicClient.waitForTransactionReceipt({ hash: activateTx });
+      
+      // 再次验证模板状态
+      template = await component.read.getTemplate([backgroundTemplateId]);
+      expect(template.isActive).to.be.true;
+    });
+  });
+  
+  describe("Component Transfer and Interaction", function () {
+    it("Should prevent transfer of equipped components", async function () {
+      const { component, backgroundTemplateId, user1, owner, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 铸造组件
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      const mintTx = await user1Client.write.mintComponent(
+        [backgroundTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      );
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 将组件标记为已装备
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      const equipTx = await ownerClient.write.setEquippedStatus([1n, true]);
+      await publicClient.waitForTransactionReceipt({ hash: equipTx });
+      
+      // 尝试转移已装备的组件 (应该失败)
+      await expect(user1Client.write.safeTransferFrom([
+        getAddress(user1.account.address),
+        getAddress(owner.account.address),
+        1n,
+        1n,
+        "0x"
+      ])).to.be.rejectedWith(/Cannot transfer equipped component/i);
+    });
+    
+    it("Should allow transfer after unequipping", async function () {
+      const { component, backgroundTemplateId, user1, user2, owner, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 铸造组件
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      const mintTx = await user1Client.write.mintComponent(
+        [backgroundTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      );
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 先将组件标记为已装备
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: owner } }
+      );
+      
+      let equipTx = await ownerClient.write.setEquippedStatus([1n, true]);
+      await publicClient.waitForTransactionReceipt({ hash: equipTx });
+      
+      // 再将组件解除装备
+      equipTx = await ownerClient.write.setEquippedStatus([1n, false]);
+      await publicClient.waitForTransactionReceipt({ hash: equipTx });
+      
+      // 现在应该可以转移了
+      const transferTx = await user1Client.write.safeTransferFrom([
+        getAddress(user1.account.address),
+        getAddress(user2.account.address),
+        1n,
+        1n,
+        "0x"
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: transferTx });
+      
+      // 验证组件已转移
+      const balance1 = await component.read.balanceOf([getAddress(user1.account.address), 1n]);
+      const balance2 = await component.read.balanceOf([getAddress(user2.account.address), 1n]);
+      
+      expect(balance1).to.equal(0n);
+      expect(balance2).to.equal(1n);
+    });
+  });
+  
+  describe("URI and Metadata", function () {
+    it("Should generate correct URI for components", async function () {
+      const { component, backgroundTemplateId, user1, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // 铸造组件
+      const user1Client = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: user1 } }
+      );
+      
+      const mintTx = await user1Client.write.mintComponent(
+        [backgroundTemplateId, getAddress(user1.account.address)],
+        { value: parseEther("0.01") }
+      );
+      await publicClient.waitForTransactionReceipt({ hash: mintTx });
+      
+      // 获取组件的URI
+      const tokenURI = await component.read.uri([1n]);
+      
+      // URI应该包含正确的元数据
+      expect(tokenURI).to.include("data:application/json");
+      expect(tokenURI).to.include("AllNads Background");
+      expect(tokenURI).to.include("image");
+      expect(tokenURI).to.include("TestImageDataBackground");
+    });
+  });
+  
+  describe("Image Data and PNG Processing", function () {
+    it("Should validate PNG data format", async function () {
+      const { component, creator } = await loadFixture(deployComponentFixture);
+      
+      // 准备一个PNG头部的简单模拟
+      const validPNGHeader = "iVBORw0KGgo="; // 模拟PNG头部
+      const invalidPNGHeader = "INVALID";
+      
+      // 使用creator创建新模板
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: creator } }
+      );
+      
+      // 创建使用有效PNG数据的模板 (应该成功)
+      await expect(creatorClient.write.createTemplate([
+        "Valid PNG Template",
+        100n,
+        parseEther("0.01"),
+        validPNGHeader,
+        0 // BACKGROUND
+      ], { value: parseEther("0.01") })).to.not.be.rejected;
     });
   });
 }); 

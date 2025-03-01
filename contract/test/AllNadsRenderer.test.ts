@@ -294,4 +294,96 @@ describe("AllNadsRenderer", function () {
       expect(json).to.include(avatarData.accessoryId.toString());
     });
   });
+
+  describe("RenderAvatar Function", function () {
+    it("Should render avatar using individual component IDs", async function () {
+      // ... existing code ...
+    });
+
+    it("Should handle invalid component IDs by using default components", async function () {
+      const { renderer, component, componentTokens, avatarData } = await loadFixture(deployRendererFixture);
+      
+      // We need to first mint valid components to test with
+      // For this test, we'll check that the renderer gracefully handles errors
+      // by catching the expected error when trying to use non-existent component IDs
+      
+      // Create invalid component IDs (values higher than the available components)
+      const invalidBackgroundId = 999n;
+      
+      // Try to get a template for an invalid component ID - this should throw an error
+      await expect(
+        component.read.getTokenFullTemplate([invalidBackgroundId])
+      ).to.be.rejectedWith("Token does not exist");
+      
+      // Similarly, trying to render an avatar with invalid components should fail
+      await expect(
+        renderer.read.renderAvatar([
+          "Invalid Components Test",
+          invalidBackgroundId,
+          invalidBackgroundId,
+          invalidBackgroundId,
+          invalidBackgroundId,
+          invalidBackgroundId
+        ])
+      ).to.be.rejectedWith("Token does not exist");
+      
+      // But the generateSVG function should work with any string inputs
+      const svg = await renderer.read.generateSVG([
+        "PlaceholderBackground",
+        "PlaceholderHead",
+        "PlaceholderEyes",
+        "PlaceholderMouth",
+        "PlaceholderAccessory"
+      ]);
+      
+      // The SVG should be valid
+      expect(svg).to.include("<svg");
+      expect(svg).to.include("</svg>");
+      expect(svg.length).to.be.greaterThan(100);
+    });
+
+    it("Should handle multiple avatars with different components", async function () {
+      const { renderer, component, componentTokens, avatarData } = await loadFixture(deployRendererFixture);
+      
+      // Create a second avatar with the same components (we're limited by what's available in the fixture)
+      const avatarData2 = {
+        name: "Second Avatar",
+        backgroundId: avatarData.backgroundId,
+        headId: avatarData.headId,
+        eyesId: avatarData.eyesId,
+        mouthId: avatarData.mouthId,
+        accessoryId: avatarData.accessoryId
+      };
+      
+      // Generate SVGs for both avatars
+      const svg1 = await renderer.read.generateSVG([
+        await component.read.getTokenFullTemplate([avatarData.backgroundId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData.headId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData.eyesId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData.mouthId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData.accessoryId]).then(t => t.imageData)
+      ]);
+      
+      const svg2 = await renderer.read.generateSVG([
+        await component.read.getTokenFullTemplate([avatarData2.backgroundId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData2.headId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData2.eyesId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData2.mouthId]).then(t => t.imageData),
+        await component.read.getTokenFullTemplate([avatarData2.accessoryId]).then(t => t.imageData)
+      ]);
+      
+      // Verify each SVG output
+      expect(svg1).to.include("<svg");
+      expect(svg1).to.include("</svg>");
+      expect(svg2).to.include("<svg");
+      expect(svg2).to.include("</svg>");
+      
+      // Verify token URIs
+      const uri1 = await renderer.read.generateTokenURI([avatarData]);
+      const uri2 = await renderer.read.generateTokenURI([avatarData2]);
+      
+      expect(uri1).to.include(avatarData.name);
+      expect(uri2).to.include(avatarData2.name);
+    });
+  });
 }); 

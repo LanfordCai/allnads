@@ -284,4 +284,125 @@ describe("AllNadsRegistry", function () {
       expect(account2).to.equal(expectedAccount2);
     });
   });
+
+  describe("Account Recreation", function () {
+    it("Should return the existing account when creating an account that already exists", async function () {
+      const { 
+        registry, 
+        accountImpl, 
+        testNFT, 
+        owner,
+        chainId, 
+        tokenId, 
+        salt, 
+        publicClient 
+      } = await loadFixture(deployRegistryFixture);
+      
+      // Create a registry client for write operations
+      const registryClient = await hre.viem.getContractAt(
+        "AllNadsRegistry",
+        registry.address,
+        { client: { wallet: owner } }
+      );
+      
+      // Get the expected account address
+      const expectedAccount = await registry.read.account([
+        accountImpl.address,
+        chainId,
+        testNFT.address,
+        tokenId,
+        salt
+      ]);
+      
+      // Create account for the first time
+      const createTx1 = await registryClient.write.createAccount([
+        accountImpl.address,
+        chainId,
+        testNFT.address,
+        tokenId,
+        salt,
+        "0x" // Empty init data
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTx1 });
+      
+      // Verify the account was created with bytecode
+      const codeAfterFirstDeployment = await publicClient.getBytecode({ address: expectedAccount });
+      expect(codeAfterFirstDeployment).to.not.be.null;
+      expect(codeAfterFirstDeployment?.length).to.be.greaterThan(2); // Should be more than just '0x'
+      
+      // Create the same account again (should not deploy a new contract)
+      const createTx2 = await registryClient.write.createAccount([
+        accountImpl.address,
+        chainId,
+        testNFT.address,
+        tokenId,
+        salt,
+        "0x" // Empty init data
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTx2 });
+      
+      // Get the account address again
+      const actualAccount = await registry.read.account([
+        accountImpl.address,
+        chainId,
+        testNFT.address,
+        tokenId,
+        salt
+      ]);
+      
+      // The account address should be the same as the one we expected and deployed first
+      expect(actualAccount).to.equal(expectedAccount);
+    });
+  });
+
+  describe("Initialization Failure", function () {
+    it("Should revert when initialization fails", async function () {
+      const { 
+        registry, 
+        accountImpl, 
+        testNFT, 
+        owner,
+        chainId, 
+        tokenId, 
+        salt, 
+        publicClient 
+      } = await loadFixture(deployRegistryFixture);
+      
+      // Create a registry client for write operations
+      const registryClient = await hre.viem.getContractAt(
+        "AllNadsRegistry",
+        registry.address,
+        { client: { wallet: owner } }
+      );
+      
+      // Create invalid initialization data that will cause a revert
+      // We'll call a function that doesn't exist to trigger a revert
+      const invalidInitData = encodeFunctionData({
+        abi: [{
+          type: 'function',
+          name: 'nonExistentFunction',
+          inputs: [{ type: 'uint256' }],
+          outputs: [],
+          stateMutability: 'nonpayable'
+        }],
+        functionName: 'nonExistentFunction',
+        args: [123n]
+      });
+      
+      // Attempt to create account with invalid init data
+      // This should fail with InitializationFailed error
+      await expect(
+        registryClient.write.createAccount([
+          accountImpl.address,
+          chainId,
+          testNFT.address,
+          tokenId,
+          salt,
+          invalidInitData
+        ])
+      ).to.be.rejectedWith(/InitializationFailed|revert|invalid/i);
+    });
+  });
 }); 

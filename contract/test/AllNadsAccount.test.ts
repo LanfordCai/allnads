@@ -16,7 +16,7 @@
 import { expect, assert } from "chai";
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
-import { getAddress, parseEther, zeroAddress, encodeFunctionData } from "viem";
+import { getAddress, parseEther, zeroAddress, encodeFunctionData, hashMessage } from "viem";
 import { deployPNGHeaderLib } from "./helpers/deployLibraries";
 
 describe("AllNadsAccount", function () {
@@ -324,6 +324,110 @@ describe("AllNadsAccount", function () {
       expect(finalAccountBalance).to.equal(tokenAmount - transferAmount);
       expect(user2Balance).to.equal(transferAmount);
     });
+    
+    it("Should be able to transfer ERC721 tokens", async function () {
+      const { allNads, component, user1, user2, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // First, mint an NFT and get the token-bound account
+      const { accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      
+      // Next, mint a second NFT and transfer it to the account
+      const componentPrice = parseEther("0.05");
+      const tx1 = await allNads.write.mint([
+        "Second NFT",
+        1n, 2n, 3n, 4n, 5n
+      ], { 
+        value: componentPrice,
+        account: user1.account
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx1 });
+      
+      const secondTokenId = 2n;
+      const tx2 = await allNads.write.transferFrom([
+        user1.account.address,
+        accountAddr,
+        secondTokenId
+      ], { account: user1.account });
+      await publicClient.waitForTransactionReceipt({ hash: tx2 });
+      
+      // Verify the account now owns the second NFT
+      const ownerBefore = await allNads.read.ownerOf([secondTokenId]);
+      expect(ownerBefore).to.equal(getAddress(accountAddr));
+      
+      // Now use the transferERC721 function to transfer the NFT to user2
+      const account = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: user1 } }
+      );
+      
+      const tx3 = await account.write.transferERC721([
+        allNads.address,
+        user2.account.address,
+        secondTokenId
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: tx3 });
+      
+      // Verify the NFT has been transferred to user2
+      const ownerAfter = await allNads.read.ownerOf([secondTokenId]);
+      expect(ownerAfter).to.equal(getAddress(user2.account.address));
+    });
+    
+    it("Should be able to batch transfer ERC1155 tokens", async function () {
+      const { accountImplementation, allNads, component, user1, user2, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // Deploy a mock ERC1155 contract for testing
+      const erc1155Mock = await hre.viem.deployContract("ERC1155Mock", [
+        "https://token-cdn-domain/{id}.json"
+      ]);
+      
+      // Mint an NFT and get account address
+      const { accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      
+      // Mint ERC1155 tokens to the account
+      const ids = [1n, 2n, 3n];
+      const amounts = [10n, 20n, 30n];
+      await erc1155Mock.write.mintBatch([
+        accountAddr,
+        ids,
+        amounts,
+        "0x" // empty data
+      ]);
+      
+      // Verify the account received the tokens
+      for (let i = 0; i < ids.length; i++) {
+        const balance = await erc1155Mock.read.balanceOf([accountAddr, ids[i]]);
+        expect(balance).to.equal(amounts[i]);
+      }
+      
+      // Use batchTransferERC1155 to transfer tokens to user2
+      const account = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: user1 } }
+      );
+      
+      const transferAmounts = [5n, 10n, 15n];
+      const tx = await account.write.batchTransferERC1155([
+        erc1155Mock.address,
+        user2.account.address,
+        ids,
+        transferAmounts,
+        "0x" // empty data
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Verify tokens were transferred correctly
+      for (let i = 0; i < ids.length; i++) {
+        // Check account's remaining balance
+        const accountBalance = await erc1155Mock.read.balanceOf([accountAddr, ids[i]]);
+        expect(accountBalance).to.equal(amounts[i] - transferAmounts[i]);
+        
+        // Check user2's received balance
+        const user2Balance = await erc1155Mock.read.balanceOf([user2.account.address, ids[i]]);
+        expect(user2Balance).to.equal(transferAmounts[i]);
+      }
+    });
   });
   
   describe("Permission Control", function () {
@@ -401,6 +505,78 @@ describe("AllNadsAccount", function () {
       const finalNonce = await account.read.nonce();
       expect(finalNonce).to.equal(2n);
     });
+    
+    it("Should update permissions when NFT ownership changes", async function () {
+      const { allNads, component, user1, user2, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // Mint an NFT and get the token-bound account
+      const { tokenId, accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      
+      // Fund the account with some ETH
+      const fundAmount = parseEther("1.0");
+      const tx1 = await user1.sendTransaction({
+        to: accountAddr,
+        value: fundAmount
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx1 });
+      
+      // Get the account contract
+      const account = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr
+      );
+      
+      // Verify initial owner
+      const initialOwner = await account.read.owner();
+      expect(initialOwner).to.equal(getAddress(user1.account.address));
+      
+      // User1 can execute transactions
+      const accountUser1 = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: user1 } }
+      );
+      
+      const sendAmount = parseEther("0.1");
+      const tx2 = await accountUser1.write.send([
+        user2.account.address,
+        sendAmount
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: tx2 });
+      
+      // Transfer the NFT to user2
+      const tx3 = await allNads.write.transferFrom([
+        user1.account.address,
+        user2.account.address,
+        tokenId
+      ], { account: user1.account });
+      await publicClient.waitForTransactionReceipt({ hash: tx3 });
+      
+      // Verify the new owner
+      const newOwner = await account.read.owner();
+      expect(newOwner).to.equal(getAddress(user2.account.address));
+      
+      // User1 should no longer be able to execute transactions
+      await expect(
+        accountUser1.write.send([
+          user1.account.address,
+          parseEther("0.1")
+        ])
+      ).to.be.rejectedWith(/Not token owner/);
+      
+      // User2 should now be able to execute transactions
+      const accountUser2 = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: user2 } }
+      );
+      
+      const tx4 = await accountUser2.write.send([
+        user1.account.address,
+        sendAmount
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: tx4 });
+    });
   });
   
   describe("Interface Support", function () {
@@ -432,6 +608,50 @@ describe("AllNadsAccount", function () {
       expect(supportsERC721Receiver).to.be.true;
       expect(supportsERC1155Receiver).to.be.true;
       // 不验证ERC6551Account接口，因为测试显示不支持，但功能正常
+    });
+  });
+  
+  describe("Signature Validation", function () {
+    it("Should validate signatures from the NFT owner", async function () {
+      const { allNads, component, user1, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // Mint an NFT and get account address
+      const { accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      const account = await hre.viem.getContractAt("AllNadsAccount", accountAddr);
+      
+      // Create a message hash to sign
+      const message = "Hello, AllNads!";
+      const messageHash = hashMessage(message);
+      
+      // Sign the message with the NFT owner's wallet
+      const signature = await user1.signMessage({ message });
+      
+      // Validate the signature using isValidSignature
+      const isValid = await account.read.isValidSignature([messageHash, signature]);
+      
+      // The signature should be valid
+      expect(isValid).to.equal("0x1626ba7e");  // IERC1271.isValidSignature.selector
+    });
+    
+    it("Should reject signatures from non-owners", async function () {
+      const { allNads, component, user1, user2, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // Mint an NFT and get account address
+      const { accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      const account = await hre.viem.getContractAt("AllNadsAccount", accountAddr);
+      
+      // Create a message hash to sign
+      const message = "Hello, AllNads!";
+      const messageHash = hashMessage(message);
+      
+      // Sign the message with a non-owner's wallet
+      const signature = await user2.signMessage({ message });
+      
+      // Validate the signature using isValidSignature
+      const isValid = await account.read.isValidSignature([messageHash, signature]);
+      
+      // The signature should be invalid
+      expect(isValid).to.equal("0x00000000");  // Empty bytes4 representation
     });
   });
   
@@ -513,5 +733,26 @@ describe("AllNadsAccount", function () {
       const newOwner = await allNads.read.ownerOf([secondTokenId]);
       expect(newOwner).to.equal(getAddress(accountAddr));
     });
+  });
+
+  it("Should have batch transfer ERC1155 function", async function () {
+    const { accountImplementation, allNads, component, user1, user2, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+    
+    // Mint an NFT and get account address
+    const { accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+    
+    // Get the account contract instance
+    const account = await hre.viem.getContractAt(
+      "AllNadsAccount",
+      accountAddr
+    );
+    
+    // Check that the contract has the batchTransferERC1155 function
+    const contract = await hre.viem.getContractAt("AllNadsAccount", accountImplementation.address);
+    const hasFunction = contract.abi.some(
+      (item) => item.type === 'function' && item.name === 'batchTransferERC1155'
+    );
+    
+    expect(hasFunction).to.be.true;
   });
 });

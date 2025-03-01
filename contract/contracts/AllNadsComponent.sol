@@ -129,6 +129,8 @@ contract AllNadsComponent is ERC1155, Ownable {
         string memory _imageData,
         ComponentType _componentType
     ) external payable returns (uint256) {
+        require(bytes(_name).length > 0, "Name cannot be empty");
+        require(bytes(_name).length <= 50, "Name is too long");
         require(msg.value == templateCreationFee, "Must pay template creation fee");
         
         // 移除图片数据中的 PNG 头部
