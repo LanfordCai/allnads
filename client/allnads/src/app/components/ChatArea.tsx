@@ -131,21 +131,70 @@ export default function ChatArea({
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
-          >
-            <div className={getMessageClasses(message)}>
-              <div className="break-words">{renderMessageContent(message)}</div>
-              <div className={getTimestampClasses(message)}>
-                {formatTime(message.timestamp)}
+        {messages.map((message, index) => {
+          // Check if this is the first AI message in a sequence
+          const isFirstInSequence = () => {
+            // If it's not an AI message (bot, tool, error, thinking), no need to check
+            if (!['bot', 'tool', 'error', 'thinking'].includes(message.role)) {
+              return false;
+            }
+            
+            // If it's the first message overall, it's the first in sequence
+            if (index === 0) {
+              return true;
+            }
+            
+            // Check if the previous message was from a different sender (not AI)
+            const prevMessage = messages[index - 1];
+            return !['bot', 'tool', 'error', 'thinking'].includes(prevMessage.role);
+          };
+          
+          // Determine if we should show the avatar
+          const shouldShowAvatar = isFirstInSequence();
+          
+          return (
+            <div
+              key={message.id}
+              className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
+            >
+              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && shouldShowAvatar && (
+                <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
+                  <img 
+                    src="https://picsum.photos/500/500" 
+                    alt="AI Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              {/* Add empty space to maintain alignment when avatar is not shown */}
+              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && !shouldShowAvatar && (
+                <div className="w-8 mr-2 flex-shrink-0"></div>
+              )}
+              <div className={getMessageClasses(message)}>
+                <div className="break-words">{renderMessageContent(message)}</div>
+                <div className={getTimestampClasses(message)}>
+                  {formatTime(message.timestamp)}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {isLoading && (
           <div className="flex justify-start">
+            {/* Only show avatar if last message was not from AI */}
+            {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking'].includes(messages[messages.length - 1].role)) && (
+              <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
+                <img 
+                  src="https://picsum.photos/500/500" 
+                  alt="AI Avatar"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            {/* Add empty space to maintain alignment when avatar is not shown */}
+            {messages.length > 0 && ['bot', 'tool', 'error', 'thinking'].includes(messages[messages.length - 1].role) && (
+              <div className="w-8 mr-2 flex-shrink-0"></div>
+            )}
             <div className="max-w-[80%] rounded-lg p-2 bg-gray-200 dark:bg-gray-700 rounded-bl-none">
               <div className="flex space-x-2 items-center">
                 <div className="flex space-x-1">

@@ -5,6 +5,7 @@ import { ChatMessage, ChatSession, WalletInfo } from '../types/chat';
 import ChatHistory from './ChatHistory';
 import ChatArea from './ChatArea';
 import WalletInfoComponent from './WalletInfo';
+import ImageCard from './ImageCard';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/ChatService';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
@@ -915,6 +916,12 @@ export default function ChatBot() {
         
         {/* Right column for wallet info on larger screens */}
         <div className="w-full md:w-80 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
+          {/* 图片卡片 */}
+          <ImageCard 
+            imageUrl="https://picsum.photos/500/500" 
+            alt="随机图像示例" 
+          />
+          
           <WalletInfoComponent />
           
           {/* 认证状态和登录按钮 */}
