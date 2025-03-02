@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ChatService } from '../services/chat';
 import { SessionService } from '../services/session';
-import { chatRequestSchema } from '../types/chat';
 import { z } from 'zod';
 import { mcpManager } from '../services/mcpService';
 import { authenticate } from '../middleware/auth';
@@ -16,67 +15,6 @@ const toolCallRequestSchema = z.object({
  * 聊天控制器
  */
 export class ChatController {
-  /**
-   * 处理聊天请求
-   */
-  static async chat(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
-    try {
-      // 验证请求数据
-      const result = chatRequestSchema.safeParse(req.body);
-      
-      if (!result.success) {
-        res.status(400).json({
-          status: 'error',
-          error: {
-            message: '无效的请求数据',
-            details: result.error.format(),
-          },
-        });
-        return;
-      }
-      
-      const chatData = result.data;
-      
-      // 处理用户关联
-      if (req.user && !chatData.sessionId) {
-        // 创建新会话并关联用户
-        const session = await SessionService.createSession(
-          chatData.systemPrompt,
-          req.user.id
-        );
-        chatData.sessionId = session.id;
-      } else if (req.user && chatData.sessionId) {
-        // 验证会话所有权
-        const isOwner = await SessionService.validateSessionOwnership(
-          chatData.sessionId,
-          req.user.id
-        );
-        
-        if (!isOwner) {
-          res.status(403).json({
-            status: 'error',
-            error: {
-              message: '您无权访问此会话',
-              code: 'SESSION_FORBIDDEN',
-            }
-          });
-          return;
-        }
-      }
-      
-      // 处理聊天请求
-      const response = await ChatService.processChat(chatData);
-      
-      // 返回成功响应
-      res.status(200).json({
-        status: 'success',
-        data: response,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-  
   /**
    * 直接调用工具
    */
@@ -166,7 +104,7 @@ export class ChatController {
         }
       }
       
-      // 获取会话历史
+      // 获取会话历史 - 直接使用SessionService
       const history = await SessionService.getHistory(sessionId);
       
       // 返回成功响应
@@ -214,7 +152,7 @@ export class ChatController {
         }
       }
       
-      // 删除会话
+      // 删除会话 - 直接使用SessionService
       const success = await SessionService.deleteSession(sessionId);
       
       if (!success) {

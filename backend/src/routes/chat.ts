@@ -7,9 +7,6 @@ const router = express.Router();
 // 应用鉴权中间件
 router.use(authenticate);
 
-// POST /api/chat - 发送聊天消息
-router.post('/', ChatController.chat as RequestHandler);
-
 // POST /api/chat/tools - 直接调用工具
 router.post('/tools', ChatController.callTool as RequestHandler);
 

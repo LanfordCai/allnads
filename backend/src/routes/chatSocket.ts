@@ -61,13 +61,6 @@ export class ChatSocketService {
           // 获取系统提示
           const systemPrompt = getSystemPrompt();
           
-          // 如果前端尝试设置systemPrompt，记录警告
-          if (message.systemPrompt) {
-            console.warn('前端尝试设置systemPrompt被忽略。为安全起见，systemPrompt只能由服务器提供。');
-          }
-
-          console.log(`Using system prompt`);
-          
           // 构建聊天请求
           const chatRequest: ChatRequest = {
             sessionId: sessionId,
