@@ -1,26 +1,55 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivyAuth } from './hooks/usePrivyAuth';
+import { NFTService } from './services/NFTService';
 
 export default function Home() {
-  const { isAuthenticated, isLoading } = usePrivyAuth();
+  const { isAuthenticated, isLoading, user } = usePrivyAuth();
   const router = useRouter();
+  const [isCheckingNFT, setIsCheckingNFT] = useState(false);
   
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        // 已登录，重定向到应用页面
-        router.push('/app');
+        // If authenticated, check if the user has an NFT
+        checkUserNFT();
       } else {
-        // 未登录，重定向到登录页面
+        // Not authenticated, redirect to login page
         router.push('/login');
       }
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // 显示加载状态
+  // Check if user has an NFT and redirect accordingly
+  const checkUserNFT = async () => {
+    if (user?.wallet?.address) {
+      setIsCheckingNFT(true);
+      try {
+        const result = await NFTService.checkNFT(user.wallet.address);
+        
+        if (result.hasNFT) {
+          // User has an NFT, redirect to app page
+          router.push('/app');
+        } else {
+          // User doesn't have an NFT, redirect to airdrop page
+          router.push('/airdrop');
+        }
+      } catch (error) {
+        console.error('Error checking NFT status:', error);
+        // In case of error, redirect to app page as fallback
+        router.push('/app');
+      } finally {
+        setIsCheckingNFT(false);
+      }
+    } else {
+      // If wallet address is not available, redirect to app page as fallback
+      router.push('/app');
+    }
+  };
+
+  // Display loading state
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 px-4">
       {/* Logo */}
@@ -32,7 +61,9 @@ export default function Home() {
       <p className="text-xl text-gray-600 mb-8 text-center">Your Web3 Gateway</p>
       
       <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mt-6"></div>
-      <p className="mt-4 text-gray-500">Loading...</p>
+      <p className="mt-4 text-gray-500">
+        {isCheckingNFT ? 'Checking NFT status...' : 'Loading...'}
+      </p>
     </div>
   );
 }

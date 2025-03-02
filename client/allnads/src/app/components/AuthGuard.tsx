@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 
 interface AuthGuardProps {
@@ -11,13 +11,15 @@ interface AuthGuardProps {
 export default function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = usePrivyAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     // 如果认证加载完成且用户未登录，重定向到登录页
     if (!isLoading && !isAuthenticated) {
+      console.log(`User not authenticated, redirecting to login from ${pathname}`);
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, pathname]);
 
   // 如果正在加载或未登录，不显示子组件
   if (isLoading || !isAuthenticated) {
