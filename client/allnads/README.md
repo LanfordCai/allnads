@@ -1,5 +1,61 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+# ChatBot Application
+
+A responsive ChatBot application with a wallet interface designed for both desktop and mobile experiences.
+
+## Features
+
+- **Responsive Design**: Optimized for both desktop and mobile
+- **Chat Interface**: Real-time messaging interface with chat history
+- **Wallet Integration**: Displays balance and provides financial actions
+- **Mobile Navigation**: Special mobile experience with intuitive navigation
+
+## Layout
+
+### Desktop
+- Left: Chat history
+- Middle: Chat area with message input
+- Right: Wallet interface showing balance and avatar
+
+### Mobile
+- Default view: Wallet interface
+- Chat button: Opens the chat area
+- History button: Slides in chat history from the left
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+ and npm
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Run the development server
+npm run dev
+```
+
+### Build
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+## Technologies
+
+- Next.js 15.2
+- React 19
+- TypeScript
+- Tailwind CSS 4
+
 ## Getting Started
 
 First, run the development server:
