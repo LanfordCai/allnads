@@ -186,7 +186,7 @@ export default function ChatArea({
               )}
               {/* Add empty space to maintain alignment when avatar is not shown */}
               {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && !shouldShowAvatar && (
-                <div className="w-8 mr-2 flex-shrink-0"></div>
+                <div className="w-12 mr-2 flex-shrink-0"></div>
               )}
               <div className={getMessageClasses(message)}>
                 <div className="break-words">{renderMessageContent(message)}</div>
@@ -211,7 +211,7 @@ export default function ChatArea({
             )}
             {/* Add empty space to maintain alignment when avatar is not shown */}
             {messages.length > 0 && ['bot', 'tool', 'error', 'thinking'].includes(messages[messages.length - 1].role) && (
-              <div className="w-8 mr-2 flex-shrink-0"></div>
+              <div className="w-12 mr-2 flex-shrink-0"></div>
             )}
             <div className="max-w-[80%] rounded-lg p-2 bg-gray-200 dark:bg-gray-700 rounded-bl-none">
               <div className="flex space-x-2 items-center">
@@ -220,7 +220,6 @@ export default function ChatArea({
                   <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                 </div>
-                <span>AI is thinking...</span>
               </div>
             </div>
           </div>
