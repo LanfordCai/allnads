@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket聊天示例</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .input-area button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            max-width: 80%;
+            position: relative;
+        }
+        .user {
+            align-self: flex-end;
+            background-color: #DCF8C6;
+            margin-left: auto;
+        }
+        .assistant {
+            background-color: #E6E6E6;
+            margin-right: auto;
+        }
+        .system {
+            background-color: #FFF3CD;
+            text-align: center;
+            font-style: italic;
+            max-width: 100%;
+            margin: 10px auto;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.1);
+            border-radius: 50%;
+            border-top-color: #4CAF50;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 5px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .tool-box {
+            background-color: #E3F2FD;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+            font-family: monospace;
+        }
+        .tool-result {
+            background-color: #E8F5E9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+            font-family: monospace;
+        }
+        .status {
+            margin-bottom: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket聊天示例</h1>
+    <div class="status">状态: <span id="connection-status">未连接</span></div>
+    <div class="chat-container">
+        <div class="messages" id="message-container"></div>
+        <div class="input-area">
+            <input type="text" id="message-input" placeholder="输入消息..." />
+            <button id="send-button">发送</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const messageContainer = document.getElementById('message-container');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const connectionStatus = document.getElementById('connection-status');
+            
+            // 生成一个会话ID
+            const sessionId = generateSessionId();
+            let socket;
+            
+            // 连接WebSocket
+            function connectWebSocket() {
+                // 使用当前页面URL中的主机和端口，避免硬编码
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.hostname;
+                const port = window.location.port || (protocol === 'wss:' ? '443' : '80');
+                
+                // 创建WebSocket连接
+                socket = new WebSocket(`${protocol}//${host}:${port}/ws?sessionId=${sessionId}`);
+                
+                // 连接建立时
+                socket.onopen = () => {
+                    connectionStatus.textContent = '已连接';
+                    addSystemMessage('已连接到聊天服务');
+                };
+                
+                // 接收消息
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleSocketMessage(data);
+                };
+                
+                // 连接关闭
+                socket.onclose = () => {
+                    connectionStatus.textContent = '已断开';
+                    addSystemMessage('与服务器的连接已断开');
+                    // 尝试重新连接
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                // 连接错误
+                socket.onerror = (error) => {
+                    connectionStatus.textContent = '连接错误';
+                    console.error('WebSocket连接错误:', error);
+                    addSystemMessage('连接出错，请检查服务器状态');
+                };
+            }
+            
+            // 处理接收到的消息
+            function handleSocketMessage(data) {
+                switch(data.type) {
+                    case 'connected':
+                        addSystemMessage(`已连接，会话ID: ${data.sessionId}`);
+                        break;
+                    case 'thinking':
+                        addThinkingMessage(data.content);
+                        break;
+                    case 'processing':
+                        updateLastAssistantMessage(data.content);
+                        break;
+                    case 'assistant_message':
+                        addAssistantMessage(data.content);
+                        break;
+                    case 'tool_calling':
+                        addToolCallingMessage(data.content, data.tool);
+                        break;
+                    case 'tool_result':
+                        addToolResultMessage(data.content, data.result);
+                        break;
+                    case 'tool_error':
+                        addErrorMessage(data.content);
+                        break;
+                    case 'error':
+                        addErrorMessage(data.content);
+                        break;
+                    case 'complete':
+                        console.log('会话完成，ID:', data.sessionId);
+                        break;
+                    default:
+                        console.log('未知消息类型:', data);
+                }
+            }
+            
+            // 发送消息
+            function sendMessage() {
+                const text = messageInput.value.trim();
+                if (!text) return;
+                
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    // 添加用户消息到聊天框
+                    addUserMessage(text);
+                    
+                    // 发送消息给服务器
+                    socket.send(JSON.stringify({
+                        text: text,
+                        enableTools: true
+                    }));
+                    
+                    // 清空输入框
+                    messageInput.value = '';
+                } else {
+                    addSystemMessage('未连接到服务器，无法发送消息');
+                }
+            }
+            
+            // 添加用户消息
+            function addUserMessage(text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message user';
+                messageDiv.textContent = text;
+                messageContainer.appendChild(messageDiv);
+                scrollToBottom();
+            }
+            
+            // 添加助手消息
+            function addAssistantMessage(text) {
+                // 查找是否有"思考中"消息需要替换
+                const thinkingMsg = messageContainer.querySelector('.thinking');
+                if (thinkingMsg) {
+                    thinkingMsg.className = 'message assistant';
+                    thinkingMsg.innerHTML = text;
+                } else {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message assistant';
+                    messageDiv.innerHTML = text;
+                    messageContainer.appendChild(messageDiv);
+                }
+                scrollToBottom();
+            }
+            
+            // 添加思考中消息
+            function addThinkingMessage(text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant thinking';
+                messageDiv.innerHTML = `<div class="spinner"></div> ${text}`;
+                messageContainer.appendChild(messageDiv);
+                scrollToBottom();
+            }
+            
+            // 更新最后一条助手消息
+            function updateLastAssistantMessage(text) {
+                const assistantMessages = messageContainer.querySelectorAll('.assistant');
+                if (assistantMessages.length > 0) {
+                    const lastMessage = assistantMessages[assistantMessages.length - 1];
+                    lastMessage.innerHTML = text;
+                } else {
+                    addAssistantMessage(text);
+                }
+                scrollToBottom();
+            }
+            
+            // 添加系统消息
+            function addSystemMessage(text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message system';
+                messageDiv.textContent = text;
+                messageContainer.appendChild(messageDiv);
+                scrollToBottom();
+            }
+            
+            // 添加工具调用消息
+            function addToolCallingMessage(text, tool) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant';
+                messageDiv.innerHTML = text;
+                
+                // 添加工具信息
+                const toolBox = document.createElement('div');
+                toolBox.className = 'tool-box';
+                toolBox.innerHTML = `工具: ${tool.name}<br>参数: ${JSON.stringify(tool.args, null, 2)}`;
+                messageDiv.appendChild(toolBox);
+                
+                messageContainer.appendChild(messageDiv);
+                scrollToBottom();
+            }
+            
+            // 添加工具结果消息
+            function addToolResultMessage(text, result) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant';
+                messageDiv.innerHTML = text;
+                
+                // 添加结果信息
+                const resultBox = document.createElement('div');
+                resultBox.className = 'tool-result';
+                resultBox.textContent = result;
+                messageDiv.appendChild(resultBox);
+                
+                messageContainer.appendChild(messageDiv);
+                scrollToBottom();
+            }
+            
+            // 添加错误消息
+            function addErrorMessage(text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message system';
+                messageDiv.style.backgroundColor = '#FFEBEE';
+                messageDiv.textContent = `错误: ${text}`;
+                messageContainer.appendChild(messageDiv);
+                scrollToBottom();
+            }
+            
+            // 滚动到底部
+            function scrollToBottom() {
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }
+            
+            // 生成会话ID
+            function generateSessionId() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            
+            // 事件监听器
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // 建立WebSocket连接
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html> 
