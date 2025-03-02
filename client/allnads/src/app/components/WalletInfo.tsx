@@ -17,7 +17,6 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
       
       {nftAccount ? (
         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-xs text-gray-600 mb-1">Account Address</p>
           <div className="flex items-center justify-between">
             <span className="text-sm font-mono text-blue-700">
               {`${nftAccount.slice(0, 6)}...${nftAccount.slice(-4)}`}

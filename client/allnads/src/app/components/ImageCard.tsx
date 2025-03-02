@@ -10,15 +10,11 @@ interface ImageCardProps {
 export default function ImageCard({ 
   imageUrl = "/image-placeholder.jpg", 
   alt = "Featured Image",
-  title,
-  caption
+  title
 }: ImageCardProps) {
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-      {title && (
-        <h3 className="text-lg font-medium text-gray-700 mb-3">{title}</h3>
-      )}
-      
+
       <div className="w-full aspect-square rounded-md overflow-hidden border border-gray-100">
         <img 
           src={imageUrl} 
@@ -30,9 +26,9 @@ export default function ImageCard({
           }}
         />
       </div>
-      
-      {caption && (
-        <p className="text-sm text-gray-500 mt-2">{caption}</p>
+
+      {title && (
+        <h3 className="px-1 pt-2 text-lg font-bold text-gray-700">{title}</h3>
       )}
     </div>
   );

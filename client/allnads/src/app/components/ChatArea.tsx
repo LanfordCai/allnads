@@ -172,7 +172,7 @@ export default function ChatArea({
               className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
             >
               {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && shouldShowAvatar && (
-                <div className="w-8 h-8 overflow-hidden mr-2 flex-shrink-0">
+                <div className="w-12 h-12 rounded-[8px] overflow-hidden mr-2 flex-shrink-0">
                   <img 
                     src={avatarImage || "https://picsum.photos/500/500"} 
                     alt="AI Avatar"

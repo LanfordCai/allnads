@@ -965,8 +965,7 @@ export default function ChatBot({}: ChatBotProps) {
           <ImageCard 
             imageUrl={avatarImage} 
             alt="Your AllNads Avatar"
-            title="Your AllNads NFT"
-            caption={nftName || "AllNads NFT"}
+            title={nftName || "Your AllNads NFT"}
           />
         </div>
       );
