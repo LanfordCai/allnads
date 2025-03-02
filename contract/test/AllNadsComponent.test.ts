@@ -38,7 +38,7 @@ describe("AllNadsComponent", function () {
       name: "Test Background",
       componentType: 0, // BACKGROUND
       maxSupply: 100n,
-      price: parseEther("0.01"),
+      price: parseEther("0.1"),
       imageData: "TestImageDataBackground", // 简化的图像数据
       isActive: true
     };
@@ -59,7 +59,7 @@ describe("AllNadsComponent", function () {
       backgroundTemplateData.imageData,
       backgroundTemplateData.componentType
     ], {
-      value: parseEther("0.01") // 支付模板创建费用
+      value: parseEther("0.1") // 支付模板创建费用
     });
     
     await publicClient.waitForTransactionReceipt({ hash: createTemplateTx });
@@ -102,6 +102,48 @@ describe("AllNadsComponent", function () {
       expect(template.price).to.equal(backgroundTemplateData.price);
       expect(template.imageData).to.equal(backgroundTemplateData.imageData);
       expect(template.isActive).to.equal(backgroundTemplateData.isActive);
+    });
+
+    it("Should set the creator correctly when creating template", async function () {
+      const { component, creator, publicClient } = await loadFixture(deployComponentFixture);
+      
+      // Create a template using the creator account
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNadsComponent",
+        component.address,
+        { client: { wallet: creator } }
+      );
+      
+      // Template data
+      const templateData = {
+        name: "Creator Test Template",
+        componentType: 0, // BACKGROUND
+        maxSupply: 100n,
+        price: parseEther("0.1"),
+        imageData: "CreatorTestImageData",
+        isActive: true
+      };
+      
+      // Create template
+      const createTemplateTx = await creatorClient.write.createTemplate([
+        templateData.name,
+        templateData.maxSupply,
+        templateData.price,
+        templateData.imageData,
+        templateData.componentType
+      ], {
+        value: parseEther("0.1") // Pay template creation fee
+      });
+      
+      await publicClient.waitForTransactionReceipt({ hash: createTemplateTx });
+      
+      // Get the template (it should be template ID 2 since one was created in the fixture)
+      const templateId = 2n;
+      const templateResult = await component.read.getTemplate([templateId]);
+      const template = templateResult as unknown as ComponentTemplate;
+      
+      // Verify the creator is set correctly
+      expect(template.creator).to.equal(getAddress(creator.account.address));
     });
 
     it("Should update template", async function () {
@@ -232,7 +274,7 @@ describe("AllNadsComponent", function () {
           name: "Hairstyle 1",
           componentType: 1, // HAIRSTYLE
           maxSupply: 100n,
-          price: parseEther("0.01"),
+          price: parseEther("0.1"),
           imageData: "TestImageDataHairstyle",
           isActive: true
         },
@@ -240,7 +282,7 @@ describe("AllNadsComponent", function () {
           name: "Eyes 1",
           componentType: 2, // EYES
           maxSupply: 100n,
-          price: parseEther("0.01"),
+          price: parseEther("0.1"),
           imageData: "TestImageDataEyes",
           isActive: true
         }
@@ -255,7 +297,7 @@ describe("AllNadsComponent", function () {
           template.imageData,
           template.componentType
         ], {
-          value: parseEther("0.01") // 支付模板创建费用
+          value: parseEther("0.1") // 支付模板创建费用
         });
         await publicClient.waitForTransactionReceipt({ hash: tx });
       }
@@ -267,7 +309,7 @@ describe("AllNadsComponent", function () {
       // 铸造批量组件
       const batchMintTx = await ownerClient.write.mintComponents(
         [templateIds, destination],
-        { value: parseEther("0.03") } // 0.01 * 3
+        { value: parseEther("0.3") } // 0.1 * 3
       );
       await publicClient.waitForTransactionReceipt({ hash: batchMintTx });
       
@@ -347,7 +389,7 @@ describe("AllNadsComponent", function () {
       // 铸造组件
       const mintTx = await user1Client.write.mintComponent(
         [backgroundTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       );
       await publicClient.waitForTransactionReceipt({ hash: mintTx });
       
@@ -370,10 +412,10 @@ describe("AllNadsComponent", function () {
       const createTx = await creatorClient.write.createTemplate([
         "Creator Template",
         100n,
-        parseEther("0.01"),
+        parseEther("0.1"),
         "CreatorTemplateImage",
         1 // HAIRSTYLE
-      ], { value: parseEther("0.01") });
+      ], { value: parseEther("0.1") });
       
       await publicClient.waitForTransactionReceipt({ hash: createTx });
       
@@ -404,10 +446,10 @@ describe("AllNadsComponent", function () {
       await expect(creatorClient.write.createTemplate([
         "", // 空名称
         100n,
-        parseEther("0.01"),
+        parseEther("0.1"),
         "TestImageData",
         0 // BACKGROUND
-      ], { value: parseEther("0.01") }))
+      ], { value: parseEther("0.1") }))
         .to.be.rejectedWith(/Name cannot be empty/i);
     });
     
@@ -434,7 +476,7 @@ describe("AllNadsComponent", function () {
       
       await expect(user1Client.write.mintComponent(
         [backgroundTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       )).to.be.rejected;
     });
     
@@ -452,10 +494,10 @@ describe("AllNadsComponent", function () {
       const createTx = await ownerClient.write.createTemplate([
         "Limited Template",
         1n, // 最大供应量 = 1
-        parseEther("0.01"),
+        parseEther("0.1"),
         "LimitedTemplateImage",
         0 // BACKGROUND
-      ], { value: parseEther("0.01") });
+      ], { value: parseEther("0.1") });
       
       await publicClient.waitForTransactionReceipt({ hash: createTx });
       const limitedTemplateId = 2n;
@@ -469,14 +511,14 @@ describe("AllNadsComponent", function () {
       
       const mintTx = await user1Client.write.mintComponent(
         [limitedTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       );
       await publicClient.waitForTransactionReceipt({ hash: mintTx });
       
       // 再次铸造应该失败 (已超过最大供应量)
       await expect(user1Client.write.mintComponent(
         [limitedTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       )).to.be.rejectedWith(/Max supply reached/i);
     });
   });
@@ -495,10 +537,10 @@ describe("AllNadsComponent", function () {
       const createTx = await creatorClient.write.createTemplate([
         "Creator Template",
         100n,
-        parseEther("0.01"),
+        parseEther("0.1"),
         "CreatorTemplateImage",
         0 // BACKGROUND
-      ], { value: parseEther("0.01") });
+      ], { value: parseEther("0.1") });
       
       await publicClient.waitForTransactionReceipt({ hash: createTx });
       const templateId = 2n;
@@ -518,13 +560,13 @@ describe("AllNadsComponent", function () {
       
       const mintTx = await user1Client.write.mintComponent(
         [templateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       );
       await publicClient.waitForTransactionReceipt({ hash: mintTx });
       
       // 检查创建者余额增加了正确的版税金额
       const finalCreatorBalance = await publicClient.getBalance({ address: creator.account.address });
-      const royaltyAmount = parseEther("0.01") * royaltyPercentage / 100n;
+      const royaltyAmount = parseEther("0.1") * royaltyPercentage / 100n;
       
       expect(finalCreatorBalance - initialCreatorBalance).to.equal(royaltyAmount);
     });
@@ -616,7 +658,7 @@ describe("AllNadsComponent", function () {
       
       const mintTx = await user1Client.write.mintComponent(
         [backgroundTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       );
       await publicClient.waitForTransactionReceipt({ hash: mintTx });
       
@@ -652,7 +694,7 @@ describe("AllNadsComponent", function () {
       
       const mintTx = await user1Client.write.mintComponent(
         [backgroundTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       );
       await publicClient.waitForTransactionReceipt({ hash: mintTx });
       
@@ -702,7 +744,7 @@ describe("AllNadsComponent", function () {
       
       const mintTx = await user1Client.write.mintComponent(
         [backgroundTemplateId, getAddress(user1.account.address)],
-        { value: parseEther("0.01") }
+        { value: parseEther("0.1") }
       );
       await publicClient.waitForTransactionReceipt({ hash: mintTx });
       
@@ -736,10 +778,10 @@ describe("AllNadsComponent", function () {
       await expect(creatorClient.write.createTemplate([
         "Valid PNG Template",
         100n,
-        parseEther("0.01"),
+        parseEther("0.1"),
         validPNGHeader,
         0 // BACKGROUND
-      ], { value: parseEther("0.01") })).to.not.be.rejected;
+      ], { value: parseEther("0.1") })).to.not.be.rejected;
     });
   });
 }); 
