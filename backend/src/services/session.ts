@@ -14,9 +14,7 @@ export class SessionService {
   /**
    * 创建新的聊天会话
    */
-  static async createSession(systemPrompt?: string, privyUserId?: string): Promise<ChatSession> {
-    // 生成一个正确格式的UUID
-    const sessionId = uuidv4();
+  static async createSession(sessionId: string, systemPrompt: string, privyUserId?: string): Promise<ChatSession> {
     const now = new Date();
     
     // 创建会话记录
@@ -120,6 +118,18 @@ export class SessionService {
       throw new Error(`Session not found: ${sessionId}`);
     }
     
+    // 记录消息内容，用于调试
+    console.log(`[消息存储] 开始存储消息到会话 ${sessionId}`);
+    console.log(`[消息存储] 角色: ${message.role}`);
+    console.log(`[消息存储] 内容长度: ${message.content.length} 字符`);
+    console.log(`[消息存储] 内容前100字符: ${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}`);
+    
+    if (message.content === '...') {
+      console.warn(`[消息存储警告] 发现内容仅为"..."的消息！`);
+      console.warn(`[消息存储诊断] 消息角色: ${message.role}, 时间戳: ${message.timestamp}`);
+      console.trace();  // 打印堆栈跟踪以便诊断
+    }
+    
     // 更新会话的最后修改时间
     const now = new Date();
     await db.update(sessions)
@@ -127,13 +137,32 @@ export class SessionService {
       .where(eq(sessions.id, sessionId));
     
     // 添加新消息
-    await db.insert(messages).values({
+    console.log(`[消息存储] 开始存储消息到数据库, message: ${message.content}`);
+    const result = await db.insert(messages).values({
       sessionId,
       role: message.role,
       content: message.content,
       timestamp: message.timestamp || now,
       createdAt: now,
     });
+    
+    // 记录存储成功
+    console.log(`[消息存储] 消息已成功存储到数据库, result: ${JSON.stringify(result)}`);
+    // 获取最新添加的消息
+    const latestMessage = await db.select()
+      .from(messages)
+      .where(eq(messages.sessionId, sessionId))
+      .orderBy(desc(messages.timestamp))
+      .limit(1);
+    
+    // 记录最新消息信息
+    if (latestMessage.length > 0) {
+      console.log(`[消息存储] 最新消息ID: ${latestMessage[0].id}`);
+      console.log(`[消息存储] 最新消息时间戳: ${latestMessage[0].timestamp}`);
+      console.log(`[消息存储] 最新消息内容: ${latestMessage[0].content}`);
+    } else {
+      console.warn(`[消息存储] 未能获取到最新消息，这可能是一个错误`);
+    }
     
     // 更新缓存
     session.messages.push(message);

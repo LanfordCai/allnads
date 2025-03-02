@@ -27,9 +27,7 @@ export interface ChatSession {
 export const chatRequestSchema = z.object({
   sessionId: z.string().uuid().optional(),
   message: z.string().min(1, "消息不能为空"),
-  systemPrompt: z.string().optional(),
-  enableTools: z.boolean().optional(),
-  includeHistory: z.boolean().optional(),
+  enableTools: z.boolean().optional()
 });
 
 // 聊天请求类型
@@ -39,7 +37,6 @@ export type ChatRequest = z.infer<typeof chatRequestSchema>;
 export interface AppChatResponse {
   sessionId: string;
   message: ChatMessage;
-  history?: ChatMessage[];
 }
 
 // API 响应格式

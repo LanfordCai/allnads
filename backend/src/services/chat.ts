@@ -9,7 +9,7 @@
  */
 
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { ChatMessage, ChatRequest, AppChatResponse, ChatRole, Message, ToolCall, ChatCompletionTool } from '../types/chat';
+import { ChatMessage, ChatRequest, AppChatResponse, ChatRole, Message, ToolCall, ChatCompletionTool, ChatSession } from '../types/chat';
 import { llm } from './llm';
 import { SessionService } from './session';
 import { v4 as uuidv4 } from 'uuid';
@@ -123,22 +123,15 @@ export class ChatService {
    * 流式处理聊天请求，通过WebSocket提供实时更新
    * @param request 聊天请求
    * @param socket WebSocket连接
+   * @param session 会话对象，由WebSocket连接处理提供
    * @returns 会话ID
    */
-  static async streamChat(request: ChatRequest, socket: WebSocket): Promise<string> {
+  static async streamChat(request: ChatRequest, socket: WebSocket, session: ChatSession): Promise<string> {
     console.log('\n============== 项目-大模型交互记录 ==============');
-    const { sessionId = uuidv4(), message, systemPrompt, enableTools } = request;
+    const { sessionId, message, enableTools } = request;
     
     // 保存前端传入的原始sessionId，用于返回给客户端
     const originalSessionId = sessionId;
-    
-    // 获取系统提示
-    const finalSystemPrompt = getSystemPrompt();
-    
-    // 如果前端尝试设置systemPrompt，记录警告
-    if (systemPrompt) {
-      console.warn('前端尝试设置systemPrompt被忽略。为安全起见，systemPrompt只能由服务器提供。');
-    }
     
     // 发送初始思考消息
     this.sendSocketMessage(socket, {
@@ -146,25 +139,8 @@ export class ChatService {
       content: '我正在思考您的问题...'
     });
     
-    // 获取或创建会话
-    let session;
-    let history: ChatMessage[] = [];
-    
-    if (sessionId) {
-      session = await SessionService.getSession(sessionId);
-      if (session) {
-        history = session.messages;
-      }
-    }
-    
-    // 如果没有找到会话或是新会话ID，创建新会话
-    if (!session) {
-      session = await SessionService.createSession(finalSystemPrompt);
-      history = session.messages;
-    }
-    
-    // 注意：我们完全忽略前端请求或消息中可能包含的systemPrompt
-    // 为安全起见，systemPrompt只能由服务器提供，确保AI行为可控
+    // 获取会话历史消息
+    const history = session.messages;
     
     // 构建LLM消息
     const llmMessages: Message[] = [];
@@ -276,20 +252,74 @@ export class ChatService {
         // 获取当前响应中的消息
         const currentResponseMessage = currentResponse.choices[0].message;
         
-        // 如果没有工具调用，或者已经到达最后一轮，处理最终消息
+        // 始终发送文本内容（如果有），即使存在工具调用
+        if (currentResponseMessage.content) {
+          // 详细记录原始内容
+          console.log(`[助手原始消息] 长度: ${currentResponseMessage.content.length} 字符`);
+          console.log(`[助手原始消息] 内容前200字符:\n${currentResponseMessage.content.substring(0, 200)}${currentResponseMessage.content.length > 200 ? '...' : ''}`);
+          
+          // 检查内容是否有异常
+          if (currentResponseMessage.content === '...') {
+            console.warn(`[警告] 检测到内容为"..."的响应！完整响应对象：`);
+            console.warn(JSON.stringify(currentResponse, null, 2));
+          }
+          
+          // 记录并发送消息
+          console.log(`[助手文本消息] ${currentResponseMessage.content}`);
+          this.sendSocketMessage(socket, {
+            type: 'assistant_message',
+            content: currentResponseMessage.content
+          });
+          
+          // 累积助手内容，用于最终存储
+          if (!assistantContent) {
+            assistantContent = currentResponseMessage.content;
+          } else {
+            assistantContent += "\n\n" + currentResponseMessage.content;
+          }
+          
+          // 立即存储此条助手消息到数据库
+          const assistantPartialMessage: ChatMessage = {
+            role: ChatRole.ASSISTANT,
+            content: currentResponseMessage.content,
+            timestamp: new Date()
+          };
+          
+          // 存储前再次检查内容
+          if (assistantPartialMessage.content === '...') {
+            console.error(`[严重错误] 即将存储内容为"..."的消息! 这可能是一个bug。原始响应:`);
+            console.error(JSON.stringify(currentResponse, null, 2));
+            
+            // 尝试修复：如果原始响应中包含有效内容但被错误处理为"...",则使用完整响应重构内容
+            if (currentResponse.choices && 
+                currentResponse.choices[0] && 
+                typeof currentResponse.choices[0].message === 'object') {
+              
+              // 确保完整JSON响应可见以便调试
+              console.log(`[修复尝试] 完整响应对象:`);
+              console.log(JSON.stringify(currentResponse, null, 2));
+              
+              // 尝试从原始响应中提取完整内容
+              const rawContent = currentResponse.choices[0].message.content;
+              if (rawContent && rawContent !== '...') {
+                console.log(`[修复成功] 从原始响应重构内容: "${rawContent.substring(0, 50)}${rawContent.length > 50 ? '...' : ''}"`);
+                assistantPartialMessage.content = rawContent;
+              } else {
+                // 如果无法修复，存储带有警告的内容
+                console.log(`[修复失败] 无法从原始响应重构内容`);
+                assistantPartialMessage.content = "[数据错误] 无法正确获取AI回复内容。原始内容可能已丢失。";
+              }
+            }
+          }
+          
+          await SessionService.addMessage(session.id, assistantPartialMessage);
+          console.log(`[数据库] 已立即存储助手消息: ${assistantPartialMessage.content.substring(0, 50)}${assistantPartialMessage.content.length > 50 ? '...' : ''}`);
+        }
+        
+        // 如果没有工具调用，或者已经到达最后一轮，处理结束
         if (!currentResponseMessage.tool_calls || 
             currentResponseMessage.tool_calls.length === 0 || 
             toolCallRounds === MAX_TOOL_CALL_ROUNDS - 1) {
-          
-          // 发送最终的助手消息
-          if (currentResponseMessage.content) {
-            this.sendSocketMessage(socket, {
-              type: 'assistant_message',
-              content: currentResponseMessage.content
-            });
-            
-            assistantContent = currentResponseMessage.content;
-          }
           
           // 终止循环
           continueProcessing = false;
@@ -418,6 +448,9 @@ export class ChatService {
         // 处理总结响应
         const finalSummaryMessage = finalResponse.choices[0].message;
         if (finalSummaryMessage.content) {
+          // 记录总结文本内容
+          console.log(`[发送总结文本内容] ${finalSummaryMessage.content}`);
+          
           // 发送总结消息给客户端
           this.sendSocketMessage(socket, {
             type: 'assistant_message',
@@ -425,6 +458,38 @@ export class ChatService {
           });
           
           assistantContent = finalSummaryMessage.content;
+          
+          // 立即存储总结消息到数据库
+          const assistantSummaryMessage: ChatMessage = {
+            role: ChatRole.ASSISTANT,
+            content: finalSummaryMessage.content,
+            timestamp: new Date()
+          };
+          
+          // 检查总结内容
+          if (assistantSummaryMessage.content === '...') {
+            console.error(`[严重错误] 总结消息内容为"..."! 这可能是一个bug。原始响应:`);
+            console.error(JSON.stringify(finalResponse, null, 2));
+            
+            // 尝试修复
+            if (finalResponse.choices && 
+                finalResponse.choices[0] && 
+                typeof finalResponse.choices[0].message === 'object') {
+              
+              // 尝试从原始响应中提取完整内容
+              const rawContent = finalResponse.choices[0].message.content;
+              if (rawContent && rawContent !== '...') {
+                console.log(`[修复成功] 从原始总结响应重构内容`);
+                assistantSummaryMessage.content = rawContent;
+              } else {
+                // 如果无法修复，存储带有警告的内容
+                assistantSummaryMessage.content = "[数据错误] 无法正确获取AI总结内容。原始内容可能已丢失。";
+              }
+            }
+          }
+          
+          await SessionService.addMessage(session.id, assistantSummaryMessage);
+          console.log(`[数据库] 已立即存储总结消息: ${assistantSummaryMessage.content.substring(0, 50)}${assistantSummaryMessage.content.length > 50 ? '...' : ''}`);
         }
       }
     } catch (error) {
@@ -438,16 +503,16 @@ export class ChatService {
       });
       
       assistantContent = errorMessage;
+      
+      // 立即存储错误消息到数据库
+      const errorAssistantMessage: ChatMessage = {
+        role: ChatRole.ASSISTANT,
+        content: errorMessage,
+        timestamp: new Date()
+      };
+      await SessionService.addMessage(session.id, errorAssistantMessage);
+      console.log(`[数据库] 已立即存储错误消息: ${errorMessage.substring(0, 50)}${errorMessage.length > 50 ? '...' : ''}`);
     }
-    
-    // 保存助手消息到会话
-    assistantMessage = {
-      role: ChatRole.ASSISTANT,
-      content: assistantContent,
-      timestamp: new Date()
-    };
-    
-    await SessionService.addMessage(session.id, assistantMessage);
     
     // 发送完成信号 - 使用前端传入的原始sessionId
     this.sendSocketMessage(socket, {

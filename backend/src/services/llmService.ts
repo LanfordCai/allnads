@@ -45,6 +45,10 @@ export class LLMService extends EventEmitter {
     };
     
     try {
+      console.log(`[LLM请求] 发送请求到 ${this.baseUrl}/chat/completions`);
+      console.log(`[LLM请求] 使用模型: ${requestOptions.model}`);
+      console.log(`[LLM请求] 消息数量: ${requestOptions.messages.length}`);
+      
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -58,12 +62,38 @@ export class LLMService extends EventEmitter {
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: response.statusText }));
+        console.error(`[LLM错误] API请求失败: ${error.error || response.statusText}`);
         throw new Error(`API request failed: ${error.error || response.statusText}`);
       }
       
-      return await response.json();
+      const responseData: ChatResponse = await response.json();
+      
+      // 详细记录API响应
+      console.log(`[LLM响应] 状态: ${response.status} ${response.statusText}`);
+      console.log(`[LLM响应] 模型: ${responseData.model}`);
+      console.log(`[LLM响应] Token使用: ${responseData.usage?.total_tokens || 'unknown'}`);
+      
+      if (responseData.choices && responseData.choices.length > 0) {
+        const message = responseData.choices[0].message;
+        console.log(`[LLM响应] 响应角色: ${message.role}`);
+        
+        if (message.content === null) {
+          console.warn(`[LLM警告] 响应内容为null`);
+        } else if (message.content === '...') {
+          console.warn(`[LLM警告] 响应内容为"..."`);
+        } else if (message.content) {
+          console.log(`[LLM响应] 内容长度: ${message.content.length} 字符`);
+          console.log(`[LLM响应] 内容预览: ${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}`);
+        }
+        
+        if (message.tool_calls) {
+          console.log(`[LLM响应] 工具调用数量: ${message.tool_calls.length}`);
+        }
+      }
+      
+      return responseData;
     } catch (error) {
-      console.error('Error sending chat request:', error);
+      console.error('[LLM错误] 发送聊天请求失败:', error);
       throw error;
     }
   }

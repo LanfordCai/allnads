@@ -4,7 +4,8 @@ import { ChatRequest } from '../types/chat';
 import http from 'http';
 import url from 'url';
 import { getSystemPrompt } from '../config/prompts';
-
+import { SessionService } from '../services/session';
+import { v4 as uuidv4 } from 'uuid';
 /**
  * WebSocket聊天服务
  */
@@ -29,19 +30,52 @@ export class ChatSocketService {
    * 初始化WebSocket连接处理
    */
   private init(): void {
-    this.wss.on('connection', (socket, request) => {
+    this.wss.on('connection', async (socket, request) => {
       console.log('WebSocket连接已建立');
       
       // 解析查询参数
       const queryParams = url.parse(request.url || '', true).query;
       const sessionId = queryParams.sessionId as string;
+      console.log(`会话ID: ${sessionId}`);
       
-      // 连接建立时发送欢迎消息
-      socket.send(JSON.stringify({
-        type: 'connected',
-        sessionId: sessionId,
-        content: `👋 欢迎使用聊天服务！您的会话ID是: ${sessionId || '未指定'}。现在可以开始聊天了，请在输入框中输入您的问题。服务器将使用区块链工具帮助您解答疑问。`
-      }));
+      // 获取或创建会话
+      let session;
+      let finalSessionId = sessionId;
+      
+      // 获取系统提示词
+      const systemPrompt = getSystemPrompt();
+      
+      if (sessionId) {
+        // 尝试获取现有会话
+        session = await SessionService.getSession(sessionId);
+        
+        // 如果会话不存在，则创建一个新会话
+        if (!session) {
+          console.log(`会话不存在，创建新会话: ${sessionId}`);
+          session = await SessionService.createSession(sessionId, systemPrompt);
+          finalSessionId = session.id;
+        }
+      } else {
+        // 如果没有提供会话ID，直接创建新会话
+        console.log('未提供会话ID，创建新会话');
+        session = await SessionService.createSession(uuidv4(), systemPrompt);
+        finalSessionId = session.id;
+      }
+      
+      console.log(`最终会话ID: ${finalSessionId}`);
+      console.log(`会话历史: ${session.messages.length} 条消息`);
+      
+      // 判断会话历史是否为空(只有系统提示消息时也视为空)
+      const historyIsEmpty = session.messages.length <= 1;
+      
+      // 只在会话历史为空时发送欢迎消息
+      if (historyIsEmpty) {
+        socket.send(JSON.stringify({
+          type: 'connected',
+          sessionId: finalSessionId,
+          content: `👋 欢迎使用聊天服务！您的会话ID是: ${finalSessionId}。现在可以开始聊天了，请在输入框中输入您的问题。服务器将使用区块链工具帮助您解答疑问。`
+        }));
+      }
       
       // 处理消息
       socket.on('message', async (data) => {
@@ -58,19 +92,15 @@ export class ChatSocketService {
             return;
           }
           
-          // 获取系统提示
-          const systemPrompt = getSystemPrompt();
-          
           // 构建聊天请求
           const chatRequest: ChatRequest = {
-            sessionId: sessionId,
+            sessionId: finalSessionId,
             message: message.text,
-            systemPrompt: systemPrompt,
             enableTools: message.enableTools !== false // 默认启用工具
           };
           
           // 处理聊天请求并流式返回结果
-          await ChatService.streamChat(chatRequest, socket);
+          await ChatService.streamChat(chatRequest, socket, session);
           
         } catch (error) {
           console.error('处理WebSocket消息时发生错误:', error);
