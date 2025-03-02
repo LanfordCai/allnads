@@ -61,7 +61,7 @@ contract AllNadsComponent is ERC1155, Ownable {
     uint256 public creatorRoyaltyPercentage = 80;
     
     // Fee for creating a new template
-    uint256 public templateCreationFee = 0.01 ether;
+    uint256 public templateCreationFee = 0.1 ether;
     
     // Mapping to record equipped components
     mapping(uint256 => bool) private _isEquipped;

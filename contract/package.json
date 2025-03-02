@@ -2,9 +2,18 @@
   "name": "hardhat-project",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
-    "hardhat": "^2.22.19"
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.22.19",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.2.0"
+  },
+  "scripts": {
+    "create-templates": "ts-node scripts/createTemplates.ts",
+    "view-svg": "ts-node scripts/svgViewer.ts",
+    "simple-view-svg": "ts-node scripts/simpleSvgViewer.ts",
+    "mint-token": "ts-node scripts/mintNadsToken.ts"
   }
 }
