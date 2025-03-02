@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 export type MessageType = 'thinking' | 'assistant_message' | 'tool_calling' | 'tool_result' | 'tool_error' | 'error' | 'complete' | 'connected';
 
 // Event types including both message types and connection events
-export type EventType = MessageType | 'open' | 'close' | 'error';
+export type EventType = MessageType | 'open' | 'close' | 'error' | 'auth_error';
 
 // Server message interface
 export interface ServerMessage {
@@ -34,24 +34,73 @@ export class ChatService {
   private maxReconnectAttempts = parseInt(process.env.NEXT_PUBLIC_MAX_RECONNECT_ATTEMPTS || '5');
   private maxReconnectDelay = parseInt(process.env.NEXT_PUBLIC_MAX_RECONNECT_DELAY || '30000');
   private reconnectTimeout: NodeJS.Timeout | null = null;
+  private getAccessToken: (() => Promise<string | null>) | null = null;
 
   constructor(url: string = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3030/ws') {
     this.url = url;
   }
 
+  /**
+   * 设置获取访问令牌的函数
+   * @param tokenProvider 获取Privy访问令牌的函数
+   */
+  public setTokenProvider(tokenProvider: () => Promise<string | null>) {
+    this.getAccessToken = tokenProvider;
+    console.log('Token provider has been set');
+  }
+
   public connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if (this.socket?.readyState === WebSocket.OPEN) {
         console.log('WebSocket已经连接，无需重新连接');
         resolve();
         return;
       }
 
-      // 构建URL，附加sessionId作为查询参数
+      // 构建URL，附加sessionId和认证令牌作为查询参数
       let connectionUrl = this.url;
+      const queryParams = new URLSearchParams();
+      
+      // 添加会话ID（如果有）
       if (this.sessionId) {
-        // 检查URL是否已经包含查询参数
-        connectionUrl += (this.url.includes('?') ? '&' : '?') + `sessionId=${this.sessionId}`;
+        queryParams.append('sessionId', this.sessionId);
+      }
+      
+      // 尝试获取认证令牌
+      let token = null;
+      if (this.getAccessToken) {
+        try {
+          token = await this.getAccessToken();
+          if (token) {
+            queryParams.append('token', token);
+            console.log('已添加认证令牌到连接URL');
+          } else {
+            console.log('未能获取认证令牌，拒绝匿名连接');
+            reject(new Error('Authentication required. Please login to use the chat.'));
+            return;
+          }
+        } catch (error) {
+          console.error('获取认证令牌失败:', error);
+          reject(new Error('Failed to authenticate. Please try again.'));
+          return;
+        }
+      } else {
+        console.log('未设置令牌提供者，拒绝匿名连接');
+        reject(new Error('Authentication required. Please login to use the chat.'));
+        return;
+      }
+      
+      // 如果没有令牌，拒绝连接
+      if (!token) {
+        console.log('没有有效的认证令牌，拒绝匿名连接');
+        reject(new Error('Authentication required. Please login to use the chat.'));
+        return;
+      }
+      
+      // 添加查询参数到URL
+      const queryString = queryParams.toString();
+      if (queryString) {
+        connectionUrl += (connectionUrl.includes('?') ? '&' : '?') + queryString;
       }
 
       console.log(`正在连接WebSocket: ${connectionUrl}`);
@@ -61,6 +110,7 @@ export class ChatService {
         console.log('=== WebSocket连接已建立 ===');
         console.log(`连接URL: ${connectionUrl}`);
         console.log(`使用会话ID: ${this.sessionId || '未指定'}`);
+        console.log(`认证状态: ${queryParams.has('token') ? '已认证' : '匿名'}`);
         console.log('=========================');
         this.reconnectAttempts = 0;
         const openHandler = this.eventHandlers['open'];
@@ -81,8 +131,17 @@ export class ChatService {
           closeHandler(event);
         }
 
+        // 处理特定的认证错误
+        if (event.code === 4001) {
+          console.error('认证失败，令牌可能已过期或无效');
+          // 可以触发特定的认证错误事件处理
+          const authErrorHandler = this.eventHandlers['auth_error'];
+          if (authErrorHandler) {
+            authErrorHandler({ code: event.code, reason: event.reason });
+          }
+        }
         // Attempt to reconnect if not a deliberate closure
-        if (event.code !== 1000 && event.code !== 1001) {
+        else if (event.code !== 1000 && event.code !== 1001) {
           console.log(`连接非正常关闭 (代码 ${event.code}), 准备重新连接...`);
           this.attemptReconnect();
         }

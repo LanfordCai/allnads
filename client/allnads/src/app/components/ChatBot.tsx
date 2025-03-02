@@ -7,6 +7,7 @@ import ChatArea from './ChatArea';
 import WalletInfoComponent from './WalletInfo';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/ChatService';
+import { usePrivyAuth } from '../hooks/usePrivyAuth';
 
 // Mock wallet info for now (this could come from another API in a real app)
 const mockWalletInfo: WalletInfo = {
@@ -57,6 +58,38 @@ export default function ChatBot() {
 
   // Mobile responsiveness
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Privy authentication
+  const { privy, isAuthenticated, isReady } = usePrivyAuth();
+  const [authStatus, setAuthStatus] = useState<'authenticated' | 'anonymous' | 'pending'>('pending');
+  
+  // 显示认证错误
+  const [authError, setAuthError] = useState<string | null>(null);
+  
+  // 获取Privy访问令牌的函数
+  const getAccessToken = async (): Promise<string | null> => {
+    if (!isAuthenticated) {
+      console.log('用户未认证，返回null令牌');
+      return null;
+    }
+    
+    try {
+      // 使用privy.getAccessToken()方法获取令牌
+      const token = await privy.getAccessToken();
+      console.log('成功获取Privy访问令牌');
+      return token;
+    } catch (error) {
+      console.error('获取Privy访问令牌失败:', error);
+      return null;
+    }
+  };
+  
+  // 清除认证错误
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuthError(null);
+    }
+  }, [isAuthenticated]);
 
   // 从本地存储加载会话
   useEffect(() => {
@@ -322,6 +355,16 @@ export default function ChatBot() {
     const chatService = new ChatService();
     chatServiceRef.current = chatService;
 
+    // 设置认证令牌提供者
+    chatService.setTokenProvider(getAccessToken);
+    console.log('已设置认证令牌提供者');
+    
+    // 监听Privy认证状态变化
+    if (isReady) {
+      setAuthStatus(isAuthenticated ? 'authenticated' : 'anonymous');
+      console.log(`Privy认证状态: ${isAuthenticated ? '已认证' : '匿名'}`);
+    }
+
     // 不再自动连接，而是等待activeSessionId设置后再连接
     // 事件处理程序的设置仍然在这里完成
     chatService
@@ -346,6 +389,31 @@ export default function ChatBot() {
             });
           });
         }
+      })
+      // 添加认证错误处理
+      .on('auth_error', (error) => {
+        console.error('WebSocket认证错误:', error);
+        const errorMessage = chatService.createLocalMessage(
+          '认证失败，请重新登录。如果问题持续存在，请刷新页面。', 
+          'error'
+        );
+        
+        setSessions(prevSessions => {
+          const currentSessionId = activeSessionIdRef.current;
+          return prevSessions.map(session => {
+            if (session.id === currentSessionId) {
+              return {
+                ...session,
+                messages: [...session.messages, errorMessage],
+                lastActivity: new Date()
+              };
+            }
+            return session;
+          });
+        });
+        
+        // 可以在这里触发重新认证
+        setAuthStatus('anonymous');
       })
       .on('thinking', (message) => {
         setIsLoading(true);
@@ -580,10 +648,48 @@ export default function ChatBot() {
     };
   }, []); // 仅在组件挂载时初始化
 
+  // 监听Privy认证状态变化
+  useEffect(() => {
+    if (!isReady) return;
+    
+    const newAuthStatus = isAuthenticated ? 'authenticated' : 'anonymous';
+    if (authStatus !== newAuthStatus) {
+      console.log(`Privy认证状态变化: ${authStatus} -> ${newAuthStatus}`);
+      setAuthStatus(newAuthStatus);
+      
+      // 当状态从已认证变为匿名时，断开WebSocket连接
+      if (newAuthStatus === 'anonymous' && chatServiceRef.current) {
+        console.log('用户退出登录，断开WebSocket连接');
+        chatServiceRef.current.disconnect();
+        setAuthError('您已退出登录，请重新登录以继续聊天');
+        return;
+      }
+      
+      // 如果已经有活跃会话，且用户已认证，则连接WebSocket
+      if (newAuthStatus === 'authenticated' && activeSessionId && chatServiceRef.current) {
+        console.log('用户已认证，连接WebSocket...');
+        chatServiceRef.current.disconnect(); // 确保先断开任何现有连接
+        chatServiceRef.current.connect().catch(error => {
+          console.error('连接WebSocket失败:', error);
+          if (error.message && error.message.includes('Authentication required')) {
+            setAuthError(error.message);
+          }
+        });
+      }
+    }
+  }, [isReady, isAuthenticated, authStatus, activeSessionId]);
+
   // 当活跃会话ID变化时，更新ChatService的会话ID并重新连接
   useEffect(() => {
     if (chatServiceRef.current && activeSessionId) {
       console.log(`切换到会话 ID: ${activeSessionId}`);
+      
+      // 如果用户未认证，则不连接WebSocket
+      if (authStatus === 'anonymous') {
+        console.log('用户未认证，不连接WebSocket');
+        setAuthError('请登录以使用聊天功能');
+        return;
+      }
       
       // 先设置会话ID
       chatServiceRef.current.setSessionId(activeSessionId);
@@ -594,6 +700,13 @@ export default function ChatBot() {
       // 重新连接，这次会带上新的会话ID
       chatServiceRef.current.connect().catch(error => {
         console.error('重新连接WebSocket失败:', error);
+        
+        // 检查是否是认证错误
+        if (error.message && error.message.includes('Authentication required')) {
+          setAuthError(error.message);
+          return;
+        }
+        
         const errorMessage = chatServiceRef.current?.createLocalMessage(
           '重新连接聊天服务器失败，请刷新页面再试。', 
           'error'
@@ -613,12 +726,20 @@ export default function ChatBot() {
         }
       });
     }
-  }, [activeSessionId]);
+  }, [activeSessionId, authStatus]);
 
   // 处理发送消息
   const handleSendMessage = (content: string) => {
     if (!chatServiceRef.current) {
       console.error('Chat service not initialized');
+      return;
+    }
+    
+    // 检查用户是否已认证
+    if (authStatus !== 'authenticated') {
+      console.log('用户未认证，不能发送消息');
+      setAuthError('请登录以发送消息');
+      // 不需要显示错误消息，因为UI已经显示了登录提示
       return;
     }
 
@@ -751,19 +872,92 @@ export default function ChatBot() {
       <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
         {/* Chat area */}
         <div className="flex-1 h-full overflow-hidden flex flex-col max-w-4xl mx-auto w-full">
-          <ChatArea
-            messages={activeSession.messages}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            isMobile={isMobile}
-            isSidebarOpen={isSidebarOpen}
-          />
+          {authStatus === 'authenticated' ? (
+            <ChatArea
+              messages={activeSession.messages}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              isMobile={isMobile}
+              isSidebarOpen={isSidebarOpen}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full p-4">
+              <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6 text-center">
+                <svg 
+                  className="w-12 h-12 text-yellow-500 mx-auto mb-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth="2" 
+                    d="M12 15v2m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+                <h2 className="text-xl font-semibold mb-2">需要登录</h2>
+                <p className="text-gray-600 mb-4">
+                  {authError || '请登录以使用聊天功能'}
+                </p>
+                <button
+                  onClick={() => privy.login()}
+                  className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  登录/注册
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Right column for wallet info on larger screens */}
         <div className="w-full md:w-80 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
           <WalletInfoComponent />
+          
+          {/* 认证状态和登录按钮 */}
+          <div className="mt-4 p-4 bg-white rounded-lg shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-md font-medium">认证状态</h3>
+              <span className={`px-2 py-1 text-xs rounded-full ${
+                authStatus === 'authenticated' 
+                  ? 'bg-green-100 text-green-800' 
+                  : authStatus === 'anonymous' 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-gray-100 text-gray-800'
+              }`}>
+                {authStatus === 'authenticated' 
+                  ? '已认证' 
+                  : authStatus === 'anonymous' 
+                    ? '匿名' 
+                    : '加载中'}
+              </span>
+            </div>
+            
+            {authStatus === 'authenticated' ? (
+              <button
+                onClick={() => privy.logout()}
+                className="w-full py-2 px-4 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+              >
+                退出登录
+              </button>
+            ) : (
+              <button
+                onClick={() => privy.login()}
+                className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                登录/注册
+              </button>
+            )}
+            
+            {isAuthenticated && (
+              <div className="mt-3 text-xs text-gray-500">
+                <p>登录后，你的聊天记录可以在不同设备间同步，并且不会丢失。</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
