@@ -221,6 +221,142 @@ MCP服务器配置存储在项目根目录的 `mcp.json` 文件中。该文件�
 }
 ```
 
+## WebSocket聊天鉴权
+
+WebSocket聊天接口现在支持基于Privy的访问令牌鉴权。这允许系统识别用户身份并保护私人会话。
+
+### 前端连接示例
+
+以下是一个使用React和Privy进行WebSocket鉴权的示例代码：
+
+```tsx
+import { usePrivy } from '@privy-io/react-auth';
+import { useState, useEffect, useRef } from 'react';
+
+function ChatComponent() {
+  const { getAccessToken, user } = usePrivy();
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  
+  // 建立WebSocket连接
+  const connectToChat = async (existingSessionId?: string) => {
+    try {
+      // 获取Privy访问令牌
+      const accessToken = await getAccessToken();
+      
+      // 构建WebSocket URL，包含令牌和可选的sessionId
+      let wsUrl = `wss://your-api.com/ws?token=${encodeURIComponent(accessToken)}`;
+      
+      if (existingSessionId) {
+        wsUrl += `&sessionId=${encodeURIComponent(existingSessionId)}`;
+      }
+      
+      // 建立WebSocket连接
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('WebSocket连接已建立');
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('收到消息:', data);
+        
+        // 处理不同类型的消息
+        if (data.type === 'connected') {
+          // 保存会话ID
+          setSessionId(data.sessionId);
+          // 可以保存到localStorage以便后续使用
+          localStorage.setItem('chatSessionId', data.sessionId);
+        } else if (data.type === 'auth_success') {
+          console.log('认证成功，用户ID:', data.privyUserId);
+        } else if (data.type === 'assistant_message' || data.type === 'thinking' || data.type === 'tool_calling') {
+          // 添加消息到聊天历史
+          setMessages(prev => [...prev, data]);
+        } else if (data.type === 'error') {
+          console.error('服务器错误:', data.content);
+          // 显示错误消息
+        }
+      };
+      
+      ws.onclose = (event) => {
+        console.log(`连接已关闭: ${event.code} ${event.reason}`);
+        
+        // 如果是认证错误，可以提示用户重新登录
+        if (event.code === 4001) {
+          console.error('认证失败，请重新登录');
+        }
+        
+        setSocket(null);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket错误:', error);
+      };
+      
+      setSocket(ws);
+      
+    } catch (error) {
+      console.error('连接聊天失败:', error);
+    }
+  };
+  
+  // 发送消息
+  const sendMessage = (text: string) => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        text,
+        enableTools: true
+      }));
+    } else {
+      console.error('WebSocket未连接');
+    }
+  };
+  
+  // 在组件挂载时连接WebSocket
+  useEffect(() => {
+    // 尝试获取保存的会话ID
+    const savedSessionId = localStorage.getItem('chatSessionId');
+    connectToChat(savedSessionId || undefined);
+    
+    // 在组件卸载时关闭连接
+    return () => {
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, []);
+  
+  // 组件的JSX结构
+  return (
+    <div className="chat-container">
+      {/* 聊天界面 */}
+    </div>
+  );
+}
+
+export default ChatComponent;
+```
+
+### 鉴权流程
+
+1. 前端通过Privy的`getAccessToken()`方法获取用户访问令牌
+2. 将访问令牌作为URL参数包含在WebSocket连接URL中
+3. 服务器验证令牌，提取用户ID（`privyUserId`）
+4. 如果提供了会话ID，服务器验证用户是否有权访问该会话
+5. 验证成功后，允许用户发送和接收消息
+
+### 匿名访问
+
+系统也支持匿名访问（不提供令牌）。匿名用户可以创建和使用会话，但无法访问其他用户的会话，也无法在跨设备/浏览器间继续同一会话。
+
+### 安全注意事项
+
+- 始终使用WSS (WebSocket Secure) 协议，确保令牌在传输过程中受到保护
+- 访问令牌通常有1小时有效期，前端应处理令牌过期情况
+- 在生产环境中，应当为WebSocket连接添加额外的安全头部和限速保护
+
 ## 许可证
 
 [MIT](LICENSE) 
