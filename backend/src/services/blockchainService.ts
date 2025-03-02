@@ -214,11 +214,11 @@ export class BlockchainService {
   } {
     // Using default IDs - in production, you'd want to fetch these from the contract
     return {
-      backgroundTemplateId: BigInt(1),
-      hairstyleTemplateId: BigInt(2),
-      eyesTemplateId: BigInt(3),
-      mouthTemplateId: BigInt(4),
-      accessoryTemplateId: BigInt(5)
+      backgroundTemplateId: BigInt(9),
+      hairstyleTemplateId: BigInt(24),
+      eyesTemplateId: BigInt(14),
+      mouthTemplateId: BigInt(31),
+      accessoryTemplateId: BigInt(1)
     };
   }
 }
