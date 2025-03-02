@@ -1,70 +1,66 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { blockchainService } from '../services/blockchainService';
-import { Address } from 'viem';
+import { Address, isAddress } from 'viem';
 
-// Validation schema for the airdrop request
+// 简化的验证模式，只需要地址和可选的名称
 const airdropSchema = z.object({
-  address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
-  name: z.string().min(1).max(50).optional().default('AllNads Avatar'),
-  // Optional component IDs will use defaults if not provided
-  backgroundId: z.string().optional().transform((val) => val ? BigInt(val) : undefined),
-  hairstyleId: z.string().optional().transform((val) => val ? BigInt(val) : undefined),
-  eyesId: z.string().optional().transform((val) => val ? BigInt(val) : undefined),
-  mouthId: z.string().optional().transform((val) => val ? BigInt(val) : undefined),
-  accessoryId: z.string().optional().transform((val) => val ? BigInt(val) : undefined),
+  address: z.string().refine(val => isAddress(val), {
+    message: 'Invalid address'
+  }),
+  name: z.string().min(1).max(50).optional().default('AllNads Avatar')
 });
 
 /**
- * NFT controller, handles NFT-related requests
+ * NFT控制器，处理NFT相关请求
  */
 export class NFTController {
   /**
-   * Check if an address has an AllNads NFT and airdrop one if not
+   * 检查地址是否有AllNads NFT并在没有时空投一个
    */
-  static async checkAndAirdropNFT(req: Request, res: Response) {
+  static async checkAndAirdropNFT(req: Request, res: Response): Promise<void> {
     try {
-      // Validate the request body
+      // 验证请求体
       const validationResult = airdropSchema.safeParse(req.body);
       
       if (!validationResult.success) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Invalid request parameters',
           errors: validationResult.error.format()
         });
+        return;
       }
       
-      const { address, name, backgroundId, hairstyleId, eyesId, mouthId, accessoryId } = validationResult.data;
+      const { address, name } = validationResult.data;
       
-      // Check if the address already has an NFT
+      // 检查地址是否已经拥有NFT
       const hasNFT = await blockchainService.hasAllNadsNFT(address as Address);
       
       if (hasNFT) {
-        return res.status(200).json({
+        res.status(200).json({
           success: true,
           message: 'Address already has an AllNads NFT',
           data: {
             hasNFT: true
           }
         });
+        return;
       }
       
-      // Get default component IDs if not provided
-      const defaultComponents = blockchainService.getDefaultComponentIds();
-      
-      // Airdrop the NFT
+      // 使用默认组件空投NFT
+      const defaultTemplates = blockchainService.getDefaultTemplateIds();
       const txHash = await blockchainService.airdropNFT(
         address as Address,
         name,
-        backgroundId || defaultComponents.backgroundId,
-        hairstyleId || defaultComponents.hairstyleId,
-        eyesId || defaultComponents.eyesId,
-        mouthId || defaultComponents.mouthId,
-        accessoryId || defaultComponents.accessoryId
+        defaultTemplates.backgroundTemplateId,
+        defaultTemplates.hairstyleTemplateId,
+        defaultTemplates.eyesTemplateId,
+        defaultTemplates.mouthTemplateId,
+        defaultTemplates.accessoryTemplateId
       );
       
-      return res.status(200).json({
+      res.status(200).json({
         success: true,
         message: 'AllNads NFT airdropped successfully',
         data: {
@@ -75,7 +71,7 @@ export class NFTController {
       });
     } catch (error: any) {
       console.error('Error in NFT airdrop:', error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         message: `Internal server error: ${error.message}`,
         error: error.message
@@ -84,22 +80,23 @@ export class NFTController {
   }
   
   /**
-   * Check if an address has an AllNads NFT
+   * 检查地址是否拥有AllNads NFT
    */
-  static async checkNFT(req: Request, res: Response) {
+  static async checkNFT(req: Request, res: Response): Promise<void> {
     try {
       const { address } = req.params;
       
-      if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-        return res.status(400).json({
+      if (!address || !isAddress(address)) {
+        res.status(400).json({
           success: false,
-          message: 'Invalid Ethereum address'
+          message: 'Invalid address'
         });
+        return;
       }
       
       const hasNFT = await blockchainService.hasAllNadsNFT(address as Address);
       
-      return res.status(200).json({
+      res.status(200).json({
         success: true,
         data: {
           address,
@@ -108,7 +105,7 @@ export class NFTController {
       });
     } catch (error: any) {
       console.error(`Error checking NFT for address ${req.params.address}:`, error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         message: `Internal server error: ${error.message}`,
         error: error.message

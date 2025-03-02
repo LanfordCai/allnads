@@ -205,20 +205,20 @@ export class BlockchainService {
    * Select default component IDs for the airdrop
    * This uses hardcoded IDs for simplicity, but could be enhanced to fetch valid templates
    */
-  getDefaultComponentIds(): { 
-    backgroundId: bigint, 
-    hairstyleId: bigint, 
-    eyesId: bigint, 
-    mouthId: bigint, 
-    accessoryId: bigint 
+  getDefaultTemplateIds(): { 
+    backgroundTemplateId: bigint, 
+    hairstyleTemplateId: bigint, 
+    eyesTemplateId: bigint, 
+    mouthTemplateId: bigint, 
+    accessoryTemplateId: bigint 
   } {
     // Using default IDs - in production, you'd want to fetch these from the contract
     return {
-      backgroundId: BigInt(1),
-      hairstyleId: BigInt(1),
-      eyesId: BigInt(1),
-      mouthId: BigInt(1),
-      accessoryId: BigInt(1)
+      backgroundTemplateId: BigInt(1),
+      hairstyleTemplateId: BigInt(2),
+      eyesTemplateId: BigInt(3),
+      mouthTemplateId: BigInt(4),
+      accessoryTemplateId: BigInt(5)
     };
   }
 }
