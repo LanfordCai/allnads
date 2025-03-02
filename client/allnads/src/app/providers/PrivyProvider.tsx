@@ -2,6 +2,30 @@
 
 import { ReactNode } from 'react';
 import { PrivyProvider as PrivyAuthProvider } from '@privy-io/react-auth';
+import { defineChain } from 'viem';
+
+// Define Monad Testnet chain
+const monadTestnet = defineChain({
+  id: 10143,
+  name: 'Monad Testnet',
+  network: 'monadTestnet',
+  nativeCurrency: {
+    name: 'Monad',
+    symbol: 'MON',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: [process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || 'https://rpc.testnet.monad.xyz/'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'Monad Explorer',
+      url: 'https://testnet.monadexplorer.com/',
+    },
+  },
+});
 
 interface PrivyProviderProps {
   children: ReactNode;
@@ -32,6 +56,9 @@ export default function PrivyProvider({ children }: PrivyProviderProps) {
         },
         // 登录方法配置
         loginMethods: ['email', 'wallet'],
+        // 配置默认链和支持的链
+        defaultChain: monadTestnet,
+        supportedChains: [monadTestnet],
       }}
     >
       {children}

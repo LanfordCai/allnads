@@ -102,7 +102,7 @@ const NETWORKS = {
       id: 10143,
       name: 'Monad Testnet',
       network: 'monadTestnet',
-      nativeCurrency: { name: 'Monad', symbol: 'MONAD', decimals: 18 },
+      nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
       rpcUrls: {
         default: { http: [process.env.MONAD_TESTNET_RPC as string] }
       }
