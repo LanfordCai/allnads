@@ -8,6 +8,7 @@ import { mcpManager } from './mcpService';
 import { mcpConfig } from '../config/mcpConfig';
 import { LLMService } from './llmService';
 import WebSocket from 'ws';
+import { getSystemPrompt } from '../config/prompts';
 
 /**
  * 聊天服务
@@ -15,6 +16,15 @@ import WebSocket from 'ws';
 export class ChatService {
   // 移除内部会话存储，改用SessionService
   private static llmService = new LLMService();
+
+  /**
+   * 获取要使用的模型名称
+   * @private
+   */
+  private static getModelName(): string {
+    // 从环境变量获取模型名称，如果未设置则使用默认值
+    return process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+  }
 
   /**
    * 根据消息内容选择合适的MCP服务器
@@ -105,6 +115,14 @@ export class ChatService {
   static async processChat(request: ChatRequest): Promise<AppChatResponse> {
     const { sessionId = uuidv4(), message, systemPrompt, enableTools, includeHistory = false } = request;
     
+    // 获取系统提示
+    const finalSystemPrompt = getSystemPrompt();
+    
+    // 如果尝试设置systemPrompt，记录警告
+    if (systemPrompt) {
+      console.warn('API请求中尝试设置systemPrompt被忽略。为安全起见，systemPrompt只能由服务器提供。');
+    }
+    
     // 获取或创建会话
     let session;
     let history: ChatMessage[] = [];
@@ -119,7 +137,7 @@ export class ChatService {
     
     // 如果没有找到会话或是新会话ID，创建新会话
     if (!session) {
-      session = await SessionService.createSession(systemPrompt);
+      session = await SessionService.createSession(finalSystemPrompt);
       history = session.messages;
     }
     
@@ -164,7 +182,7 @@ export class ChatService {
     try {
       // 准备初始请求参数
       const requestOptions: any = {
-        model: 'anthropic/claude-3.5-sonnet',
+        model: this.getModelName(),
         messages: llmMessages,
         temperature: 0.7
       };
@@ -228,19 +246,31 @@ export class ChatService {
               // 遍历所有内容项
               for (const contentItem of result.content) {
                 // 根据内容类型处理
-                if (contentItem.type === 'text') {
+                const itemType = contentItem.type || 'unknown';
+                
+                if (itemType === 'text') {
                   // 处理文本内容
-                  resultContent += (contentItem as TextContent).text;
-                } else if (contentItem.type === 'image') {
+                  const textContent = (contentItem as TextContent).text;
+                  resultContent += textContent;
+                  console.log(`添加文本内容: ${textContent.substring(0, 100)}${textContent.length > 100 ? '...' : ''}`);
+                } else if (itemType === 'image') {
                   // 处理图像内容
                   const imageContent = contentItem as ImageContent;
-                  resultContent += `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
-                } else if (contentItem.type === 'embedded_resource') {
+                  const imageInfo = `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
+                  resultContent += imageInfo;
+                  console.log(`添加图像内容: ${imageInfo}`);
+                } else if (itemType === 'embedded_resource') {
                   // 处理嵌入资源
                   const resourceContent = contentItem as EmbeddedResource;
-                  resultContent += `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
+                  const resourceInfo = `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
+                  resultContent += resourceInfo;
+                  console.log(`添加嵌入资源: ${resourceInfo}`);
+                } else {
+                  console.log(`未知内容类型: ${itemType}`);
                 }
               }
+            } else {
+              console.log('工具调用结果没有内容项');
             }
             
             console.log(`工具响应: ${resultContent}`);
@@ -270,24 +300,25 @@ export class ChatService {
         // 在所有工具调用完成后，再次请求LLM生成最终响应
         console.log('工具调用完成，发送结果给LLM获取最终响应');
         response = await this.llmService.sendChatRequest({
-          model: 'anthropic/claude-3.5-sonnet',
+          model: this.getModelName(),
           messages: updatedMessages,
           temperature: 0.7
         });
         
         const finalMessage = response.choices[0].message;
         if (finalMessage.content) {
-          finalResponseParts.push(finalMessage.content);
+          assistantContent = finalMessage.content;
         }
-        
-        assistantContent = finalResponseParts.join('\n\n');
       } else {
         // 没有工具调用，直接使用LLM响应
-        assistantContent = assistantResponseMessage.content || '';
+        if (assistantResponseMessage.content) {
+          assistantContent = assistantResponseMessage.content;
+        }
       }
     } catch (error) {
       console.error('处理聊天请求失败:', error);
-      assistantContent = `很抱歉，在处理您的请求时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = `很抱歉，在处理您的请求时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
+      assistantContent = errorMessage;
     }
     
     // 保存助手消息到会话
@@ -334,9 +365,18 @@ export class ChatService {
    * @returns 会话ID
    */
   static async streamChat(request: ChatRequest, socket: WebSocket): Promise<string> {
+    console.log('\n============== 项目-大模型交互记录 ==============');
     const { sessionId = uuidv4(), message, systemPrompt, enableTools } = request;
     
-    // 发送初始确认
+    // 获取系统提示
+    const finalSystemPrompt = getSystemPrompt();
+    
+    // 如果尝试设置systemPrompt，记录警告
+    if (systemPrompt) {
+      console.warn('流式API请求中尝试设置systemPrompt被忽略。为安全起见，systemPrompt只能由服务器提供。');
+    }
+    
+    // 发送初始思考消息
     this.sendSocketMessage(socket, {
       type: 'thinking',
       content: '我正在思考您的问题...'
@@ -346,7 +386,6 @@ export class ChatService {
     let session;
     let history: ChatMessage[] = [];
     
-    // 如果提供了会话ID，尝试获取现有会话
     if (sessionId) {
       session = await SessionService.getSession(sessionId);
       if (session) {
@@ -356,7 +395,7 @@ export class ChatService {
     
     // 如果没有找到会话或是新会话ID，创建新会话
     if (!session) {
-      session = await SessionService.createSession(systemPrompt);
+      session = await SessionService.createSession(finalSystemPrompt);
       history = session.messages;
     }
     
@@ -373,7 +412,8 @@ export class ChatService {
     }
     
     // 添加历史消息（不包括系统消息）
-    for (const msg of history.filter(msg => msg.role !== ChatRole.SYSTEM)) {
+    const historyMessages = history.filter(msg => msg.role !== ChatRole.SYSTEM);
+    for (const msg of historyMessages) {
       llmMessages.push({
         role: msg.role === ChatRole.USER ? 'user' : 'assistant',
         content: msg.content
@@ -401,7 +441,7 @@ export class ChatService {
     try {
       // 准备初始请求参数
       const requestOptions: any = {
-        model: 'anthropic/claude-3.5-sonnet',
+        model: this.getModelName(),
         messages: llmMessages,
         temperature: 0.7
       };
@@ -410,50 +450,97 @@ export class ChatService {
       if (enableTools) {
         const mcpTools = this.getMCPToolDefinitions();
         if (mcpTools.length > 0) {
-          console.log(`发现 ${mcpTools.length} 个可用工具`);
+          console.log(`[工具] 可用工具数量: ${mcpTools.length}`);
           requestOptions.tools = mcpTools;
           requestOptions.tool_choice = 'auto';
-        } else {
-          console.log('未找到可用的MCP工具');
         }
       }
       
+      // 记录发送给大模型的初始请求
+      console.log('\n[发送给大模型的初始请求]');
+      console.log(`消息数量: ${requestOptions.messages.length}`);
+      console.log(`工具数量: ${requestOptions.tools ? requestOptions.tools.length : 0}`);
+      console.log(`用户消息: ${message.substring(0, 150)}${message.length > 150 ? '...' : ''}`);
+      
       // 发送初始请求
-      this.sendSocketMessage(socket, {
-        type: 'processing',
-        content: '正在处理您的请求...'
-      });
-      
       let response = await this.llmService.sendChatRequest(requestOptions);
-      let assistantResponseMessage = response.choices[0].message;
       
-      // 处理初始响应
-      let finalResponseParts: string[] = [];
+      // 记录大模型的原始响应
+      console.log('\n[大模型原始响应]');
+      console.log(JSON.stringify(response, null, 2));
       
-      // 如果有初始回复内容，发送给用户
-      if (assistantResponseMessage.content) {
-        this.sendSocketMessage(socket, {
-          type: 'assistant_message',
-          content: assistantResponseMessage.content
-        });
-        finalResponseParts.push(assistantResponseMessage.content);
-      }
+      // 处理消息处理的主循环
+      let currentMessages = [...llmMessages];
+      let continueProcessing = true;
+      let toolCallRounds = 0;
+      const MAX_TOOL_CALL_ROUNDS = 5;
       
-      // 检查是否有工具调用
-      if (enableTools && 
-          assistantResponseMessage.tool_calls && 
-          assistantResponseMessage.tool_calls.length > 0) {
+      while (continueProcessing && toolCallRounds < MAX_TOOL_CALL_ROUNDS) {
+        console.log(`\n[工具调用回合 ${toolCallRounds + 1}]`);
         
-        console.log(`检测到 ${assistantResponseMessage.tool_calls.length} 个工具调用请求`);
+        // 如果是第一轮，使用已经获取的响应；否则发送新请求
+        let currentResponse = toolCallRounds === 0 ? response : null;
         
-        // 创建新的消息列表，包含初始对话和LLM响应
-        const updatedMessages = [...llmMessages, assistantResponseMessage];
+        if (toolCallRounds > 0 || currentResponse === null) {
+          // 记录发送给大模型的后续请求
+          console.log(`[发送给大模型的第 ${toolCallRounds + 1} 轮请求]`);
+          console.log(`消息数量: ${currentMessages.length}`);
+          console.log(currentMessages);
+          
+          currentResponse = await this.llmService.sendChatRequest({
+            model: this.getModelName(),
+            messages: currentMessages,
+            temperature: 0.7,
+            tools: requestOptions.tools,
+            tool_choice: 'auto'
+          });
+          
+          // 记录大模型的响应
+          console.log(`[大模型第 ${toolCallRounds + 1} 轮响应]`);
+          console.log(JSON.stringify(currentResponse, null, 2));
+        }
         
-        // 处理工具调用
-        for (const toolCall of assistantResponseMessage.tool_calls) {
-          if (toolCall.type !== 'function') continue;
+        // 确保currentResponse不为null
+        if (!currentResponse) {
+          console.error('错误: currentResponse 为 null');
+          break;
+        }
+        
+        // 获取当前响应中的消息
+        const currentResponseMessage = currentResponse.choices[0].message;
+        
+        // 如果没有工具调用，或者已经到达最后一轮，处理最终消息
+        if (!currentResponseMessage.tool_calls || 
+            currentResponseMessage.tool_calls.length === 0 || 
+            toolCallRounds === MAX_TOOL_CALL_ROUNDS - 1) {
+          
+          // 发送最终的助手消息
+          if (currentResponseMessage.content) {
+            this.sendSocketMessage(socket, {
+              type: 'assistant_message',
+              content: currentResponseMessage.content
+            });
+            
+            assistantContent = currentResponseMessage.content;
+          }
+          
+          // 终止循环
+          continueProcessing = false;
+          break;
+        }
+        
+        // 将当前响应添加到消息列表
+        currentMessages.push(currentResponseMessage);
+        
+        // 处理所有工具调用
+        for (const toolCall of currentResponseMessage.tool_calls) {
+          if (toolCall.type !== 'function') {
+            continue;
+          }
           
           const toolName = toolCall.function.name;
+          console.log(`\n[工具调用] ${toolName}`);
+          
           let toolArgs: Record<string, any> = {};
           
           try {
@@ -461,18 +548,17 @@ export class ChatService {
               ? JSON.parse(toolCall.function.arguments)
               : toolCall.function.arguments;
             
+            console.log(`[工具参数] ${JSON.stringify(toolArgs, null, 2)}`);
+            
             // 告知用户即将调用工具
             this.sendSocketMessage(socket, {
               type: 'tool_calling',
-              content: `我将使用 ${toolName} 工具来帮您获取信息...`,
+              content: `我需要使用 ${toolName} 工具来查询相关信息...`,
               tool: {
                 name: toolName,
                 args: toolArgs
               }
             });
-            
-            console.log(`执行工具调用: ${toolName}`);
-            console.log(`参数: ${JSON.stringify(toolArgs, null, 2)}`);
             
             // 执行工具调用
             const result = await mcpManager.callTool(toolName, toolArgs);
@@ -483,40 +569,44 @@ export class ChatService {
               // 遍历所有内容项
               for (const contentItem of result.content) {
                 // 根据内容类型处理
-                if (contentItem.type === 'text') {
+                const itemType = contentItem.type || 'unknown';
+                
+                if (itemType === 'text') {
                   // 处理文本内容
-                  resultContent += (contentItem as TextContent).text;
-                } else if (contentItem.type === 'image') {
+                  const textContent = (contentItem as TextContent).text;
+                  resultContent += textContent;
+                } else if (itemType === 'image') {
                   // 处理图像内容
                   const imageContent = contentItem as ImageContent;
-                  resultContent += `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
-                } else if (contentItem.type === 'embedded_resource') {
+                  const imageInfo = `[图像: MIME类型 ${imageContent.mimeType}, base64数据长度: ${imageContent.data.length}]`;
+                  resultContent += imageInfo;
+                } else if (itemType === 'embedded_resource') {
                   // 处理嵌入资源
                   const resourceContent = contentItem as EmbeddedResource;
-                  resultContent += `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
+                  const resourceInfo = `[嵌入资源: ${JSON.stringify(resourceContent.resource)}]`;
+                  resultContent += resourceInfo;
                 }
               }
             }
             
-            // 告知用户工具调用结果
+            // 记录工具调用结果
+            console.log(`[工具结果] ${resultContent.substring(0, 500)}${resultContent.length > 500 ? '...' : ''}`);
+            
+            // 发送工具结果的指示
             this.sendSocketMessage(socket, {
-              type: 'tool_result',
-              content: `工具 ${toolName} 返回的结果:`,
-              result: resultContent
+              type: 'thinking',
+              content: `我已获取到 ${toolName} 的数据`
             });
             
-            console.log(`工具响应: ${resultContent}`);
-            finalResponseParts.push(`[工具调用: ${toolName}]\n${resultContent}`);
-            
             // 将工具结果添加到消息列表
-            updatedMessages.push({
+            currentMessages.push({
               role: 'tool',
               tool_call_id: toolCall.id,
               content: resultContent
             });
             
           } catch (error) {
-            console.error(`工具调用失败: ${error}`);
+            console.error(`[工具错误] ${error}`);
             const errorMessage = `工具调用失败: ${error instanceof Error ? error.message : String(error)}`;
             
             // 告知用户工具调用失败
@@ -525,10 +615,8 @@ export class ChatService {
               content: `工具 ${toolName} 调用失败: ${errorMessage}`
             });
             
-            finalResponseParts.push(`[工具调用错误: ${toolName}]\n${errorMessage}`);
-            
             // 将错误结果添加到消息列表
-            updatedMessages.push({
+            currentMessages.push({
               role: 'tool',
               tool_call_id: toolCall.id,
               content: errorMessage
@@ -536,37 +624,44 @@ export class ChatService {
           }
         }
         
-        // 在所有工具调用完成后，再次请求LLM生成最终响应
-        this.sendSocketMessage(socket, {
-          type: 'processing',
-          content: '根据获取的信息生成最终回复...'
+        // 增加工具调用轮数计数
+        toolCallRounds++;
+      }
+      
+      // 如果达到最大轮数但仍有未完成的工具调用，发送最后一次总结请求
+      if (toolCallRounds >= MAX_TOOL_CALL_ROUNDS && continueProcessing) {
+        console.log(`\n[达到工具调用上限] 请求总结回答`);
+        
+        // 添加总结请求
+        currentMessages.push({
+          role: 'user',
+          content: '请基于到目前为止的所有信息，提供一个完整的总结回答。'
         });
         
-        console.log('工具调用完成，发送结果给LLM获取最终响应');
-        response = await this.llmService.sendChatRequest({
-          model: 'anthropic/claude-3.5-sonnet',
-          messages: updatedMessages,
+        const finalResponse = await this.llmService.sendChatRequest({
+          model: this.getModelName(),
+          messages: currentMessages,
           temperature: 0.7
         });
         
-        const finalMessage = response.choices[0].message;
-        if (finalMessage.content) {
-          // 发送最终总结信息
+        // 记录总结响应
+        console.log(`[大模型总结响应]`);
+        console.log(JSON.stringify(finalResponse, null, 2));
+        
+        // 处理总结响应
+        const finalSummaryMessage = finalResponse.choices[0].message;
+        if (finalSummaryMessage.content) {
+          // 发送总结消息给客户端
           this.sendSocketMessage(socket, {
             type: 'assistant_message',
-            content: finalMessage.content
+            content: finalSummaryMessage.content
           });
           
-          finalResponseParts.push(finalMessage.content);
+          assistantContent = finalSummaryMessage.content;
         }
-        
-        assistantContent = finalResponseParts.join('\n\n');
-      } else {
-        // 没有工具调用，直接使用LLM响应
-        assistantContent = assistantResponseMessage.content || '';
       }
     } catch (error) {
-      console.error('处理聊天请求失败:', error);
+      console.error('[错误] 处理聊天请求失败:', error);
       const errorMessage = `很抱歉，在处理您的请求时遇到了问题: ${error instanceof Error ? error.message : String(error)}`;
       
       // 发送错误信息
@@ -593,6 +688,8 @@ export class ChatService {
       sessionId: session.id
     });
     
+    console.log('\n============== 交互记录结束 ==============\n');
+    
     return session.id;
   }
   
@@ -601,7 +698,7 @@ export class ChatService {
    * @private
    */
   private static sendSocketMessage(socket: WebSocket, message: any): void {
-    if (socket.readyState === WebSocket.OPEN) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));
     } else {
       console.warn('WebSocket连接已关闭，无法发送消息');

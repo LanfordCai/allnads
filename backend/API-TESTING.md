@@ -22,7 +22,7 @@
 测试工具会自动检查并创建`.env`文件，包含以下配置项：
 
 ```
-LLM_MODEL=anthropic/claude-3.5-sonnet  # 使用的LLM模型
+OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # 使用的LLM模型
 MCP_SERVER_URL=http://localhost:8080/sse  # MCP服务器URL
 MCP_SERVER_NAME=evm_tool  # MCP服务器名称
 API_BASE_URL=http://localhost:3000/api  # API基础URL

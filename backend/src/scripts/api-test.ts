@@ -37,7 +37,7 @@ const rl = readline.createInterface({
 
 // 配置
 const CONFIG = {
-  model: process.env.LLM_MODEL || 'anthropic/claude-3.5-sonnet',
+  model: process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet',
   mcpUrl: process.env.MCP_SERVER_URL || 'http://localhost:8080/sse',
   mcpName: process.env.MCP_SERVER_NAME || 'evm_tool'
 };

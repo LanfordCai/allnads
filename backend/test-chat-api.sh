@@ -12,8 +12,7 @@ echo "创建一个新的聊天会话..."
 SESSION_RESPONSE=$(curl -s -X POST "${API_URL}/chat" \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "你好，请介绍一下你自己",
-    "systemPrompt": "你是一个乐于助人的AI助手。"
+    "message": "你好，请介绍一下你自己"
   }')
 
 echo $SESSION_RESPONSE | jq .

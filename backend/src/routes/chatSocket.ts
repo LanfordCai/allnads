@@ -3,6 +3,7 @@ import { ChatService } from '../services/chat';
 import { ChatRequest } from '../types/chat';
 import http from 'http';
 import url from 'url';
+import { getSystemPrompt } from '../config/prompts';
 
 /**
  * WebSocket聊天服务
@@ -39,7 +40,7 @@ export class ChatSocketService {
       socket.send(JSON.stringify({
         type: 'connected',
         sessionId: sessionId,
-        content: '已连接到聊天服务'
+        content: `👋 欢迎使用聊天服务！您的会话ID是: ${sessionId || '未指定'}。现在可以开始聊天了，请在输入框中输入您的问题。服务器将使用区块链工具帮助您解答疑问。`
       }));
       
       // 处理消息
@@ -57,11 +58,21 @@ export class ChatSocketService {
             return;
           }
           
+          // 获取系统提示
+          const systemPrompt = getSystemPrompt();
+          
+          // 如果前端尝试设置systemPrompt，记录警告
+          if (message.systemPrompt) {
+            console.warn('前端尝试设置systemPrompt被忽略。为安全起见，systemPrompt只能由服务器提供。');
+          }
+
+          console.log(`Using system prompt`);
+          
           // 构建聊天请求
           const chatRequest: ChatRequest = {
             sessionId: sessionId,
             message: message.text,
-            systemPrompt: message.systemPrompt,
+            systemPrompt: systemPrompt,
             enableTools: message.enableTools !== false // 默认启用工具
           };
           

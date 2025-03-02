@@ -48,10 +48,11 @@
         }
         .message {
             margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            max-width: 80%;
+            padding: 12px;
+            border-radius: 6px;
+            max-width: 85%;
             position: relative;
+            line-height: 1.5;
         }
         .user {
             align-self: flex-end;
@@ -61,6 +62,7 @@
         .assistant {
             background-color: #E6E6E6;
             margin-right: auto;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         .system {
             background-color: #FFF3CD;
@@ -88,23 +90,27 @@
             border-radius: 4px;
             margin-top: 5px;
             font-family: monospace;
+            font-size: 0.9em;
+            color: #0277BD;
         }
         .tool-result {
-            background-color: #E8F5E9;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 5px;
-            font-family: monospace;
+            display: none; /* 隐藏工具结果盒子 */
         }
         .status {
             margin-bottom: 10px;
             color: #666;
+        }
+        .thinking {
+            background-color: #F5F5F5;
+            font-style: italic;
+            color: #757575;
         }
     </style>
 </head>
 <body>
     <h1>WebSocket聊天示例</h1>
     <div class="status">状态: <span id="connection-status">未连接</span></div>
+    
     <div class="chat-container">
         <div class="messages" id="message-container"></div>
         <div class="input-area">
@@ -137,7 +143,7 @@
                 // 连接建立时
                 socket.onopen = () => {
                     connectionStatus.textContent = '已连接';
-                    addSystemMessage('已连接到聊天服务');
+                    // 服务器会发送welcome消息，这里不需要重复
                 };
                 
                 // 接收消息
@@ -166,22 +172,40 @@
             function handleSocketMessage(data) {
                 switch(data.type) {
                     case 'connected':
-                        addSystemMessage(`已连接，会话ID: ${data.sessionId}`);
+                        addSystemMessage(data.content);
                         break;
                     case 'thinking':
-                        addThinkingMessage(data.content);
+                        // 思考中消息可能会被多次更新，每次都替换之前的
+                        const existingThinkingMsg = messageContainer.querySelector('.thinking');
+                        if (existingThinkingMsg) {
+                            existingThinkingMsg.innerHTML = `<div class="spinner"></div> ${data.content}`;
+                        } else {
+                            addThinkingMessage(data.content);
+                        }
                         break;
                     case 'processing':
-                        updateLastAssistantMessage(data.content);
+                        // 保留这个以保持向后兼容
+                        updateThinkingMessage(data.content);
                         break;
                     case 'assistant_message':
+                        // 查找是否有"思考中"消息需要替换
+                        const thinkingMsg = messageContainer.querySelector('.thinking');
+                        if (thinkingMsg) {
+                            thinkingMsg.remove(); // 直接移除，不再合并
+                        }
                         addAssistantMessage(data.content);
                         break;
                     case 'tool_calling':
+                        // 查找并移除思考中消息
+                        const thinkingMsgForTool = messageContainer.querySelector('.thinking');
+                        if (thinkingMsgForTool) {
+                            thinkingMsgForTool.remove();
+                        }
                         addToolCallingMessage(data.content, data.tool);
                         break;
                     case 'tool_result':
-                        addToolResultMessage(data.content, data.result);
+                        // 工具结果不再直接显示，但可以更新思考消息
+                        updateThinkingMessage(`正在处理工具结果...`);
                         break;
                     case 'tool_error':
                         addErrorMessage(data.content);
@@ -195,6 +219,17 @@
                     default:
                         console.log('未知消息类型:', data);
                 }
+            }
+            
+            // 添加辅助函数来更新思考消息
+            function updateThinkingMessage(text) {
+                const thinkingMsg = messageContainer.querySelector('.thinking');
+                if (thinkingMsg) {
+                    thinkingMsg.innerHTML = `<div class="spinner"></div> ${text}`;
+                } else {
+                    addThinkingMessage(text);
+                }
+                scrollToBottom();
             }
             
             // 发送消息
@@ -230,17 +265,10 @@
             
             // 添加助手消息
             function addAssistantMessage(text) {
-                // 查找是否有"思考中"消息需要替换
-                const thinkingMsg = messageContainer.querySelector('.thinking');
-                if (thinkingMsg) {
-                    thinkingMsg.className = 'message assistant';
-                    thinkingMsg.innerHTML = text;
-                } else {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'message assistant';
-                    messageDiv.innerHTML = text;
-                    messageContainer.appendChild(messageDiv);
-                }
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant';
+                messageDiv.innerHTML = text;
+                messageContainer.appendChild(messageDiv);
                 scrollToBottom();
             }
             
@@ -253,7 +281,7 @@
                 scrollToBottom();
             }
             
-            // 更新最后一条助手消息
+            // 更新最后一条助手消息 - 简化后不再需要
             function updateLastAssistantMessage(text) {
                 const assistantMessages = messageContainer.querySelectorAll('.assistant');
                 if (assistantMessages.length > 0) {
@@ -274,34 +302,32 @@
                 scrollToBottom();
             }
             
-            // 添加工具调用消息
+            // 添加工具调用消息 - 优化显示
             function addToolCallingMessage(text, tool) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message assistant';
                 messageDiv.innerHTML = text;
                 
-                // 添加工具信息
+                // 添加工具信息，采用更清晰的格式
                 const toolBox = document.createElement('div');
                 toolBox.className = 'tool-box';
-                toolBox.innerHTML = `工具: ${tool.name}<br>参数: ${JSON.stringify(tool.args, null, 2)}`;
+                
+                // 格式化参数显示
+                let argsDisplay = JSON.stringify(tool.args, null, 2);
+                // 如果参数较少，使用更简洁的方式展示
+                if (Object.keys(tool.args).length <= 2 && 
+                    argsDisplay.split('\n').length <= 4) {
+                    let formattedArgs = '';
+                    for (const key in tool.args) {
+                        formattedArgs += `<b>${key}</b>: ${tool.args[key]}<br>`;
+                    }
+                    toolBox.innerHTML = `<b>工具</b>: ${tool.name}<br><b>参数</b>:<br>${formattedArgs}`;
+                } else {
+                    // 如果参数较多或复杂，则使用格式化的JSON
+                    toolBox.innerHTML = `<b>工具</b>: ${tool.name}<br><b>参数</b>:<br><pre>${argsDisplay}</pre>`;
+                }
+                
                 messageDiv.appendChild(toolBox);
-                
-                messageContainer.appendChild(messageDiv);
-                scrollToBottom();
-            }
-            
-            // 添加工具结果消息
-            function addToolResultMessage(text, result) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message assistant';
-                messageDiv.innerHTML = text;
-                
-                // 添加结果信息
-                const resultBox = document.createElement('div');
-                resultBox.className = 'tool-result';
-                resultBox.textContent = result;
-                messageDiv.appendChild(resultBox);
-                
                 messageContainer.appendChild(messageDiv);
                 scrollToBottom();
             }

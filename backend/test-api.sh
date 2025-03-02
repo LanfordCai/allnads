@@ -28,7 +28,7 @@ fi
 # 检查环境变量
 if [ ! -f .env ]; then
   echo -e "${YELLOW}未找到.env文件，创建一个示例文件...${NC}"
-  echo "LLM_MODEL=anthropic/claude-3.5-sonnet" > .env
+  echo "OPENROUTER_MODEL=anthropic/claude-3.5-sonnet" > .env
   echo "MCP_SERVER_URL=http://localhost:8080/sse" >> .env
   echo "MCP_SERVER_NAME=evm_tool" >> .env
   echo "API_BASE_URL=http://localhost:3000/api" >> .env

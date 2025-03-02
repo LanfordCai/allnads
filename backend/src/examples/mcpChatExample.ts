@@ -218,7 +218,7 @@ async function runMCPChatExample() {
   
   try {
     // 初始化服务
-    const model = 'anthropic/claude-3.5-sonnet'
+    const model = process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
     mcpService = new MCPChatService(MCP_SERVICE_CONFIG);
     const llmService = new LLMService();
     

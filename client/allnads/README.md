@@ -39,6 +39,33 @@ npm install
 npm run dev
 ```
 
+### Environment Variables
+
+The application uses the following environment variables:
+
+- `NEXT_PUBLIC_WEBSOCKET_URL`: WebSocket server URL (default: `ws://localhost:3030/ws`)
+- `NEXT_PUBLIC_MAX_RECONNECT_ATTEMPTS`: Maximum WebSocket reconnection attempts (default: `5`) 
+- `NEXT_PUBLIC_MAX_RECONNECT_DELAY`: Maximum delay in milliseconds between reconnection attempts (default: `30000`)
+- `NEXT_PUBLIC_MOBILE_BREAKPOINT`: Screen width in pixels below which mobile layout is used (default: `768`)
+- `NEXT_PUBLIC_LARGE_SCREEN_BREAKPOINT`: Screen width in pixels above which large screen layout is used (default: `1024`)
+
+Create a `.env.local` file in the root of the project with these variables:
+
+```bash
+# WebSocket connection URL
+NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:3030/ws
+
+# WebSocket reconnection settings
+NEXT_PUBLIC_MAX_RECONNECT_ATTEMPTS=5
+NEXT_PUBLIC_MAX_RECONNECT_DELAY=30000
+
+# Responsive design breakpoints
+NEXT_PUBLIC_MOBILE_BREAKPOINT=768
+NEXT_PUBLIC_LARGE_SCREEN_BREAKPOINT=1024
+```
+
+You can customize these values based on your environment.
+
 ### Build
 
 ```bash

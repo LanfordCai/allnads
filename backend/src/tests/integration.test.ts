@@ -45,7 +45,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
 
 // 测试配置
 const TEST_CONFIG = {
-  model: 'anthropic/claude-3.5-sonnet',
+  model: process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet',
   timeoutMs: 60000,
   mcpServerUrl: 'http://localhost:8080/sse'
 };
