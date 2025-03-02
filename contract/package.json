@@ -14,6 +14,7 @@
     "create-templates": "ts-node scripts/createTemplates.ts",
     "view-svg": "ts-node scripts/svgViewer.ts",
     "simple-view-svg": "ts-node scripts/simpleSvgViewer.ts",
-    "mint-token": "ts-node scripts/mintNadsToken.ts"
+    "mint-token": "ts-node scripts/mintNadsToken.ts",
+    "add-admin": "ts-node scripts/addAdminToAirdropper.ts"
   }
 }
