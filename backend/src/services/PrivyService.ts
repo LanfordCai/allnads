@@ -6,20 +6,18 @@ dotenv.config();
 
 // 获取环境变量
 const PRIVY_APP_ID = process.env.PRIVY_APP_ID || '';
-const PRIVY_API_KEY = process.env.PRIVY_API_KEY || '';
 const PRIVY_API_SECRET = process.env.PRIVY_API_SECRET || '';
 
 /**
  * 提供 Privy 用户管理和认证功能的服务
- */
-export class PrivyService {
+ */export class PrivyService {
   private client: PrivyClient;
 
   constructor() {
     // 根据 Privy 文档，构造函数可能需要以下参数
     this.client = new PrivyClient(
       PRIVY_APP_ID,
-      PRIVY_API_KEY
+      PRIVY_API_SECRET
     );
   }
 
