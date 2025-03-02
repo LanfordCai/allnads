@@ -47,7 +47,9 @@ export const privyAuth = async (
 
   try {
     // 验证令牌并获取用户信息
+    console.log('idToken', idToken);
     const user = await privyService.getUserFromIdToken(idToken);
+    console.log('user', user);
     
     // 将用户信息附加到请求对象，供后续路由处理程序使用
     req.user = user;

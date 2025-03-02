@@ -4,6 +4,8 @@ import { SessionService } from '../services/session';
 import { z } from 'zod';
 import { mcpManager } from '../services/mcpService';
 import { authenticate } from '../middleware/auth';
+import { Logger } from '../utils/logger';
+import { ResponseUtil } from '../utils/response';
 
 // 工具调用请求验证模式
 const toolCallRequestSchema = z.object({
@@ -20,55 +22,61 @@ export class ChatController {
    */
   static async callTool(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      Logger.debug('ChatController', 'Processing tool call request');
+      
       // 验证请求数据
       const result = toolCallRequestSchema.safeParse(req.body);
       
       if (!result.success) {
-        res.status(400).json({
-          status: 'error',
-          error: {
-            message: '无效的工具调用请求',
-            details: result.error.format(),
-          },
-        });
-        return;
+        Logger.warn('ChatController', 'Invalid tool call request', result.error.format());
+        return ResponseUtil.error(
+          res,
+          '无效的工具调用请求',
+          400,
+          'VALIDATION_ERROR',
+          result.error.format()
+        );
       }
       
       const { toolName, args } = result.data;
       
       // 检查工具名格式
       if (!toolName.includes('__')) {
-        res.status(400).json({
-          status: 'error',
-          error: {
-            message: '无效的工具名格式，应为: serverId__toolName',
-          },
-        });
-        return;
+        Logger.warn('ChatController', `Invalid tool name format: ${toolName}`);
+        return ResponseUtil.error(
+          res,
+          '无效的工具名格式，应为: serverId__toolName',
+          400,
+          'INVALID_TOOL_NAME'
+        );
       }
       
       try {
+        Logger.info('ChatController', `Calling tool: ${toolName} with args`, args);
         // 调用工具
         const toolResult = await mcpManager.callTool(toolName, args);
         
-        // 返回成功响应
-        res.status(200).json({
-          status: 'success',
-          data: {
-            result: toolResult,
-          },
-        });
+        Logger.info('ChatController', `Tool call successful: ${toolName}`);
+        return ResponseUtil.success(res, toolResult);
       } catch (error) {
         // 处理工具调用错误
-        res.status(500).json({
-          status: 'error',
-          error: {
-            message: `工具调用失败: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        });
+        Logger.error('ChatController', `Tool call failed: ${toolName}`, error);
+        return ResponseUtil.error(
+          res,
+          `工具调用失败: ${error instanceof Error ? error.message : String(error)}`,
+          500,
+          'TOOL_CALL_ERROR'
+        );
       }
     } catch (error) {
-      next(error);
+      Logger.error('ChatController', 'Unexpected error in callTool', error);
+      return ResponseUtil.error(
+        res,
+        'Internal server error',
+        500,
+        'INTERNAL_ERROR',
+        error instanceof Error ? { message: error.message } : undefined
+      );
     }
   }
   
@@ -78,45 +86,52 @@ export class ChatController {
   static async getSessionHistory(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
       const { sessionId } = req.params;
+      Logger.debug('ChatController', `Getting session history for: ${sessionId}`);
       
       if (!sessionId) {
-        res.status(400).json({
-          status: 'error',
-          error: {
-            message: '缺少会话 ID',
-          },
-        });
-        return;
+        Logger.warn('ChatController', 'Session ID is required but was not provided');
+        return ResponseUtil.error(
+          res,
+          '缺少会话 ID',
+          400,
+          'MISSING_PARAM'
+        );
       }
       
       // 验证用户所有权
       if (req.user) {
         const isOwner = await SessionService.validateSessionOwnership(sessionId, req.user.id);
         if (!isOwner) {
-          res.status(403).json({
-            status: 'error',
-            error: {
-              message: '您无权访问此会话',
-              code: 'SESSION_FORBIDDEN',
-            }
-          });
-          return;
+          Logger.warn('ChatController', `User ${req.user.id} attempted to access unauthorized session: ${sessionId}`);
+          return ResponseUtil.error(
+            res,
+            '您无权访问此会话',
+            403,
+            'SESSION_FORBIDDEN'
+          );
         }
       }
       
       // 获取会话历史 - 直接使用SessionService
       const history = await SessionService.getHistory(sessionId);
+      Logger.info('ChatController', `Retrieved history for session ${sessionId}: ${history.length} messages`);
       
-      // 返回成功响应
-      res.status(200).json({
-        status: 'success',
-        data: {
+      return ResponseUtil.success(
+        res,
+        {
           sessionId,
-          history,
-        },
-      });
+          history
+        }
+      );
     } catch (error) {
-      next(error);
+      Logger.error('ChatController', `Error getting session history: ${req.params.sessionId}`, error);
+      return ResponseUtil.error(
+        res,
+        'Internal server error',
+        500,
+        'INTERNAL_ERROR',
+        error instanceof Error ? { message: error.message } : undefined
+      );
     }
   }
   
@@ -126,29 +141,29 @@ export class ChatController {
   static async deleteSession(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
       const { sessionId } = req.params;
+      Logger.debug('ChatController', `Deleting session: ${sessionId}`);
       
       if (!sessionId) {
-        res.status(400).json({
-          status: 'error',
-          error: {
-            message: '缺少会话 ID',
-          },
-        });
-        return;
+        Logger.warn('ChatController', 'Session ID is required but was not provided');
+        return ResponseUtil.error(
+          res,
+          '缺少会话 ID',
+          400,
+          'MISSING_PARAM'
+        );
       }
       
       // 验证用户所有权
       if (req.user) {
         const isOwner = await SessionService.validateSessionOwnership(sessionId, req.user.id);
         if (!isOwner) {
-          res.status(403).json({
-            status: 'error',
-            error: {
-              message: '您无权删除此会话',
-              code: 'SESSION_FORBIDDEN',
-            }
-          });
-          return;
+          Logger.warn('ChatController', `User ${req.user.id} attempted to delete unauthorized session: ${sessionId}`);
+          return ResponseUtil.error(
+            res,
+            '您无权删除此会话',
+            403,
+            'SESSION_FORBIDDEN'
+          );
         }
       }
       
@@ -156,24 +171,30 @@ export class ChatController {
       const success = await SessionService.deleteSession(sessionId);
       
       if (!success) {
-        res.status(404).json({
-          status: 'error',
-          error: {
-            message: `会话不存在: ${sessionId}`,
-          },
-        });
-        return;
+        Logger.warn('ChatController', `Session not found: ${sessionId}`);
+        return ResponseUtil.error(
+          res,
+          `会话不存在: ${sessionId}`,
+          404,
+          'SESSION_NOT_FOUND'
+        );
       }
       
-      // 返回成功响应
-      res.status(200).json({
-        status: 'success',
-        data: {
-          message: `会话已删除: ${sessionId}`,
-        },
-      });
+      Logger.info('ChatController', `Successfully deleted session: ${sessionId}`);
+      return ResponseUtil.success(
+        res,
+        null,
+        `会话已删除: ${sessionId}`
+      );
     } catch (error) {
-      next(error);
+      Logger.error('ChatController', `Error deleting session: ${req.params.sessionId}`, error);
+      return ResponseUtil.error(
+        res,
+        'Internal server error',
+        500,
+        'INTERNAL_ERROR',
+        error instanceof Error ? { message: error.message } : undefined
+      );
     }
   }
   
@@ -182,25 +203,29 @@ export class ChatController {
    */
   static async getAllSessions(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
     try {
+      Logger.debug('ChatController', 'Getting all session IDs');
       let sessionIds: string[] = [];
       
       // 如果用户已认证，只返回属于该用户的会话
       if (req.user) {
+        Logger.debug('ChatController', `Getting sessions for user: ${req.user.id}`);
         sessionIds = await SessionService.getUserSessionIds(req.user.id);
       } else {
         // 获取所有会话 ID
         sessionIds = await SessionService.getAllSessionIds();
       }
       
-      // 返回成功响应
-      res.status(200).json({
-        status: 'success',
-        data: {
-          sessions: sessionIds,
-        },
-      });
+      Logger.info('ChatController', `Retrieved ${sessionIds.length} sessions`);
+      return ResponseUtil.success(res, { sessions: sessionIds });
     } catch (error) {
-      next(error);
+      Logger.error('ChatController', 'Error getting all sessions', error);
+      return ResponseUtil.error(
+        res,
+        'Internal server error',
+        500,
+        'INTERNAL_ERROR',
+        error instanceof Error ? { message: error.message } : undefined
+      );
     }
   }
 } 

@@ -1,8 +1,12 @@
 import express, { RequestHandler } from 'express';
 import { MCPController } from '../controllers/mcp';
 import { authenticate } from '../middleware/auth';
+import { setControllerContext } from '../middleware/context';
 
 const router = express.Router();
+
+// 添加控制器上下文中间件
+router.use(setControllerContext('MCPController'));
 
 // 应用鉴权中间件
 router.use(authenticate);

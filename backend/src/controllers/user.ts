@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { privyService } from '../services/PrivyService';
+import { Logger } from '../utils/logger';
+import { ResponseUtil } from '../utils/response';
 
 /**
  * 用户控制器，处理用户相关的请求
@@ -10,25 +12,30 @@ export class UserController {
    */
   static async getCurrentUser(req: Request & { user?: any }, res: Response) {
     try {
+      Logger.debug('UserController', 'Getting current user info');
+      
       // 用户信息已通过中间件附加到请求对象
       if (!req.user) {
-        res.status(401).json({
-          success: false,
-          message: 'User not authenticated'
-        });
-        return;
+        Logger.warn('UserController', 'User not authenticated when accessing getCurrentUser');
+        return ResponseUtil.error(
+          res, 
+          'User not authenticated',
+          401,
+          'AUTH_REQUIRED'
+        );
       }
 
-      res.json({
-        success: true,
-        data: req.user
-      });
+      Logger.debug('UserController', `User authenticated: ${req.user.id}`);
+      
+      return ResponseUtil.success(res, req.user);
     } catch (error: any) {
-      console.error('Error getting current user:', error);
-      res.status(500).json({
-        success: false,
-        message: `Internal server error: ${error.message}`
-      });
+      Logger.error('UserController', 'Error getting current user', error);
+      return ResponseUtil.error(
+        res, 
+        `Internal server error: ${error.message}`,
+        500,
+        'INTERNAL_ERROR'
+      );
     }
   }
 
@@ -38,27 +45,30 @@ export class UserController {
   static async getUserById(req: Request, res: Response) {
     try {
       const { userId } = req.params;
+      Logger.debug('UserController', `Getting user by ID: ${userId}`);
 
       if (!userId) {
-        res.status(400).json({
-          success: false,
-          message: 'User ID is required'
-        });
-        return;
+        Logger.warn('UserController', 'User ID is required but was not provided');
+        return ResponseUtil.error(
+          res, 
+          'User ID is required',
+          400,
+          'MISSING_PARAM'
+        );
       }
 
       const user = await privyService.getUserById(userId);
+      Logger.info('UserController', `Successfully retrieved user: ${userId}`);
 
-      res.json({
-        success: true,
-        data: user
-      });
+      return ResponseUtil.success(res, user);
     } catch (error: any) {
-      console.error(`Error getting user ${req.params.userId}:`, error);
-      res.status(500).json({
-        success: false,
-        message: `Internal server error: ${error.message}`
-      });
+      Logger.error('UserController', `Error getting user ${req.params.userId}`, error);
+      return ResponseUtil.error(
+        res, 
+        `Internal server error: ${error.message}`,
+        500,
+        'INTERNAL_ERROR'
+      );
     }
   }
 
@@ -68,37 +78,46 @@ export class UserController {
   static async deleteUser(req: Request & { user?: any }, res: Response) {
     try {
       const { userId } = req.params;
+      Logger.debug('UserController', `Deleting user: ${userId}`);
 
       if (!userId) {
-        res.status(400).json({
-          success: false,
-          message: 'User ID is required'
-        });
-        return;
+        Logger.warn('UserController', 'User ID is required but was not provided');
+        return ResponseUtil.error(
+          res, 
+          'User ID is required',
+          400,
+          'MISSING_PARAM'
+        );
       }
 
       // 检查是否是当前用户删除自己的账户
       if (req.user && req.user.id !== userId) {
+        Logger.warn('UserController', `User ${req.user.id} attempted to delete another user: ${userId}`);
         // 此处可以添加管理员权限检查
-        res.status(403).json({
-          success: false,
-          message: 'Forbidden: You can only delete your own account'
-        });
-        return;
+        return ResponseUtil.error(
+          res, 
+          'Forbidden: You can only delete your own account',
+          403,
+          'FORBIDDEN'
+        );
       }
 
       await privyService.deleteUser(userId);
+      Logger.info('UserController', `Successfully deleted user: ${userId}`);
 
-      res.json({
-        success: true,
-        message: 'User deleted successfully'
-      });
+      return ResponseUtil.success(
+        res, 
+        null, 
+        'User deleted successfully'
+      );
     } catch (error: any) {
-      console.error(`Error deleting user ${req.params.userId}:`, error);
-      res.status(500).json({
-        success: false,
-        message: `Internal server error: ${error.message}`
-      });
+      Logger.error('UserController', `Error deleting user ${req.params.userId}`, error);
+      return ResponseUtil.error(
+        res, 
+        `Internal server error: ${error.message}`,
+        500,
+        'INTERNAL_ERROR'
+      );
     }
   }
 } 

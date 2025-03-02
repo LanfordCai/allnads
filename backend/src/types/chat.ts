@@ -39,16 +39,6 @@ export interface AppChatResponse {
   message: ChatMessage;
 }
 
-// API 响应格式
-export interface ApiResponse<T> {
-  status: 'success' | 'error';
-  data?: T;
-  error?: {
-    message: string;
-    code?: string;
-  };
-}
-
 /**
  * 支持的角色类型
  */
