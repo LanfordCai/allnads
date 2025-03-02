@@ -39,7 +39,13 @@ const updateSessionTitle = (session: ChatSession, content: string): string => {
   return session.title;
 };
 
-export default function ChatBot() {
+// 添加接口定义
+interface ChatBotProps {
+  avatarImage?: string | null;
+  isLoadingAvatar?: boolean;
+}
+
+export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBotProps) {
   // Session management
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
@@ -808,6 +814,32 @@ export default function ChatBot() {
     }
   };
 
+  // Function to render the avatar image (if available)
+  const renderAvatarImage = () => {
+    if (isLoadingAvatar) {
+      return (
+        <div className="mx-auto text-center mt-4 mb-6">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-2">Loading your NFT...</p>
+        </div>
+      );
+    }
+    
+    if (avatarImage) {
+      return (
+        <div className="mx-auto max-w-xs mt-4 mb-6">
+          <ImageCard 
+            imageUrl={avatarImage} 
+            alt="Your AllNads Avatar"
+            title="Your AllNads NFT"
+          />
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Sidebar */}
@@ -916,11 +948,8 @@ export default function ChatBot() {
         
         {/* Right column for wallet info on larger screens */}
         <div className="w-full md:w-80 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
-          {/* 图片卡片 */}
-          <ImageCard 
-            imageUrl="https://picsum.photos/500/500" 
-            alt="随机图像示例" 
-          />
+          {/* NFT Avatar Image */}
+          {renderAvatarImage()}
           
           <WalletInfoComponent />
           

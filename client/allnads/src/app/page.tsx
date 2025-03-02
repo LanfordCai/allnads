@@ -29,7 +29,7 @@ export default function Home() {
       try {
         const result = await NFTService.checkNFT(user.wallet.address);
         
-        if (result.hasNFT) {
+        if (result.data?.hasNFT) {
           // User has an NFT, redirect to app page
           router.push('/app');
         } else {
