@@ -122,7 +122,7 @@ npm start
 3. 在 `.env` 文件中配置 Privy 凭据:
    ```
    PRIVY_APP_ID=your_privy_app_id
-   PRIVY_API_SECRET=your_privy_api_secret
+   PRIVY_APP_SECRET=your_privy_app_secret
    ```
 
 ### 认证流程

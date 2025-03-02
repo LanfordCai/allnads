@@ -8,6 +8,7 @@ import { healthRouter } from './routes/health';
 import { chatRouter } from './routes/chat';
 import { mcpRouter } from './routes/mcp';
 import { userRouter } from './routes/user';
+import { nftRouter } from './routes/nft';
 import { notFoundHandler, errorHandler } from './middleware/error';
 import { initializeMCPServers } from './services/mcpService';
 import { SessionService } from './services/session';
@@ -71,6 +72,7 @@ async function initializeServer() {
   app.use('/api/chat', chatRouter);
   app.use('/api/mcp', mcpRouter);
   app.use('/api/users', userRouter);
+  app.use('/api/nft', nftRouter);
   
   // 404 处理中间件
   app.use(notFoundHandler);

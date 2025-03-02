@@ -7,7 +7,7 @@ dotenv.config();
 
 // 获取环境变量
 const PRIVY_APP_ID = process.env.PRIVY_APP_ID || '';
-const PRIVY_API_SECRET = process.env.PRIVY_API_SECRET || '';
+const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET || '';
 
 // 定义Privy JWT令牌的类型
 interface PrivyTokenClaims {
@@ -29,7 +29,7 @@ interface PrivyTokenClaims {
     // 根据 Privy 文档，构造函数可能需要以下参数
     this.client = new PrivyClient(
       PRIVY_APP_ID,
-      PRIVY_API_SECRET
+      PRIVY_APP_SECRET
     );
   }
 

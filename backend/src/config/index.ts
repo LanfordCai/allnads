@@ -8,6 +8,6 @@ interface Config {
 export const config: Config = {
   privy: {
     appId: process.env.PRIVY_APP_ID || '',
-    apiSecret: process.env.PRIVY_API_SECRET || '',
+    apiSecret: process.env.PRIVY_APP_SECRET || '',
   },
 }; 

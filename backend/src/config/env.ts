@@ -25,7 +25,18 @@ const envSchema = z.object({
   POSTGRES_PORT: z.string().default('5432'),
   POSTGRES_USER: z.string().default('postgres'),
   POSTGRES_PASSWORD: z.string(),
-  POSTGRES_DB: z.string().default('wenads_agent'),
+  POSTGRES_DB: z.string().default('allnads'),
+  
+  // Privy
+  PRIVY_APP_ID: z.string(),
+  PRIVY_APP_SECRET: z.string(),
+  
+  // Blockchain - Monad Testnet
+  MONAD_TESTNET_RPC: z.string(),
+  MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS: z.string(),
+  MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS: z.string(),
+  MONAD_AIRDROPPER_ADDRESS: z.string(),
+  MONAD_AIRDROPPER_PRIVATE_KEY: z.string(),
 });
 
 // Parse and validate environment variables
