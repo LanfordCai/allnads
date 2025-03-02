@@ -47,12 +47,20 @@ export class ChatService {
         return;
       }
 
-      console.log(`正在连接WebSocket: ${this.url}`);
-      this.socket = new WebSocket(this.url);
+      // 构建URL，附加sessionId作为查询参数
+      let connectionUrl = this.url;
+      if (this.sessionId) {
+        // 检查URL是否已经包含查询参数
+        connectionUrl += (this.url.includes('?') ? '&' : '?') + `sessionId=${this.sessionId}`;
+      }
+
+      console.log(`正在连接WebSocket: ${connectionUrl}`);
+      this.socket = new WebSocket(connectionUrl);
 
       this.socket.onopen = () => {
         console.log('=== WebSocket连接已建立 ===');
-        console.log(`连接URL: ${this.url}`);
+        console.log(`连接URL: ${connectionUrl}`);
+        console.log(`使用会话ID: ${this.sessionId || '未指定'}`);
         console.log('=========================');
         this.reconnectAttempts = 0;
         const openHandler = this.eventHandlers['open'];
@@ -165,7 +173,6 @@ export class ChatService {
 
   public sendMessage(content: string, options: {
     sessionId?: string;
-    systemPrompt?: string;
     enableTools?: boolean;
   } = {}) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -175,7 +182,6 @@ export class ChatService {
     const chatRequest = {
       text: content,
       sessionId: options.sessionId || this.sessionId,
-      systemPrompt: options.systemPrompt,
       enableTools: options.enableTools !== false // Default to true
     };
 
@@ -215,11 +221,11 @@ export class ChatService {
   }
 
   // Create a message object for local UI updates
-  public createLocalMessage(content: string, sender: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error'): ChatMessage {
+  public createLocalMessage(content: string, role: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error'): ChatMessage {
     return {
       id: uuidv4(),
       content,
-      sender,
+      role,
       timestamp: new Date()
     };
   }

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChatMessage, ChatSession, WalletInfo } from '../types/chat';
 import ChatHistory from './ChatHistory';
 import ChatArea from './ChatArea';
-import AppArea from './AppArea';
+import WalletInfoComponent from './WalletInfo';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/ChatService';
 
@@ -15,117 +15,438 @@ const mockWalletInfo: WalletInfo = {
   avatarUrl: '/avatar.png',
 };
 
-const initialSession: ChatSession = {
+// 本地存储键
+const STORAGE_KEY = 'allnads_chat_sessions';
+
+// 创建初始会话
+const createInitialSession = (): ChatSession => ({
   id: uuidv4(),
   title: 'New Chat',
   messages: [],
   lastActivity: new Date(),
+});
+
+// 更新会话标题的函数
+const updateSessionTitle = (session: ChatSession, content: string): string => {
+  const shouldUpdateTitle = session.messages.length === 0 || session.title === 'New Chat';
+  if (shouldUpdateTitle) {
+    const newTitle = content.length > 30 ? content.substring(0, 27) + '...' : content;
+    console.log(`更新会话标题: "${session.title}" -> "${newTitle}"`);
+    return newTitle;
+  }
+  return session.title;
 };
 
 export default function ChatBot() {
   // Session management
-  const [sessions, setSessions] = useState<ChatSession[]>([initialSession]);
-  const [activeSessionId, setActiveSessionId] = useState<string>(initialSession.id);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('');
+  
+  // 使用ref追踪当前活跃的会话ID，解决闭包问题
+  const activeSessionIdRef = useRef<string>('');
+  
+  // 添加一个引用来标记初始加载是否完成
+  const initialLoadCompleted = useRef<boolean>(false);
   
   // UI state management
-  const [historyOpen, setHistoryOpen] = useState<boolean>(false);
-  const [chatOpen, setChatOpen] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  // Screen size states
-  const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
-
-  // Chat service reference to maintain a single instance
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Chat service setup
   const chatServiceRef = useRef<ChatService | null>(null);
 
-  // Get active session
-  const activeSession = sessions.find(session => session.id === activeSessionId) || initialSession;
+  // Mobile responsiveness
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Initialize chat service and set up event handlers
+  // 从本地存储加载会话
+  useEffect(() => {
+    // 延迟加载，确保组件已完全挂载
+    const timer = setTimeout(() => {
+      console.log('开始延迟加载会话...');
+      loadSessions();
+    }, 100);
+    
+    const loadSessions = () => {
+      try {
+        console.log('尝试从本地存储加载会话...');
+        const savedSessions = localStorage.getItem(STORAGE_KEY);
+        console.log('从localStorage读取的原始数据:', savedSessions);
+        
+        // 先检查localStorage中是否已有sessionId和activeSessionId标记
+        const lastActiveId = localStorage.getItem('allnads_active_session_id');
+        if (lastActiveId) {
+          console.log('找到上次活跃的会话ID:', lastActiveId);
+        }
+        
+        if (savedSessions && savedSessions.length > 2) {  // 确保不只是"[]"
+          let parsedSessions;
+          try {
+            parsedSessions = JSON.parse(savedSessions) as ChatSession[];
+            
+            // 验证解析的数据是否为数组
+            if (!Array.isArray(parsedSessions)) {
+              console.error('解析的数据不是数组:', parsedSessions);
+              throw new Error('数据格式错误: 不是数组');
+            }
+            
+            console.log('解析后的会话数据:', parsedSessions);
+          } catch (parseError) {
+            console.error('JSON解析错误:', parseError);
+            throw new Error('无法解析会话数据');
+          }
+          
+          // 如果保存的是空数组，则创建一个新会话
+          if (parsedSessions.length === 0) {
+            console.log('保存的是空数组，创建新会话');
+            const newSession = createInitialSession();
+            
+            // 使用函数式更新确保状态立即更新
+            setSessions(() => {
+              initialLoadCompleted.current = true; // 标记初始加载完成
+              return [newSession];
+            });
+            
+            setActiveSessionId(newSession.id);
+            
+            // 保存当前活跃会话ID
+            localStorage.setItem('allnads_active_session_id', newSession.id);
+            return;
+          }
+          
+          // 验证每个会话对象的完整性
+          const validSessions = parsedSessions.filter(session => {
+            if (!session || !session.id || !session.title || !Array.isArray(session.messages)) {
+              console.error('发现无效会话:', session);
+              return false;
+            }
+            return true;
+          });
+          
+          if (validSessions.length === 0) {
+            console.log('没有有效的会话数据，创建新会话');
+            const newSession = createInitialSession();
+            
+            // 使用函数式更新确保状态立即更新
+            setSessions(() => {
+              initialLoadCompleted.current = true; // 标记初始加载完成
+              return [newSession];
+            });
+            
+            setActiveSessionId(newSession.id);
+            
+            // 保存当前活跃会话ID
+            localStorage.setItem('allnads_active_session_id', newSession.id);
+            return;
+          }
+          
+          // 确保日期对象正确恢复
+          const processedSessions = validSessions.map(session => ({
+            ...session,
+            lastActivity: new Date(session.lastActivity),
+            messages: session.messages.map(msg => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            }))
+          }));
+          
+          console.log('处理后的会话数据:', processedSessions);
+          
+          // 使用函数式更新确保状态立即更新
+          setSessions(() => {
+            console.log('设置会话状态, 会话数量:', processedSessions.length);
+            initialLoadCompleted.current = true; // 标记初始加载完成
+            return processedSessions;
+          });
+          
+          // 设置最近活跃的会话为当前会话
+          if (processedSessions.length > 0) {
+            // 按最近活动时间排序
+            const sortedSessions = [...processedSessions].sort(
+              (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
+            );
+            const newActiveId = lastActiveId && processedSessions.some(s => s.id === lastActiveId) 
+              ? lastActiveId 
+              : sortedSessions[0].id;
+              
+            setActiveSessionId(newActiveId);
+            console.log('设置活跃会话ID:', newActiveId);
+            
+            // 保存当前活跃会话ID
+            localStorage.setItem('allnads_active_session_id', newActiveId);
+          }
+        } else {
+          // 没有保存的会话或者只是空数组，创建一个新会话
+          console.log('localStorage中没有有效会话数据，创建新会话');
+          const newSession = createInitialSession();
+          
+          // 使用函数式更新确保状态立即更新
+          setSessions(() => {
+            initialLoadCompleted.current = true; // 标记初始加载完成
+            return [newSession];
+          });
+          
+          setActiveSessionId(newSession.id);
+          
+          // 保存当前活跃会话ID
+          localStorage.setItem('allnads_active_session_id', newSession.id);
+        }
+      } catch (error) {
+        console.error('加载会话错误:', error);
+        // 出错时创建一个新会话
+        const newSession = createInitialSession();
+        
+        // 使用函数式更新确保状态立即更新
+        setSessions(() => {
+          initialLoadCompleted.current = true; // 错误处理也标记初始加载完成
+          return [newSession];
+        });
+        
+        setActiveSessionId(newSession.id);
+        
+        // 保存当前活跃会话ID
+        localStorage.setItem('allnads_active_session_id', newSession.id);
+      }
+    };
+
+    // 清理定时器
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 保存会话到本地存储
+  useEffect(() => {
+    // 如果初始加载还没完成，不要保存
+    if (!initialLoadCompleted.current) {
+      console.log('初始加载未完成，跳过保存到localStorage');
+      return;
+    }
+    
+    try {
+      // 再次检查sessions长度
+      console.log('保存会话到本地存储, 当前会话数量:', sessions.length, '会话详情:', JSON.stringify(sessions, (key, value) => {
+        // 缩短消息内容以便于日志阅读
+        if (key === 'content' && typeof value === 'string' && value.length > 30) {
+          return value.substring(0, 30) + '...';
+        }
+        return value;
+      }, 2).substring(0, 300) + '...');
+      
+      if (sessions.length === 0) {
+        console.log('警告: 尝试保存空会话数组。这可能表示状态未正确更新。');
+        // 验证是否真的应该保存空数组，或者这是一个异步状态问题
+        if (localStorage.getItem(STORAGE_KEY) && localStorage.getItem(STORAGE_KEY) !== '[]') {
+          console.log('localStorage中已有数据但当前状态为空，跳过保存以防止数据丢失');
+          return;
+        }
+        console.log('保存空会话数组到localStorage');
+        localStorage.setItem(STORAGE_KEY, '[]');
+        return;
+      }
+      
+      // 无论是否有会话，都保存到本地存储
+      // 这样当用户删除所有会话时，空数组会被保存，防止旧数据在刷新后重新出现
+      const sessionsToSave = sessions.map(session => {
+        // 保存前验证会话结构完整性
+        if (!session || !session.id) {
+          console.error('发现无效会话对象:', session);
+          return null;
+        }
+        
+        return {
+          ...session,
+          // 保持lastActivity和message的timestamp为字符串，避免序列化问题
+          lastActivity: session.lastActivity.toISOString(),
+          messages: session.messages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString()
+          }))
+        };
+      }).filter(Boolean); // 过滤掉无效的会话
+      
+      console.log('即将保存的会话数据:', sessionsToSave);
+      const jsonData = JSON.stringify(sessionsToSave);
+      console.log('保存的JSON数据长度:', jsonData.length);
+      console.log('保存的JSON数据:', jsonData.substring(0, 100) + (jsonData.length > 100 ? '...' : ''));
+      
+      localStorage.setItem(STORAGE_KEY, jsonData);
+      
+      // 验证保存
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      console.log('验证保存是否成功:', !!savedData, '数据长度:', savedData?.length);
+    } catch (error) {
+      console.error('保存会话到本地存储失败:', error);
+    }
+  }, [sessions]);
+
+  // 获取当前活跃会话
+  const activeSession = sessions.find(session => session.id === activeSessionId) || 
+    (sessions.length > 0 ? sessions[0] : createInitialSession());
+
+  // 当activeSessionId为空但sessions不为空时，自动设置activeSessionId为第一个会话
+  useEffect(() => {
+    if (!activeSessionId && sessions.length > 0) {
+      console.log('自动设置activeSessionId为第一个会话:', sessions[0].id);
+      setActiveSessionId(sessions[0].id);
+    }
+  }, [activeSessionId, sessions]);
+
+  // 移动设备响应式设置
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 当activeSessionId变化时更新ref
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+    console.log(`activeSessionId更新为: ${activeSessionId}, ref更新为: ${activeSessionIdRef.current}`);
+    
+    // 当activeSessionId变化时也更新localStorage中的记录
+    if (activeSessionId) {
+      localStorage.setItem('allnads_active_session_id', activeSessionId);
+      console.log('更新localStorage中的活跃会话ID:', activeSessionId);
+    }
+  }, [activeSessionId]);
+
+  // 初始化聊天服务并设置事件处理程序
   useEffect(() => {
     const chatService = new ChatService();
     chatServiceRef.current = chatService;
 
-    // 设置事件处理器
+    // 不再自动连接，而是等待activeSessionId设置后再连接
+    // 事件处理程序的设置仍然在这里完成
     chatService
       .on('connected', (message) => {
         // 连接成功消息
         if (message.content) {
           const connectedMessage = chatService.createLocalMessage(message.content, 'system');
           
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                messages: [...session.messages, connectedMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
+          setSessions(prevSessions => {
+            // 使用ref获取最新的sessionId
+            const currentSessionId = activeSessionIdRef.current;
+            console.log(`Connected message received, updating session: ${currentSessionId}`);
+            return prevSessions.map(session => {
+              if (session.id === currentSessionId) {
+                return {
+                  ...session,
+                  messages: [...session.messages, connectedMessage],
+                  lastActivity: new Date()
+                };
+              }
+              return session;
+            });
+          });
         }
       })
       .on('thinking', (message) => {
         setIsLoading(true);
         
-        // 检查是否已有"thinking"消息
-        const hasThinkingMessage = activeSession.messages.some(msg => msg.sender === 'thinking');
-        
-        if (message.content) {
-          if (hasThinkingMessage) {
-            // 更新现有的thinking消息
-            setSessions(prevSessions => prevSessions.map(session => {
-              if (session.id === activeSessionId) {
-                return {
-                  ...session,
-                  messages: session.messages.map(msg => 
-                    msg.sender === 'thinking' 
-                      ? { ...msg, content: message.content || '正在思考...' }
-                      : msg
-                  ),
-                  lastActivity: new Date()
-                };
-              }
-              return session;
-            }));
-          } else {
-            // 添加新的thinking消息
-            const thinkingMessage = chatService.createLocalMessage(
-              message.content, 
-              'thinking'
-            );
-            
-            setSessions(prevSessions => prevSessions.map(session => {
-              if (session.id === activeSessionId) {
-                return {
-                  ...session,
-                  messages: [...session.messages, thinkingMessage],
-                  lastActivity: new Date()
-                };
-              }
-              return session;
-            }));
+        // 检查服务器是否返回了会话ID
+        if (message.sessionId) {
+          // 如果服务器返回了会话ID且与当前不同，则更新ChatService
+          const currentSessionId = activeSessionIdRef.current;
+          if (message.sessionId !== currentSessionId && chatServiceRef.current) {
+            console.log(`服务器在thinking消息中返回了新的sessionId: ${message.sessionId}`);
+            chatServiceRef.current.setSessionId(message.sessionId);
           }
         }
+        
+        // 不依赖于闭包中的activeSession，而是在setSessions内获取当前会话
+        setSessions(prevSessions => {
+          // 使用ref获取最新的sessionId
+          const currentSessionId = activeSessionIdRef.current;
+          // 在这里获取最新的活跃会话
+          const currentActiveSession = prevSessions.find(s => s.id === currentSessionId);
+          if (!currentActiveSession) {
+            console.error(`No active session found with id: ${currentSessionId}`);
+            return prevSessions;
+          }
+
+          console.log(`Thinking message received for session: ${currentSessionId}`);
+          // 检查是否已有"thinking"消息
+          const hasThinkingMessage = currentActiveSession.messages.some(msg => msg.role === 'thinking');
+          
+          if (message.content) {
+            if (hasThinkingMessage) {
+              // 更新现有的thinking消息
+              return prevSessions.map(session => {
+                if (session.id === currentSessionId) {
+                  return {
+                    ...session,
+                    messages: session.messages.map(msg => 
+                      msg.role === 'thinking' 
+                        ? { ...msg, content: message.content || '正在思考...' }
+                        : msg
+                    ),
+                    lastActivity: new Date()
+                  };
+                }
+                return session;
+              });
+            } else {
+              // 添加新的thinking消息
+              const thinkingMessage = chatService.createLocalMessage(
+                message.content, 
+                'thinking'
+              );
+              
+              return prevSessions.map(session => {
+                if (session.id === currentSessionId) {
+                  return {
+                    ...session,
+                    messages: [...session.messages, thinkingMessage],
+                    lastActivity: new Date()
+                  };
+                }
+                return session;
+              });
+            }
+          }
+          
+          return prevSessions;
+        });
       })
       .on('assistant_message', (message) => {
         setIsLoading(false);
+        
+        // 检查服务器是否返回了会话ID
+        if (message.sessionId) {
+          // 如果服务器返回了会话ID且与当前不同，则更新ChatService
+          const currentSessionId = activeSessionIdRef.current;
+          if (message.sessionId !== currentSessionId && chatServiceRef.current) {
+            console.log(`服务器在assistant_message消息中返回了新的sessionId: ${message.sessionId}`);
+            chatServiceRef.current.setSessionId(message.sessionId);
+          }
+        }
         
         // 更新会话，将thinking消息替换为助手消息
         if (message.content) {
           const botMessage = chatService.createLocalMessage(message.content, 'bot');
           
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                messages: [...session.messages.filter(msg => msg.sender !== 'thinking'), botMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
+          setSessions(prevSessions => {
+            // 使用ref获取最新的sessionId
+            const currentSessionId = activeSessionIdRef.current;
+            console.log(`Assistant message received for session: ${currentSessionId}`, message.content.substring(0, 50));
+            return prevSessions.map(session => {
+              if (session.id === currentSessionId) {
+                return {
+                  ...session,
+                  messages: [...session.messages.filter(msg => msg.role !== 'thinking'), botMessage],
+                  lastActivity: new Date()
+                };
+              }
+              return session;
+            });
+          });
         }
       })
       .on('tool_calling', (message) => {
@@ -135,17 +456,22 @@ export default function ChatBot() {
           const toolContent = `${message.content}\n\n工具: ${message.tool.name}\n参数: ${JSON.stringify(message.tool.args, null, 2)}`;
           const toolMessage = chatService.createLocalMessage(toolContent, 'tool');
           
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                // 移除thinking消息，添加工具调用消息
-                messages: [...session.messages.filter(msg => msg.sender !== 'thinking'), toolMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
+          setSessions(prevSessions => {
+            // 使用ref获取最新的sessionId
+            const currentSessionId = activeSessionIdRef.current;
+            console.log(`Tool calling message received for session: ${currentSessionId}`);
+            return prevSessions.map(session => {
+              if (session.id === currentSessionId) {
+                return {
+                  ...session,
+                  // 移除thinking消息，添加工具调用消息
+                  messages: [...session.messages.filter(msg => msg.role !== 'thinking'), toolMessage],
+                  lastActivity: new Date()
+                };
+              }
+              return session;
+            });
+          });
         }
         
         console.log('Tool being called:', message.tool);
@@ -158,16 +484,21 @@ export default function ChatBot() {
             'system'
           );
           
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                messages: [...session.messages, resultMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
+          setSessions(prevSessions => {
+            // 使用ref获取最新的sessionId
+            const currentSessionId = activeSessionIdRef.current;
+            console.log(`Tool result message received for session: ${currentSessionId}`);
+            return prevSessions.map(session => {
+              if (session.id === currentSessionId) {
+                return {
+                  ...session,
+                  messages: [...session.messages, resultMessage],
+                  lastActivity: new Date()
+                };
+              }
+              return session;
+            });
+          });
         }
       })
       .on('tool_error', (message) => {
@@ -178,16 +509,21 @@ export default function ChatBot() {
             'error'
           );
           
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                messages: [...session.messages.filter(msg => msg.sender !== 'thinking'), errorMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
+          setSessions(prevSessions => {
+            // 使用ref获取最新的sessionId
+            const currentSessionId = activeSessionIdRef.current;
+            console.log(`Tool error message received for session: ${currentSessionId}`);
+            return prevSessions.map(session => {
+              if (session.id === currentSessionId) {
+                return {
+                  ...session,
+                  messages: [...session.messages.filter(msg => msg.role !== 'thinking'), errorMessage],
+                  lastActivity: new Date()
+                };
+              }
+              return session;
+            });
+          });
         }
       })
       .on('error', (message) => {
@@ -198,122 +534,145 @@ export default function ChatBot() {
             'error'
           );
           
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                messages: [...session.messages.filter(msg => msg.sender !== 'thinking'), errorMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
+          setSessions(prevSessions => {
+            // 使用ref获取最新的sessionId
+            const currentSessionId = activeSessionIdRef.current;
+            console.log(`Error message received for session: ${currentSessionId}`);
+            return prevSessions.map(session => {
+              if (session.id === currentSessionId) {
+                return {
+                  ...session,
+                  messages: [...session.messages.filter(msg => msg.role !== 'thinking'), errorMessage],
+                  lastActivity: new Date()
+                };
+              }
+              return session;
+            });
+          });
         }
       })
       .on('complete', (message) => {
         setIsLoading(false);
         // 会话完成，可以选择性地显示一个完成消息
         if (message.sessionId) {
-          console.log('Chat session completed, ID:', message.sessionId);
+          // 如果服务器返回的sessionId与当前活跃的sessionId不同，需要更新
+          const currentSessionId = activeSessionIdRef.current;
+          console.log(`Chat session completed, ID: ${message.sessionId}, 当前会话ID: ${currentSessionId}`);
+          
+          // 从现在开始，我们发送本地生成的会话ID，服务器应该使用这个ID，而不是生成新的
+          // 如果服务器仍然返回不同的ID，我们仍然更新ChatService，但不显示消息
+          if (message.sessionId !== currentSessionId && chatServiceRef.current) {
+            console.log(`服务器返回的sessionId (${message.sessionId}) 与当前活跃会话ID (${currentSessionId}) 不匹配，将更新ChatService的会话ID`);
+            
+            // 保存服务器分配的会话ID到ChatService
+            chatServiceRef.current.setSessionId(message.sessionId);
+            
+            // 不再在UI上显示会话ID变更的消息
+          }
         }
       });
 
-    // Connect to the WebSocket server
-    chatService.connect().catch(error => {
-      console.error('Failed to connect to chat server:', error);
-      // Show a connection error message to the user
-      const errorMessage = chatService.createLocalMessage(
-        '无法连接到聊天服务器。请稍后再试。', 
-        'error'
-      );
-      
-      setSessions(prevSessions => prevSessions.map(session => {
-        if (session.id === activeSessionId) {
-          return {
-            ...session,
-            messages: [...session.messages, errorMessage],
-            lastActivity: new Date()
-          };
-        }
-        return session;
-      }));
-    });
+    // 不再自动连接，而是等待activeSessionId设置好后再连接
 
     // Clean up on unmount
     return () => {
       chatService.disconnect();
     };
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []); // 仅在组件挂载时初始化
 
-  // Check screen size
+  // 当活跃会话ID变化时，更新ChatService的会话ID并重新连接
   useEffect(() => {
-    const checkScreenSize = () => {
-      // Get breakpoints from environment variables or use defaults
-      const mobileBreakpoint = parseInt(process.env.NEXT_PUBLIC_MOBILE_BREAKPOINT || '768');
-      const largeScreenBreakpoint = parseInt(process.env.NEXT_PUBLIC_LARGE_SCREEN_BREAKPOINT || '1024');
+    if (chatServiceRef.current && activeSessionId) {
+      console.log(`切换到会话 ID: ${activeSessionId}`);
       
-      setIsMobile(window.innerWidth < mobileBreakpoint); // Mobile breakpoint
-      setIsLargeScreen(window.innerWidth >= largeScreenBreakpoint); // Large screen breakpoint
-    };
+      // 先设置会话ID
+      chatServiceRef.current.setSessionId(activeSessionId);
+      
+      // 如果WebSocket已连接，先断开再重新连接以传递新的会话ID
+      chatServiceRef.current.disconnect();
+      
+      // 重新连接，这次会带上新的会话ID
+      chatServiceRef.current.connect().catch(error => {
+        console.error('重新连接WebSocket失败:', error);
+        const errorMessage = chatServiceRef.current?.createLocalMessage(
+          '重新连接聊天服务器失败，请刷新页面再试。', 
+          'error'
+        );
+        
+        if (errorMessage) {
+          setSessions(prevSessions => prevSessions.map(session => {
+            if (session.id === activeSessionId) {
+              return {
+                ...session,
+                messages: [...session.messages, errorMessage],
+                lastActivity: new Date()
+              };
+            }
+            return session;
+          }));
+        }
+      });
+    }
+  }, [activeSessionId]);
 
-    // Initial check
-    checkScreenSize();
-
-    // Add event listener for window resize
-    window.addEventListener('resize', checkScreenSize);
-
-    // Cleanup
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  // Handle sending a message
+  // 处理发送消息
   const handleSendMessage = (content: string) => {
     if (!chatServiceRef.current) {
       console.error('Chat service not initialized');
       return;
     }
 
-    // Create and add user message to UI immediately
+    // 使用ref获取最新的sessionId
+    const currentSessionId = activeSessionIdRef.current;
+    console.log(`发送消息到会话 ID: ${currentSessionId}`, content.substring(0, 30));
+
+    // 创建并立即添加用户消息到UI
     const userMessage = chatServiceRef.current.createLocalMessage(content, 'user');
     
-    // Set loading state
+    // 设置加载状态
     setIsLoading(true);
     
-    // Update the session
-    setSessions(prevSessions => prevSessions.map(session => {
-      if (session.id === activeSessionId) {
-        // Update session title with first message if this is a new chat
-        const title = session.messages.length === 0 
-          ? (content.length > 30 ? content.substring(0, 27) + '...' : content)
-          : session.title;
-        
-        return {
-          ...session,
-          title,
-          messages: [...session.messages, userMessage],
-          lastActivity: new Date()
-        };
-      }
-      return session;
-    }));
+    // 更新会话
+    setSessions(prevSessions => {
+      console.log(`添加用户消息到会话: ${currentSessionId}`, content.substring(0, 30));
+      return prevSessions.map(session => {
+        if (session.id === currentSessionId) {
+          // 设置会话标题：
+          // 1. 如果这是新聊天（没有消息），直接用第一条消息作为标题
+          // 2. 或者如果当前标题仍然是"New Chat"默认标题，也用这条消息更新标题
+          const title = updateSessionTitle(session, content);
+          
+          return {
+            ...session,
+            title,
+            messages: [...session.messages, userMessage],
+            lastActivity: new Date()
+          };
+        }
+        return session;
+      });
+    });
 
-    // Send the message to the server
+    // 获取ChatService当前使用的sessionId
+    const currentServiceSessionId = chatServiceRef.current.getSessionId();
+    console.log(`ChatService当前会话ID: ${currentServiceSessionId}, 目标会话ID: ${currentSessionId}`);
+
+    // 发送消息到服务器，使用当前会话ID
     try {
-      const currentSessionId = chatServiceRef.current.getSessionId();
       chatServiceRef.current.sendMessage(content, {
-        sessionId: currentSessionId || undefined,
+        sessionId: currentSessionId, // 使用当前活跃的会话ID
         enableTools: true
       });
     } catch (error) {
       console.error('Error sending message:', error);
-      // Update UI to show error
+      // 更新UI显示错误
       const errorMessage = chatServiceRef.current.createLocalMessage(
         'Failed to send message. Please check your connection.', 
         'bot'
       );
       
       setSessions(prevSessions => prevSessions.map(session => {
-        if (session.id === activeSessionId) {
+        if (session.id === currentSessionId) {
           return {
             ...session,
             messages: [...session.messages, errorMessage],
@@ -327,84 +686,84 @@ export default function ChatBot() {
     }
   };
 
-  // Select a chat session
-  const handleSelectSession = (sessionId: string) => {
-    setActiveSessionId(sessionId);
-    if (!isLargeScreen) {
-      setHistoryOpen(false);
-    }
-    
-    // If chatService has a different sessionId, update it
-    if (chatServiceRef.current) {
-      const currentSession = sessions.find(session => session.id === sessionId);
-      if (currentSession) {
-        chatServiceRef.current.setSessionId(sessionId);
-      }
-    }
-  };
-
-  // Create new chat
-  const handleNewChat = () => {
-    const newSession: ChatSession = {
-      id: uuidv4(),
-      title: 'New Chat',
-      messages: [],
-      lastActivity: new Date(),
-    };
-
-    setSessions([...sessions, newSession]);
-    setActiveSessionId(newSession.id);
-    if (!isLargeScreen) {
-      setHistoryOpen(false);
-    }
-    
-    // Clear the session ID in the chat service
-    if (chatServiceRef.current) {
-      // We'll use the empty string to reset the session on the server
-      chatServiceRef.current.setSessionId('');
-    }
-  };
-
   return (
-    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
-      {/* Chat History - hidden by default on mobile and medium screens unless toggled */}
-      <ChatHistory
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        onSelectSession={handleSelectSession}
-        isOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        isLargeScreen={isLargeScreen}
-      />
+    <div className="flex h-full overflow-hidden">
+      {/* Sidebar */}
+      <div
+        className={`${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0 transition-transform duration-300 ease-in-out absolute md:relative z-10 md:z-auto h-full w-64 md:w-80 bg-white border-r border-gray-200 md:block`}
+      >
+        <ChatHistory
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={(id) => {
+            setActiveSessionId(id);
+            if (isMobile) {
+              setIsSidebarOpen(false);
+            }
+          }}
+          onCreateSession={() => {
+            const newSession = createInitialSession();
+            console.log(`创建新会话: ID=${newSession.id}, 初始标题="${newSession.title}"`);
+            
+            setSessions(prevSessions => [...prevSessions, newSession]);
+            setActiveSessionId(newSession.id);
+          }}
+          onDeleteSession={(id) => {
+            const filteredSessions = sessions.filter(session => session.id !== id);
+            
+            // 如果删除的是当前活跃会话
+            if (id === activeSessionId) {
+              if (filteredSessions.length > 0) {
+                // 如果还有其他会话，选择第一个作为活跃会话
+                const newActiveId = filteredSessions[0].id;
+                setActiveSessionId(newActiveId);
+                
+                // 更新localStorage中的活跃会话ID
+                localStorage.setItem('allnads_active_session_id', newActiveId);
+                console.log('删除会话后，更新活跃会话ID为:', newActiveId);
+              } else {
+                // 如果没有会话了，先清除activeSessionId，然后创建一个新会话
+                setActiveSessionId('');
+                localStorage.removeItem('allnads_active_session_id');
+                
+                // 创建新会话
+                const newSession = createInitialSession();
+                filteredSessions.push(newSession); // 添加到过滤后的数组中
+                
+                // 设置为活跃会话（异步执行，在下一个渲染周期）
+                setTimeout(() => {
+                  setActiveSessionId(newSession.id);
+                  // 新会话ID会在activeSessionId的useEffect中被保存到localStorage
+                }, 0);
+              }
+            }
+            
+            // 更新会话列表
+            setSessions(filteredSessions);
+          }}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex md:flex-row flex-col h-full overflow-hidden">
-        {/* Chat Area */}
-        <div 
-          className={`md:flex-1 md:block ${
-            isMobile ? (chatOpen ? 'block h-full' : 'hidden') : 'block h-full'
-          }`}
-        >
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+        {/* Chat area */}
+        <div className="flex-1 h-full overflow-hidden flex flex-col max-w-4xl mx-auto w-full">
           <ChatArea
             messages={activeSession.messages}
             onSendMessage={handleSendMessage}
-            onOpenHistory={() => setHistoryOpen(true)}
-            showHistoryButton={!isLargeScreen}
             isLoading={isLoading}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            isMobile={isMobile}
+            isSidebarOpen={isSidebarOpen}
           />
         </div>
-
-        {/* App Area - Wallet info */}
-        <div 
-          className={`md:w-96 md:block ${
-            isMobile ? (chatOpen ? 'hidden' : 'block h-full') : 'block'
-          }`}
-        >
-          <AppArea
-            walletInfo={mockWalletInfo}
-            onOpenChat={() => setChatOpen(true)}
-            isMobile={isMobile}
-          />
+        
+        {/* Right column for wallet info on larger screens */}
+        <div className="w-full md:w-80 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
+          <WalletInfoComponent />
         </div>
       </div>
     </div>

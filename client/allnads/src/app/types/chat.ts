@@ -1,7 +1,7 @@
 export interface ChatMessage {
   id: string;
   content: string;
-  sender: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error';
+  role: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error';
   timestamp: Date;
 }
 

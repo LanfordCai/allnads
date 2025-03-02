@@ -1,0 +1,32 @@
+"use client";
+
+import { usePrivyAuth } from '../hooks/usePrivyAuth';
+
+export default function LoginButton() {
+  const { isAuthenticated, login, logout, user } = usePrivyAuth();
+
+  return (
+    <div>
+      {isAuthenticated ? (
+        <div className="flex items-center gap-2">
+          <div className="text-sm">
+            {user?.email?.address || user?.wallet?.address?.slice(0, 6) + '...' + user?.wallet?.address?.slice(-4)}
+          </div>
+          <button
+            onClick={logout}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+          >
+            退出登录
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={login}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          登录/注册
+        </button>
+      )}
+    </div>
+  );
+} 

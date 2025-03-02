@@ -6,17 +6,19 @@ import { ChatMessage } from '../types/chat';
 interface ChatAreaProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
-  onOpenHistory: () => void;
-  showHistoryButton: boolean;
   isLoading?: boolean;
+  onToggleSidebar?: () => void;
+  isMobile?: boolean;
+  isSidebarOpen?: boolean;
 }
 
 export default function ChatArea({ 
   messages, 
   onSendMessage, 
-  onOpenHistory,
-  showHistoryButton,
-  isLoading = false
+  isLoading = false,
+  onToggleSidebar,
+  isMobile = false,
+  isSidebarOpen = true
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export default function ChatArea({
     const trimmedContent = message.content.trim();
     
     // 如果是工具类消息，格式化显示
-    if (message.sender === 'tool') {
+    if (message.role === 'tool') {
       const parts = trimmedContent.split('\n\n');
       if (parts.length >= 2) {
         const [description, ...details] = parts;
@@ -72,15 +74,15 @@ export default function ChatArea({
   const getMessageClasses = (message: ChatMessage) => {
     const baseClasses = "max-w-[80%] rounded-lg p-2 ";
     
-    switch (message.sender) {
+    switch (message.role) {
       case 'user':
-        return `${baseClasses} bg-blue-500 text-white rounded-br-none`;
+        return `${baseClasses} bg-blue-500 text-white rounded-br-none ml-auto`;
       case 'bot':
         return `${baseClasses} bg-gray-200 dark:bg-gray-700 rounded-bl-none`;
       case 'thinking':
         return `${baseClasses} bg-gray-200 dark:bg-gray-700 rounded-bl-none animate-pulse`;
       case 'system':
-        return `${baseClasses} bg-yellow-100 dark:bg-yellow-800 text-center italic`;
+        return `${baseClasses} bg-yellow-100 dark:bg-yellow-800 text-center italic mx-auto`;
       case 'tool':
         return `${baseClasses} bg-gray-100 dark:bg-gray-800 rounded-bl-none border border-gray-200 dark:border-gray-700`;
       case 'error':
@@ -94,12 +96,12 @@ export default function ChatArea({
   const getTimestampClasses = (message: ChatMessage) => {
     const baseClasses = "text-xs mt-1 ";
     
-    switch (message.sender) {
+    switch (message.role) {
       case 'user':
-        return `${baseClasses} text-blue-100`;
+        return `${baseClasses} text-blue-100 text-right`;
       case 'system':
       case 'error':
-        return `${baseClasses} text-gray-500`;
+        return `${baseClasses} text-gray-500 text-center`;
       default:
         return `${baseClasses} text-gray-500 dark:text-gray-400`;
     }
@@ -112,94 +114,77 @@ export default function ChatArea({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header - 减小标题栏高度和内边距 */}
-      <div className="flex items-center justify-between py-2 px-3 border-b border-gray-200 dark:border-gray-700">
-        {showHistoryButton && (
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 flex items-center">
+        {isMobile && (
           <button 
-            onClick={onOpenHistory}
-            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            aria-label="Open chat history"
+            onClick={onToggleSidebar}
+            className="mr-3 p-1"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
             </svg>
           </button>
         )}
-        <h1 className={`text-lg font-semibold ${showHistoryButton ? 'mx-auto' : ''}`}>Chat</h1>
-        <div className="w-10"></div> {/* Spacer for alignment */}
+        <h2 className="text-lg font-medium">Chat</h2>
       </div>
 
-      {/* Messages - 减小消息区域内边距和间距 */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.length > 0 ? (
-          <>
-            {messages.map((message) => (
-              <div 
-                key={message.id} 
-                className={`flex ${message.sender === 'user' ? 'justify-end' : message.sender === 'system' ? 'justify-center' : 'justify-start'}`}
-              >
-                <div className={getMessageClasses(message)}>
-                  {message.sender === 'thinking' ? (
-                    <div className="flex items-center">
-                      <div className="flex space-x-1 mr-2">
-                        <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce"></div>
-                        <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                      </div>
-                      <span>{renderMessageContent(message)}</span>
-                    </div>
-                  ) : (
-                    <div className="break-words">{renderMessageContent(message)}</div>
-                  )}
-                  <div className={getTimestampClasses(message)}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
+          >
+            <div className={getMessageClasses(message)}>
+              <div className="break-words">{renderMessageContent(message)}</div>
+              <div className={getTimestampClasses(message)}>
+                {formatTime(message.timestamp)}
               </div>
-            ))}
-            {isLoading && !messages.some(msg => msg.sender === 'thinking') && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg p-2 bg-gray-200 dark:bg-gray-700 rounded-bl-none">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce"></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                  </div>
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="max-w-[80%] rounded-lg p-2 bg-gray-200 dark:bg-gray-700 rounded-bl-none">
+              <div className="flex space-x-2 items-center">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce"></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                 </div>
+                <span>AI is thinking...</span>
               </div>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
-            <p className="text-lg">No messages yet</p>
-            <p className="mt-2">Start a conversation below</p>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area - 减小输入区域的内边距 */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-3">
-        <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+      {/* Message input */}
+      <div className="border-t border-gray-200 p-4">
+        <form onSubmit={handleSubmit} className="flex items-center">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
+            className="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading}
           />
           <button
             type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300"
             disabled={!newMessage.trim() || isLoading}
-            className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
+            Send
           </button>
         </form>
       </div>
     </div>
   );
+
+  function formatTime(date: Date) {
+    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
 } 
