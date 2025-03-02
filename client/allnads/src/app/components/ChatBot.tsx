@@ -9,13 +9,22 @@ import ImageCard from './ImageCard';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/ChatService';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
+import { createPublicClient, http, Address } from 'viem';
+import AllNadsABI from '../contracts/AllNads.json';
+import { useRouter } from 'next/navigation';
 
-// Mock wallet info for now (this could come from another API in a real app)
-const mockWalletInfo: WalletInfo = {
-  balance: '0.00',
-  username: 'lanford_33',
-  avatarUrl: '/avatar.png',
+// Define Monad Testnet chain
+const monadChain = {
+  id: 10143,
+  name: 'Monad Testnet',
+  nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || 'https://rpc.testnet.monad.xyz/'] }
+  }
 };
+
+// Contract address for AllNads
+const ALLNADS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as string;
 
 // 本地存储键
 const STORAGE_KEY = 'allnads_chat_sessions';
@@ -41,14 +50,21 @@ const updateSessionTitle = (session: ChatSession, content: string): string => {
 
 // 添加接口定义
 interface ChatBotProps {
-  avatarImage?: string | null;
-  isLoadingAvatar?: boolean;
+  // Remove avatarImage and isLoadingAvatar props as we'll handle them internally
 }
 
-export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBotProps) {
+export default function ChatBot({}: ChatBotProps) {
   // Session management
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
+  
+  // NFT avatar state
+  const [avatarImage, setAvatarImage] = useState<string | null>(null);
+  const [isLoadingAvatar, setIsLoadingAvatar] = useState(false);
+  const [nftError, setNftError] = useState<string | null>(null);
+  const [nftTokenId, setNftTokenId] = useState<string | null>(null);
+  const [nftAccount, setNftAccount] = useState<string | null>(null);
+  const [nftName, setNftName] = useState<string | null>(null);
   
   // 使用ref追踪当前活跃的会话ID，解决闭包问题
   const activeSessionIdRef = useRef<string>('');
@@ -67,7 +83,8 @@ export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBo
   const [isMobile, setIsMobile] = useState(false);
   
   // Privy authentication
-  const { privy, isAuthenticated, isReady } = usePrivyAuth();
+  const { privy, isAuthenticated, isReady, user } = usePrivyAuth();
+  const router = useRouter();
   const [authStatus, setAuthStatus] = useState<'authenticated' | 'anonymous' | 'pending'>('pending');
   
   // 显示认证错误
@@ -814,13 +831,130 @@ export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBo
     }
   };
 
+  // Add new effect for NFT checking
+  useEffect(() => {
+    // Check if user has an AllNads NFT
+    async function checkAndFetchNFT() {
+      if (!isAuthenticated || !user?.wallet?.address) {
+        return;
+      }
+      
+      setIsLoadingAvatar(true);
+      setNftError(null);
+      
+      try {
+        // Create public client
+        const publicClient = createPublicClient({
+          chain: monadChain,
+          transport: http(),
+        });
+        
+        if (!ALLNADS_CONTRACT_ADDRESS) {
+          setNftError("Contract address not configured");
+          console.error("AllNads contract address is not configured");
+          return;
+        }
+        
+        console.log("Checking NFTs for address:", user.wallet.address);
+        console.log("ALLNADS_CONTRACT_ADDRESS:", ALLNADS_CONTRACT_ADDRESS);
+        
+        // Check if user has any AllNads NFTs
+        const balance = await publicClient.readContract({
+          address: ALLNADS_CONTRACT_ADDRESS as Address,
+          abi: AllNadsABI,
+          functionName: 'balanceOf',
+          args: [user.wallet.address as Address],
+        });
+        
+        console.log("NFT balance:", balance);
+        
+        // If user doesn't have any NFTs, redirect to airdrop page
+        if (Number(balance) === 0) {
+          console.log('User has no AllNads NFTs. Redirecting to airdrop page');
+          router.push('/airdrop');
+          return;
+        }
+        
+        // Get the first NFT token ID
+        const tokenId = await publicClient.readContract({
+          address: ALLNADS_CONTRACT_ADDRESS as Address,
+          abi: AllNadsABI,
+          functionName: 'tokenOfOwnerByIndex',
+          args: [user.wallet.address as Address, 0],
+        });
+        
+        console.log("User's first NFT tokenId:", tokenId);
+        setNftTokenId(String(tokenId));
+        
+        // Get the account address for this token
+        try {
+          const accountAddress = await publicClient.readContract({
+            address: ALLNADS_CONTRACT_ADDRESS as Address,
+            abi: AllNadsABI,
+            functionName: 'accountForToken',
+            args: [tokenId],
+          }) as string;
+          
+          console.log("NFT Token Account:", accountAddress);
+          setNftAccount(accountAddress);
+        } catch (accountError) {
+          console.error("Error fetching account for token:", accountError);
+          // Continue with token URI even if account fetch fails
+        }
+        
+        // Get token URI
+        const tokenURI = await publicClient.readContract({
+          address: ALLNADS_CONTRACT_ADDRESS as Address,
+          abi: AllNadsABI,
+          functionName: 'tokenURI',
+          args: [tokenId],
+        }) as string;
+        
+        console.log("Token URI:", tokenURI);
+        
+        // Parse tokenURI (it's likely base64 encoded JSON)
+        const jsonData = tokenURI.replace('data:application/json,', '');
+        
+        try {
+          const json = JSON.parse(jsonData);
+          
+          console.log("NFT metadata:", json);
+          
+          // Extract name from tokenURI 
+          if (json.name) {
+            setNftName(json.name);
+            console.log("NFT name:", json.name);
+          }
+          
+          // Extract image from tokenURI (which is also base64 encoded)
+          if (json.image) {
+            setAvatarImage(json.image);
+          } else {
+            setNftError("NFT metadata doesn't contain an image");
+          }
+        } catch (parseError) {
+          console.error("Error parsing NFT metadata:", parseError);
+          setNftError("Invalid NFT metadata format");
+        }
+      } catch (error) {
+        console.error('Error checking NFT:', error);
+        setNftError("Failed to load NFT data");
+        // Don't redirect on error, just show error in the UI
+      } finally {
+        setIsLoadingAvatar(false);
+      }
+    }
+    
+    checkAndFetchNFT();
+  }, [isAuthenticated, user, router]);
+
   // Function to render the avatar image (if available)
   const renderAvatarImage = () => {
     if (isLoadingAvatar) {
       return (
         <div className="mx-auto text-center mt-4 mb-6">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Loading your NFT...</p>
+          <p className="text-sm text-gray-500 mt-2">Loading your AllNads NFT...</p>
         </div>
       );
     }
@@ -832,7 +966,25 @@ export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBo
             imageUrl={avatarImage} 
             alt="Your AllNads Avatar"
             title="Your AllNads NFT"
+            caption={nftName || "AllNads NFT"}
           />
+        </div>
+      );
+    }
+    
+    // No avatar state (could be due to error or not loaded yet)
+    if (isAuthenticated && user?.wallet?.address) {
+      return (
+        <div className="mx-auto max-w-xs mt-4 mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <p className="text-sm text-yellow-700 text-center">
+            {nftError || "Unable to load your NFT avatar. Please refresh or check if your NFT exists."}
+          </p>
+          <button 
+            onClick={() => router.push('/airdrop')} 
+            className="mt-2 w-full py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+          >
+            Get an NFT
+          </button>
         </div>
       );
     }
@@ -913,6 +1065,7 @@ export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBo
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               isMobile={isMobile}
               isSidebarOpen={isSidebarOpen}
+              avatarImage={avatarImage} 
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-4">
@@ -951,7 +1104,7 @@ export default function ChatBot({ avatarImage, isLoadingAvatar = false }: ChatBo
           {/* NFT Avatar Image */}
           {renderAvatarImage()}
           
-          <WalletInfoComponent />
+          <WalletInfoComponent nftAccount={nftAccount} />
           
           {/* 认证状态和登录按钮 */}
           <div className="mt-4 p-4 bg-white rounded-lg shadow-sm">

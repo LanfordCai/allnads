@@ -2,18 +2,44 @@
 
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 
-export default function WalletInfo() {
-  const { user } = usePrivyAuth();
-  const walletAddress = user?.wallet?.address;
+interface WalletInfoProps {
+  nftAccount?: string | null;
+}
+
+export default function WalletInfo({ nftAccount }: WalletInfoProps) {
+  // Remove wallet address as we won't be using it
   
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-medium text-gray-700">Wallet</h2>
-        <div className="text-sm text-gray-500">
-          {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connecting...'}
-        </div>
+        <h2 className="text-lg font-medium text-gray-700">AllNads Account</h2>
       </div>
+      
+      {nftAccount ? (
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <p className="text-xs text-gray-600 mb-1">Account Address</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-mono text-blue-700">
+              {`${nftAccount.slice(0, 6)}...${nftAccount.slice(-4)}`}
+            </span>
+            <button 
+              className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded transition-colors"
+              onClick={() => {
+                navigator.clipboard.writeText(nftAccount);
+                // Could add a toast notification here
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+          <p className="text-sm text-yellow-700">
+            No AllNads account found. Get an NFT to access your account.
+          </p>
+        </div>
+      )}
       
       <div className="mb-8">
         <p className="text-gray-500 text-sm mb-1">Balance</p>

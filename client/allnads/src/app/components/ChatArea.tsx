@@ -10,6 +10,7 @@ interface ChatAreaProps {
   onToggleSidebar?: () => void;
   isMobile?: boolean;
   isSidebarOpen?: boolean;
+  avatarImage?: string | null;
 }
 
 export default function ChatArea({ 
@@ -18,7 +19,8 @@ export default function ChatArea({
   isLoading = false,
   onToggleSidebar,
   isMobile = false,
-  isSidebarOpen = true
+  isSidebarOpen = true,
+  avatarImage = null
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -115,18 +117,30 @@ export default function ChatArea({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center">
+      <div className="flex items-center p-3 border-b border-gray-200">
         {isMobile && (
           <button 
-            onClick={onToggleSidebar}
-            className="mr-3 p-1"
+            onClick={onToggleSidebar} 
+            className="mr-2 p-1 rounded-md hover:bg-gray-100 transition-colors focus:outline-none"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`${isSidebarOpen ? 'transform rotate-90' : ''}`}
+            >
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
         )}
-        <h2 className="text-lg font-medium">Chat</h2>
+        <h2 className="text-lg font-medium">Chat with AllNads</h2>
       </div>
 
       {/* Messages area */}
@@ -158,11 +172,15 @@ export default function ChatArea({
               className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
             >
               {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && shouldShowAvatar && (
-                <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
+                <div className="w-8 h-8 overflow-hidden mr-2 flex-shrink-0">
                   <img 
-                    src="https://picsum.photos/500/500" 
+                    src={avatarImage || "https://picsum.photos/500/500"} 
                     alt="AI Avatar"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      e.currentTarget.src = "https://picsum.photos/500/500";
+                    }}
                   />
                 </div>
               )}
@@ -183,9 +201,9 @@ export default function ChatArea({
           <div className="flex justify-start">
             {/* Only show avatar if last message was not from AI */}
             {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking'].includes(messages[messages.length - 1].role)) && (
-              <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
+              <div className="w-8 h-8 overflow-hidden mr-2 flex-shrink-0">
                 <img 
-                  src="https://picsum.photos/500/500" 
+                  src={avatarImage || "https://picsum.photos/500/500"} 
                   alt="AI Avatar"
                   className="w-full h-full object-cover"
                 />
