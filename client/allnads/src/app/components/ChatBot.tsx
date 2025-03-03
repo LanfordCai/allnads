@@ -775,6 +775,56 @@ export default function ChatBot({}: ChatBotProps) {
     }
   };
 
+  // Handle component change (just log for now)
+  const handleChangeComponent = (templateId: bigint) => {
+    console.log(`Selected template ID: ${templateId.toString()}`);
+    // In a real implementation, this would call an API to update the NFT
+  };
+
+  // Function to render the avatar image (if available)
+  const renderAvatarImage = () => {
+    if (isLoadingAvatar) {
+      return (
+        <div className="mx-auto text-center mt-4 mb-6">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-2">Loading your AllNads NFT...</p>
+        </div>
+      );
+    }
+    
+    if (avatarImage) {
+      return (
+        <div className="mx-auto max-w-xs mt-4 mb-6">
+          <ImageCard 
+            imageUrl={avatarImage} 
+            alt="Your AllNads Avatar"
+            title={nftName || "Your AllNads NFT"}
+            onChangeComponent={handleChangeComponent}
+          />
+        </div>
+      );
+    }
+    
+    // No avatar state (could be due to error or not loaded yet)
+    if (isAuthenticated && user?.wallet?.address) {
+      return (
+        <div className="mx-auto max-w-xs mt-4 mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <p className="text-sm text-yellow-700 text-center">
+            {nftError || "Unable to load your NFT avatar. Please refresh or check if your NFT exists."}
+          </p>
+          <button 
+            onClick={() => router.push('/airdrop')} 
+            className="mt-2 w-full py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+          >
+            Get an NFT
+          </button>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   // 监听Privy认证状态变化
   useEffect(() => {
     if (!isReady) return;
@@ -914,49 +964,6 @@ export default function ChatBot({}: ChatBotProps) {
       
       setIsLoading(false);
     }
-  };
-
-  // Function to render the avatar image (if available)
-  const renderAvatarImage = () => {
-    if (isLoadingAvatar) {
-      return (
-        <div className="mx-auto text-center mt-4 mb-6">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Loading your AllNads NFT...</p>
-        </div>
-      );
-    }
-    
-    if (avatarImage) {
-      return (
-        <div className="mx-auto max-w-xs mt-4 mb-6">
-          <ImageCard 
-            imageUrl={avatarImage} 
-            alt="Your AllNads Avatar"
-            title={nftName || "Your AllNads NFT"}
-          />
-        </div>
-      );
-    }
-    
-    // No avatar state (could be due to error or not loaded yet)
-    if (isAuthenticated && user?.wallet?.address) {
-      return (
-        <div className="mx-auto max-w-xs mt-4 mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-700 text-center">
-            {nftError || "Unable to load your NFT avatar. Please refresh or check if your NFT exists."}
-          </p>
-          <button 
-            onClick={() => router.push('/airdrop')} 
-            className="mt-2 w-full py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
-          >
-            Get an NFT
-          </button>
-        </div>
-      );
-    }
-    
-    return null;
   };
 
   return (
