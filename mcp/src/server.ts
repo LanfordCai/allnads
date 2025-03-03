@@ -6,6 +6,7 @@ import cors from 'cors';
 import { z } from 'zod';
 import { ContentResult } from './tools/types.js';
 import { sendMonTool } from './tools/sendMon.js';
+import { transactionSignTool } from './tools/transactionSign.js';
 import { env } from './config/env.js';
 
 // Create a new MCP server instance
@@ -53,6 +54,26 @@ server.tool(
     const adaptedResponse = adaptToolResponse(result);
     logToolActivity(sendMonTool.name, args, result);
     return adaptedResponse;
+  }
+);
+
+server.tool(
+  transactionSignTool.name,
+  transactionSignTool.description,
+  {
+    to: z.string().describe('The destination address for the transaction'),
+    data: z.string().describe('The encoded function data for the transaction'),
+    value: z.string().describe('The native token value to send with the transaction (in wei)')
+  },
+  async (args) => {
+    return adaptToolResponse({
+      content: [
+        {
+          type: 'text',
+          text: '签名请求已经发送给用户，等待用户处理。你没有权限签名，不要谎称你完成了签名。只有用户有权限签名。'
+        }
+      ]
+    });
   }
 );
 
