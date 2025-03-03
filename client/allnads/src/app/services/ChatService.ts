@@ -34,7 +34,7 @@ export class ChatService {
   private maxReconnectAttempts = parseInt(process.env.NEXT_PUBLIC_MAX_RECONNECT_ATTEMPTS || '5');
   private maxReconnectDelay = parseInt(process.env.NEXT_PUBLIC_MAX_RECONNECT_DELAY || '30000');
   private reconnectTimeout: NodeJS.Timeout | null = null;
-  private getAccessToken: (() => Promise<string | null>) | null = null;
+  private getPrivyTokens: (() => Promise<{ accessToken: string | null; identityToken: string | null }>) | null = null;
 
   constructor(url: string = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3030/ws') {
     this.url = url;
@@ -44,8 +44,8 @@ export class ChatService {
    * 设置获取访问令牌的函数
    * @param tokenProvider 获取Privy访问令牌的函数
    */
-  public setTokenProvider(tokenProvider: () => Promise<string | null>) {
-    this.getAccessToken = tokenProvider;
+  public setTokenProvider(tokenProvider: () => Promise<{ accessToken: string | null; identityToken: string | null }>) {
+    this.getPrivyTokens = tokenProvider;
     console.log('Token provider has been set');
   }
 
@@ -67,12 +67,19 @@ export class ChatService {
       }
       
       // 尝试获取认证令牌
-      let token = null;
-      if (this.getAccessToken) {
+      let accessToken = null;
+      let idToken = null;
+      if (this.getPrivyTokens) {
         try {
-          token = await this.getAccessToken();
-          if (token) {
-            queryParams.append('token', token);
+          const { accessToken: aToken, identityToken: iToken } = await this.getPrivyTokens();
+          accessToken = aToken
+          idToken = iToken
+          
+          console.log('accessToken2', accessToken);
+          console.log('idToken2', idToken);
+          if (accessToken && idToken) {
+            queryParams.append('accessToken', accessToken);
+            queryParams.append('idToken', idToken);
             console.log('已添加认证令牌到连接URL');
           } else {
             console.log('未能获取认证令牌，拒绝匿名连接');
@@ -91,7 +98,9 @@ export class ChatService {
       }
       
       // 如果没有令牌，拒绝连接
-      if (!token) {
+      console.log('accessToken', accessToken);
+      console.log('idToken', idToken);
+      if (!accessToken || !idToken) {
         console.log('没有有效的认证令牌，拒绝匿名连接');
         reject(new Error('Authentication required. Please login to use the chat.'));
         return;

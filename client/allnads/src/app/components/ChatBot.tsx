@@ -12,7 +12,7 @@ import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { createPublicClient, http, Address } from 'viem';
 import AllNadsABI from '../contracts/AllNads.json';
 import { useRouter } from 'next/navigation';
-
+import { useIdentityToken } from '@privy-io/react-auth';
 // Define Monad Testnet chain
 const monadChain = {
   id: 10143,
@@ -89,22 +89,22 @@ export default function ChatBot({}: ChatBotProps) {
   
   // 显示认证错误
   const [authError, setAuthError] = useState<string | null>(null);
+  const { identityToken } = useIdentityToken();
   
   // 获取Privy访问令牌的函数
-  const getAccessToken = async (): Promise<string | null> => {
+  const getPrivyTokens = async (): Promise<{ accessToken: string | null; identityToken: string | null }> => {
     if (!isAuthenticated) {
-      console.log('用户未认证，返回null令牌');
-      return null;
+      return { accessToken: null, identityToken: null };
     }
     
     try {
-      // 使用privy.getAccessToken()方法获取令牌
-      const token = await privy.getAccessToken();
-      console.log('成功获取Privy访问令牌');
-      return token;
+      const accessToken = await privy.getAccessToken();
+      console.log('accessToken1', accessToken);
+      console.log('identityToken1', identityToken);
+      return { accessToken, identityToken };
     } catch (error) {
       console.error('获取Privy访问令牌失败:', error);
-      return null;
+      return { accessToken: null, identityToken: null };
     }
   };
   
@@ -380,7 +380,7 @@ export default function ChatBot({}: ChatBotProps) {
     chatServiceRef.current = chatService;
 
     // 设置认证令牌提供者
-    chatService.setTokenProvider(getAccessToken);
+    chatService.setTokenProvider(getPrivyTokens);
     console.log('已设置认证令牌提供者');
     
     // 监听Privy认证状态变化
@@ -1099,7 +1099,7 @@ export default function ChatBot({}: ChatBotProps) {
         </div>
         
         {/* Right column for wallet info on larger screens */}
-        <div className="w-full md:w-80 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
+        <div className="w-full md:w-96 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
           {/* NFT Avatar Image */}
           {renderAvatarImage()}
           
