@@ -32,6 +32,11 @@ export default function ImageCard({
   const [isOwned, setIsOwned] = useState(false);
   const [checkingOwnership, setCheckingOwnership] = useState(false);
   
+  // 添加调试日志，记录 imageUrl 的变化
+  useEffect(() => {
+    console.log('ImageCard: imageUrl 已更新:', imageUrl ? imageUrl.substring(0, 50) + '...' : null);
+  }, [imageUrl]);
+
   // Function to get the connected user's address
   const getUserAddress = async () => {
     try {
@@ -132,27 +137,6 @@ export default function ImageCard({
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
       <div className="w-full aspect-square rounded-md overflow-hidden border border-gray-100 relative">
-        {/* Owned badge */}
-        {isOwned && (
-          <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-10">
-            Owned
-          </div>
-        )}
-        
-        {/* Template ID badge */}
-        {templateId && (
-          <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-10">
-            模板 #{templateId.toString()}
-          </div>
-        )}
-        
-        {/* Loading indicator */}
-        {checkingOwnership && (
-          <div className="absolute top-2 left-2 z-10">
-            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-        
         <img 
           src={imageUrl} 
           alt={alt}

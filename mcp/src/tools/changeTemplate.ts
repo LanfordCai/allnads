@@ -120,7 +120,12 @@ const COMPONENT_TYPES = {
   HAIRSTYLE: 1,
   EYES: 2,
   MOUTH: 3,
-  ACCESSORY: 4
+  ACCESSORY: 4,
+  "0": 0,
+  "1": 1,
+  "2": 2,
+  "3": 3,
+  "4": 4
 };
 /**
  * Tool for creating a serialized transaction to send MON tokens

@@ -6,6 +6,9 @@ import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { parseEther } from 'viem';
 import { useWallets } from '@privy-io/react-auth';
 import { useNotification } from '../contexts/NotificationContext';
+import { useAllNads } from '../hooks/useAllNads';
+import { blockchainService } from '../services/blockchain';
+import AllNadsABI from '../contracts/AllNads.json';
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -15,6 +18,7 @@ interface ChatAreaProps {
   isMobile?: boolean;
   isSidebarOpen?: boolean;
   avatarImage?: string | null;
+  onAvatarImageChange?: (newAvatarImage: string | null) => void;
 }
 
 export default function ChatArea({ 
@@ -24,7 +28,8 @@ export default function ChatArea({
   onToggleSidebar,
   isMobile = false,
   isSidebarOpen = true,
-  avatarImage = null
+  avatarImage = null,
+  onAvatarImageChange
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,6 +37,92 @@ export default function ChatArea({
   const { wallets } = useWallets();
   const [isSigningTransaction, setIsSigningTransaction] = useState(false);
   const { showNotification } = useNotification();
+  const [localAvatarImage, setLocalAvatarImage] = useState<string | null>(avatarImage);
+  const [isRefreshingNFT, setIsRefreshingNFT] = useState(false);
+  const processedMessageIdsRef = useRef<Set<string>>(new Set());
+
+  // Use the useAllNads hook to get NFT information
+  const { tokenId, nftAccount } = useAllNads();
+
+  // Update local avatar image when prop changes
+  useEffect(() => {
+    setLocalAvatarImage(avatarImage);
+  }, [avatarImage]);
+
+  // Check for <ComponentChanged> in messages and refresh NFT metadata
+  useEffect(() => {
+    const checkForComponentChanged = async () => {
+      // 只有当有消息时才继续
+      if (messages.length === 0) return;
+      
+      // 只检查最新的消息
+      const latestMessage = messages[messages.length - 1];
+      
+      // 如果这个消息已经处理过，则跳过
+      if (!latestMessage || processedMessageIdsRef.current.has(latestMessage.id)) {
+        return;
+      }
+      
+      console.log(`检查消息 ID: ${latestMessage.id}, 内容: ${latestMessage.content.substring(0, 50)}...`);
+      
+      // 检查消息是否包含 <ComponentChanged> 标签
+      if (latestMessage.role === 'bot' && 
+          latestMessage.content.includes('<ComponentChanged>') && 
+          !isRefreshingNFT && tokenId) {
+        
+        // 标记这个消息已处理
+        processedMessageIdsRef.current.add(latestMessage.id);
+        console.log(`发现 <ComponentChanged> 标签，开始刷新 NFT 元数据，消息 ID: ${latestMessage.id}`);
+        
+        setIsRefreshingNFT(true);
+        showNotification('正在刷新 NFT 元数据...', 'info');
+        
+        try {
+          // Fetch updated NFT metadata
+          const publicClient = blockchainService.getPublicClient();
+          const contractAddress = blockchainService.getContractAddress('allNads');
+          
+          // Get token URI
+          const tokenURI = await publicClient.readContract({
+            address: contractAddress,
+            abi: AllNadsABI,
+            functionName: 'tokenURI',
+            args: [BigInt(tokenId)],
+          }) as string;
+          
+          // Parse tokenURI
+          const jsonData = tokenURI.replace('data:application/json,', '');
+          const json = JSON.parse(jsonData);
+          
+          console.log('获取到的 NFT 元数据:', json);
+          
+          // Extract image from tokenURI
+          if (json.image) {
+            setLocalAvatarImage(json.image);
+            // Notify parent component about the avatar image change
+            if (onAvatarImageChange) {
+              onAvatarImageChange(json.image);
+            }
+            console.log('NFT 头像已更新:', json.image.substring(0, 50) + '...');
+            showNotification('NFT 元数据已更新', 'success');
+          } else {
+            throw new Error("NFT metadata doesn't contain an image");
+          }
+        } catch (error) {
+          console.error('Error refreshing NFT metadata:', error);
+          showNotification('刷新 NFT 元数据失败', 'error');
+        } finally {
+          setIsRefreshingNFT(false);
+        }
+      } else {
+        // 即使不包含 <ComponentChanged>，也标记为已处理
+        processedMessageIdsRef.current.add(latestMessage.id);
+        console.log(`消息不包含 <ComponentChanged> 标签，已标记为处理过，消息 ID: ${latestMessage.id}`);
+      }
+    };
+    
+    checkForComponentChanged();
+  }, [messages, tokenId, isRefreshingNFT, showNotification, onAvatarImageChange, blockchainService]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,13 +256,30 @@ export default function ChatArea({
       }
     }
     
-    // 处理正常文本（支持换行）
-    return trimmedContent.split('\n').map((line, i) => (
-      <span key={i}>
-        {line}
-        {i < trimmedContent.split('\n').length - 1 && <br />}
-      </span>
-    ));
+    // 处理正常文本（支持换行和 <ComponentChanged> 标签）
+    return trimmedContent.split('\n').map((line, i) => {
+      // 检查是否包含 <ComponentChanged> 标签
+      if (line.includes('<ComponentChanged>')) {
+        // 将 <ComponentChanged> 标签替换为带样式的版本
+        const parts = line.split('<ComponentChanged>');
+        return (
+          <span key={i}>
+            {parts[0]}
+            <span className="text-xs opacity-50 italic text-gray-500 dark:text-gray-400">&lt;ComponentChanged&gt;</span>
+            {parts[1]}
+            {i < trimmedContent.split('\n').length - 1 && <br />}
+          </span>
+        );
+      }
+      
+      // 正常行
+      return (
+        <span key={i}>
+          {line}
+          {i < trimmedContent.split('\n').length - 1 && <br />}
+        </span>
+      );
+    });
   };
 
   // 获取消息的样式类
@@ -278,7 +386,7 @@ export default function ChatArea({
               {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
                 <div className="w-12 h-12 rounded-[8px] overflow-hidden mr-2 flex-shrink-0">
                   <img 
-                    src={avatarImage || "https://picsum.photos/500/500"} 
+                    src={localAvatarImage || "https://picsum.photos/500/500"} 
                     alt="AI Avatar"
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -307,7 +415,7 @@ export default function ChatArea({
             {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
               <div className="w-8 h-8 overflow-hidden mr-2 flex-shrink-0">
                 <img 
-                  src={avatarImage || "https://picsum.photos/500/500"} 
+                  src={localAvatarImage || "https://picsum.photos/500/500"} 
                   alt="AI Avatar"
                   className="w-full h-full object-cover"
                 />

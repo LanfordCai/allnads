@@ -54,9 +54,18 @@ export function NFTAvatarDisplay({
   // Update parent component when avatar image changes
   useEffect(() => {
     if (onAvatarImageChange) {
+      console.log('NFTAvatarDisplay: 通知父组件 avatarImage 已更新:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
       onAvatarImageChange(avatarImage);
     }
   }, [avatarImage, onAvatarImageChange]);
+
+  // Update local state when initialAvatarImage prop changes
+  useEffect(() => {
+    console.log('NFTAvatarDisplay: initialAvatarImage 已更新:', initialAvatarImage ? initialAvatarImage.substring(0, 50) + '...' : null);
+    if (initialAvatarImage) {
+      setAvatarImage(initialAvatarImage);
+    }
+  }, [initialAvatarImage]);
 
   // Fetch token image and name if tokenId is available
   useEffect(() => {

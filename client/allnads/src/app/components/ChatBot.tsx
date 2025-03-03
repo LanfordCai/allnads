@@ -70,6 +70,11 @@ export default function ChatBot({}: ChatBotProps) {
   // Avatar image state
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   
+  // 添加调试日志，记录 avatarImage 的变化
+  useEffect(() => {
+    console.log('ChatBot: avatarImage 已更新:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
+  }, [avatarImage]);
+  
   // Chat service setup
   const chatServiceRef = useRef<ChatService | null>(null);
   
@@ -330,6 +335,7 @@ export default function ChatBot({}: ChatBotProps) {
               isMobile={isMobile}
               isSidebarOpen={isSidebarOpen}
               avatarImage={avatarImage}
+              onAvatarImageChange={setAvatarImage}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-4">
@@ -368,7 +374,7 @@ export default function ChatBot({}: ChatBotProps) {
           {/* NFT Avatar Image */}
           <NFTAvatarDisplay 
             isLoadingAvatar={isLoadingNFT}
-            avatarImage={tokenId ? null : null} // Will be fetched inside the component
+            avatarImage={avatarImage}
             nftError={nftHookError}
             nftName={null} // Will be fetched inside the component
             tokenId={tokenId}
