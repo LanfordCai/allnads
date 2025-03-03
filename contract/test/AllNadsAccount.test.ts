@@ -733,6 +733,112 @@ describe("AllNadsAccount", function () {
       const newOwner = await allNads.read.ownerOf([secondTokenId]);
       expect(newOwner).to.equal(getAddress(accountAddr));
     });
+    
+    it("Should be able to change NFT components through TBA executeCall", async function () {
+      const { allNads, component, user1, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // Mint an NFT and get the token-bound account
+      const { tokenId, accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      
+      // Get the original components
+      const originalComponents = await allNads.read.getAvatarComponents([tokenId]);
+      
+      // Create a new component template for testing
+      const templateCreationFee = await component.read.templateCreationFee();
+      const mintPrice = parseEther("0.01");
+      
+      // Create a new component template (type: BACKGROUND)
+      await component.write.createTemplate([
+        "New Background",
+        100n,
+        mintPrice,
+        "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAQMAAABmvDolAAAAA1BMVEWVpJ2TJdvlAAAAH0lEQVR42u3BAQ0AAADCIPunNsc3YAAAAAAAAAAAABwKDsAAAV0tqVQAAAAASUVORK5CYII=",
+        0 // BACKGROUND component type
+      ], {
+        value: templateCreationFee,
+        account: user1.account
+      });
+      
+      // Mint the new component directly to the TBA
+      const newTemplateId = 6n; // 5 templates were created in the fixture + 1 new one
+      const mintComponentTx = await component.write.mintComponent([
+        newTemplateId,
+        accountAddr
+      ], {
+        value: mintPrice,
+        account: user1.account
+      });
+      await publicClient.waitForTransactionReceipt({ hash: mintComponentTx });
+      
+      // The new component ID should be 6 (5 original components + 1 new one)
+      const newComponentId = 6n;
+      
+      // Verify the TBA owns the new component
+      const componentBalance = await component.read.balanceOf([accountAddr, newComponentId]);
+      expect(componentBalance).to.equal(1n);
+      
+      // Get the AllNadsAccount contract instance
+      const account = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: user1 } }
+      );
+      
+      // Important: Approve the TBA to operate on the NFT
+      // This is necessary because when the TBA calls changeComponent, it needs to be authorized
+      await allNads.write.approve([accountAddr, tokenId], {
+        account: user1.account
+      });
+      
+      // 检查 approve 状态
+      const approvedAddress = await allNads.read.getApproved([tokenId]);
+      console.log(`Approved address: ${approvedAddress}`);
+      console.log(`TBA address: ${accountAddr}`);
+      expect(approvedAddress).to.equal(accountAddr);
+      
+      // Define the ABIs for encoding function calls
+      const ChangeComponentABI = [
+        {
+          name: "changeComponent",
+          type: "function",
+          inputs: [
+            { name: "tokenId", type: "uint256" },
+            { name: "componentId", type: "uint256" },
+            { name: "componentType", type: "uint8" }
+          ],
+          outputs: [],
+          stateMutability: "nonpayable"
+        }
+      ];
+      
+      // Encode the function call data for the 'changeComponent' method
+      const allNadsCallData = encodeFunctionData({
+        abi: ChangeComponentABI,
+        functionName: 'changeComponent',
+        args: [tokenId, newComponentId, 0] // 0 is BACKGROUND component type
+      });
+      
+      // Execute the call through the TBA
+      // Note: We need to use the user1 wallet since they are the owner of the NFT
+      // and the TBA's executeCall method checks that msg.sender == owner()
+      const tx = await account.write.executeCall([
+        allNads.address,
+        0n, // No ETH value needed
+        allNadsCallData
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Get the updated components
+      const updatedComponents = await allNads.read.getAvatarComponents([tokenId]);
+      
+      // Verify the background component has been changed
+      expect(updatedComponents[0]).to.equal(newComponentId);
+      expect(updatedComponents[0]).to.not.equal(originalComponents[0]);
+      
+      // Verify the old component is unequipped and the new one is equipped
+      expect(await component.read.isEquipped([originalComponents[0]])).to.be.false;
+      expect(await component.read.isEquipped([newComponentId])).to.be.true;
+    });
   });
 
   it("Should have batch transfer ERC1155 function", async function () {
