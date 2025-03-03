@@ -76,6 +76,9 @@ export default function ChatArea({
       // 交易成功，显示成功通知
       showNotification(`交易已提交，交易哈希: ${transactionHash}`, 'success');
       
+      // 将交易哈希发送到聊天界面
+      onSendMessage(`我已经签署并发送了交易，交易哈希是: ${transactionHash}`);
+      
     } catch (error) {
       console.error('Transaction signing error:', error);
       // 显示错误通知
