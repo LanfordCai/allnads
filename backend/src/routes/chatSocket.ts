@@ -191,7 +191,7 @@ export class ChatSocketService {
         console.log(`会话历史: ${session.messages.length} 条消息`);
         
         // 判断会话历史是否为空(只有系统提示消息时也视为空)
-        const historyIsEmpty = session.messages.length <= 1;
+        const historyIsEmpty = session.messages.length < 1;
         
         // 只在会话历史为空时发送欢迎消息
         if (historyIsEmpty) {
