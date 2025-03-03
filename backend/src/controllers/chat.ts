@@ -3,7 +3,6 @@ import { ChatService } from '../services/chat';
 import { SessionService } from '../services/session';
 import { z } from 'zod';
 import { mcpManager } from '../services/mcpService';
-import { authenticate } from '../middleware/auth';
 import { Logger } from '../utils/logger';
 import { ResponseUtil } from '../utils/response';
 

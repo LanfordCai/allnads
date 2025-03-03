@@ -4,6 +4,11 @@
       "name": "evm_tool",
       "url": "http://localhost:8080/sse",
       "description": "EVM 区块链查询工具"
+    },
+    {
+      "name": "allnads_account_tool",
+      "url": "http://localhost:8081/sse",
+      "description": "AllNads Account Management Tool"
     }
   ],
   "settings": {

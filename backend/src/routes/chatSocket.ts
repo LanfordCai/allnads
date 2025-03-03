@@ -37,11 +37,17 @@ export class ChatSocketService {
       sessionId: z.string()
         .min(1, { message: "会话ID不能为空" })
         .uuid({ message: "会话ID必须是有效的UUID格式" }),
-      token: z.string()
+      accessToken: z.string()
         .min(1, { message: "认证令牌不能为空" })
         .regex(
           /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*$/,
           { message: "认证令牌必须是有效的JWT格式" }
+        ),
+      idToken: z.string()
+        .min(1, { message: "ID令牌不能为空" })
+        .regex(
+          /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*$/,
+          { message: "ID令牌必须是有效的JWT格式" }
         )
     });
 
@@ -70,7 +76,7 @@ export class ChatSocketService {
         }
         
         // 从验证后的结果中提取参数
-        const { sessionId, token } = paramsResult.data;
+        const { sessionId, accessToken, idToken} = paramsResult.data;
         
         console.log(`会话ID: ${sessionId}`);
         
@@ -78,9 +84,12 @@ export class ChatSocketService {
         let privyUserId: string;
         try {
           // 验证Privy访问令牌
-          const userData = await privyService.verifyAccessToken(token);
+          const userData = await privyService.verifyAccessToken(accessToken);
           privyUserId = userData.privyUserId;
           console.log(`用户已认证，Privy用户ID: ${privyUserId}`);
+
+          const userIdentity = await privyService.getUserFromIdToken(idToken);
+          console.log('userIdentity', userIdentity);
           
           // 向客户端发送认证成功消息
           socket.send(JSON.stringify({
