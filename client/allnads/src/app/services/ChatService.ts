@@ -35,6 +35,11 @@ export class ChatService {
   private maxReconnectDelay = parseInt(process.env.NEXT_PUBLIC_MAX_RECONNECT_DELAY || '30000');
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private getPrivyTokens: (() => Promise<{ accessToken: string | null; identityToken: string | null }>) | null = null;
+  
+  // NFT information
+  private nftTokenId: string | null = null;
+  private nftAccount: string | null = null;
+  private nftMetadata: any | null = null;
 
   constructor(url: string = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3030/ws') {
     this.url = url;
@@ -47,6 +52,19 @@ export class ChatService {
   public setTokenProvider(tokenProvider: () => Promise<{ accessToken: string | null; identityToken: string | null }>) {
     this.getPrivyTokens = tokenProvider;
     console.log('Token provider has been set');
+  }
+
+  /**
+   * Set NFT information to be included in WebSocket connection
+   * @param tokenId The NFT token ID
+   * @param nftAccount The NFT account address
+   * @param metadata The NFT metadata
+   */
+  public setNFTInfo(tokenId: string | null, nftAccount: string | null, metadata: any | null) {
+    this.nftTokenId = tokenId;
+    this.nftAccount = nftAccount;
+    this.nftMetadata = metadata;
+    console.log('NFT information has been set', { tokenId, nftAccount, metadata });
   }
 
   public connect(): Promise<void> {
@@ -64,6 +82,28 @@ export class ChatService {
       // 添加会话ID（如果有）
       if (this.sessionId) {
         queryParams.append('sessionId', this.sessionId);
+      }
+      
+      // 添加NFT信息（如果有）
+      if (this.nftTokenId) {
+        queryParams.append('nftTokenId', this.nftTokenId);
+      }
+      
+      if (this.nftAccount) {
+        queryParams.append('nftAccount', this.nftAccount);
+      }
+      
+      if (this.nftMetadata) {
+        // Use a custom replacer function to handle BigInt values
+        const replacer = (key: string, value: any) => {
+          // Convert BigInt to string with 'n' suffix to indicate it's a BigInt
+          if (typeof value === 'bigint') {
+            return value.toString();
+          }
+          return value;
+        };
+        
+        queryParams.append('nftMetadata', JSON.stringify(this.nftMetadata, replacer));
       }
       
       // 尝试获取认证令牌

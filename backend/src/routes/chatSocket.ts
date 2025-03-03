@@ -57,6 +57,7 @@ export class ChatSocketService {
         
         // 解析查询参数
         const queryParams = url.parse(request.url || '', true).query;
+        console.log('queryParams', queryParams);
         
         // 使用Zod验证参数
         const paramsResult = wsParamsSchema.safeParse(queryParams);

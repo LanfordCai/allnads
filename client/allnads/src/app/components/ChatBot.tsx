@@ -13,6 +13,7 @@ import { createPublicClient, http, Address } from 'viem';
 import AllNadsABI from '../contracts/AllNads.json';
 import { useRouter } from 'next/navigation';
 import { useIdentityToken } from '@privy-io/react-auth';
+import { useChatWithNFT } from '../hooks/useChatWithNFT';
 // Define Monad Testnet chain
 const monadChain = {
   id: 10143,
@@ -62,8 +63,6 @@ export default function ChatBot({}: ChatBotProps) {
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   const [isLoadingAvatar, setIsLoadingAvatar] = useState(false);
   const [nftError, setNftError] = useState<string | null>(null);
-  const [nftTokenId, setNftTokenId] = useState<string | null>(null);
-  const [nftAccount, setNftAccount] = useState<string | null>(null);
   const [nftName, setNftName] = useState<string | null>(null);
   
   // 使用ref追踪当前活跃的会话ID，解决闭包问题
@@ -374,23 +373,26 @@ export default function ChatBot({}: ChatBotProps) {
     }
   }, [activeSessionId]);
 
-  // 初始化聊天服务并设置事件处理程序
+  // Initialize chat service
   useEffect(() => {
-    const chatService = new ChatService();
-    chatServiceRef.current = chatService;
-
-    // 设置认证令牌提供者
-    chatService.setTokenProvider(getPrivyTokens);
-    console.log('已设置认证令牌提供者');
-    
-    // 监听Privy认证状态变化
-    if (isReady) {
-      setAuthStatus(isAuthenticated ? 'authenticated' : 'anonymous');
-      console.log(`Privy认证状态: ${isAuthenticated ? '已认证' : '匿名'}`);
+    if (!chatServiceRef.current) {
+      console.log('初始化聊天服务');
+      chatServiceRef.current = new ChatService();
+      
+      // 设置获取令牌的函数
+      chatServiceRef.current.setTokenProvider(getPrivyTokens);
+      
+      // 设置事件处理程序
+      setupChatEventHandlers();
     }
+  }, []);
 
-    // 不再自动连接，而是等待activeSessionId设置后再连接
-    // 事件处理程序的设置仍然在这里完成
+  // Function to set up chat event handlers
+  const setupChatEventHandlers = () => {
+    if (!chatServiceRef.current) return;
+    
+    const chatService = chatServiceRef.current;
+    
     chatService
       .on('connected', (message) => {
         // 连接成功消息
@@ -663,14 +665,76 @@ export default function ChatBot({}: ChatBotProps) {
           }
         }
       });
+  };
 
-    // 不再自动连接，而是等待activeSessionId设置好后再连接
+  // Use the new hook to automatically set NFT information in the chat service and connect
+  const { nftAccount, tokenId, isLoading: isLoadingNFT, error: nftHookError, isNftInfoSet } = useChatWithNFT(chatServiceRef.current || new ChatService());
 
-    // Clean up on unmount
-    return () => {
-      chatService.disconnect();
-    };
-  }, []); // 仅在组件挂载时初始化
+  // Update NFT state from the hook
+  useEffect(() => {
+    if (nftHookError) {
+      setNftError(nftHookError);
+    }
+    
+    setIsLoadingAvatar(isLoadingNFT);
+    
+    // If we have a token ID, fetch the token URI to get the image and name
+    if (tokenId && !isLoadingNFT) {
+      fetchTokenImage(tokenId);
+    }
+  }, [tokenId, isLoadingNFT, nftHookError]);
+
+  // Log when NFT info is set and connection is established
+  useEffect(() => {
+    if (isNftInfoSet) {
+      console.log('NFT info is set and WebSocket connection should be established');
+    }
+  }, [isNftInfoSet]);
+
+  // Function to fetch token image and name
+  const fetchTokenImage = async (tokenId: string) => {
+    try {
+      // Create public client
+      const publicClient = createPublicClient({
+        chain: monadChain,
+        transport: http(),
+      });
+      
+      // Get token URI
+      const tokenURI = await publicClient.readContract({
+        address: ALLNADS_CONTRACT_ADDRESS as Address,
+        abi: AllNadsABI,
+        functionName: 'tokenURI',
+        args: [BigInt(tokenId)],
+      }) as string;
+      
+      // Parse tokenURI (it's likely base64 encoded JSON)
+      const jsonData = tokenURI.replace('data:application/json,', '');
+      
+      try {
+        const json = JSON.parse(jsonData);
+        
+        // Extract name from tokenURI 
+        if (json.name) {
+          setNftName(json.name);
+          console.log("NFT name:", json.name);
+        }
+        
+        // Extract image from tokenURI (which is also base64 encoded)
+        if (json.image) {
+          setAvatarImage(json.image);
+        } else {
+          setNftError("NFT metadata doesn't contain an image");
+        }
+      } catch (parseError) {
+        console.error("Error parsing NFT metadata:", parseError);
+        setNftError("Invalid NFT metadata format");
+      }
+    } catch (error) {
+      console.error('Error fetching token image:', error);
+      setNftError("Failed to load NFT image");
+    }
+  };
 
   // 监听Privy认证状态变化
   useEffect(() => {
@@ -691,14 +755,9 @@ export default function ChatBot({}: ChatBotProps) {
       
       // 如果已经有活跃会话，且用户已认证，则连接WebSocket
       if (newAuthStatus === 'authenticated' && activeSessionId && chatServiceRef.current) {
-        console.log('用户已认证，连接WebSocket...');
+        console.log('用户已认证，NFT信息将在加载后自动连接WebSocket...');
         chatServiceRef.current.disconnect(); // 确保先断开任何现有连接
-        chatServiceRef.current.connect().catch(error => {
-          console.error('连接WebSocket失败:', error);
-          if (error.message && error.message.includes('Authentication required')) {
-            setAuthError(error.message);
-          }
-        });
+        // 不再直接连接，而是等待NFT信息加载后自动连接
       }
     }
   }, [isReady, isAuthenticated, authStatus, activeSessionId]);
@@ -718,37 +777,11 @@ export default function ChatBot({}: ChatBotProps) {
       // 先设置会话ID
       chatServiceRef.current.setSessionId(activeSessionId);
       
-      // 如果WebSocket已连接，先断开再重新连接以传递新的会话ID
+      // 如果WebSocket已连接，先断开
       chatServiceRef.current.disconnect();
       
-      // 重新连接，这次会带上新的会话ID
-      chatServiceRef.current.connect().catch(error => {
-        console.error('重新连接WebSocket失败:', error);
-        
-        // 检查是否是认证错误
-        if (error.message && error.message.includes('Authentication required')) {
-          setAuthError(error.message);
-          return;
-        }
-        
-        const errorMessage = chatServiceRef.current?.createLocalMessage(
-          '重新连接聊天服务器失败，请刷新页面再试。', 
-          'error'
-        );
-        
-        if (errorMessage) {
-          setSessions(prevSessions => prevSessions.map(session => {
-            if (session.id === activeSessionId) {
-              return {
-                ...session,
-                messages: [...session.messages, errorMessage],
-                lastActivity: new Date()
-              };
-            }
-            return session;
-          }));
-        }
-      });
+      // 不再直接连接，而是等待NFT信息加载后自动连接
+      console.log('等待NFT信息加载后自动连接WebSocket...');
     }
   }, [activeSessionId, authStatus]);
 
@@ -830,123 +863,6 @@ export default function ChatBot({}: ChatBotProps) {
       setIsLoading(false);
     }
   };
-
-  // Add new effect for NFT checking
-  useEffect(() => {
-    // Check if user has an AllNads NFT
-    async function checkAndFetchNFT() {
-      if (!isAuthenticated || !user?.wallet?.address) {
-        return;
-      }
-      
-      setIsLoadingAvatar(true);
-      setNftError(null);
-      
-      try {
-        // Create public client
-        const publicClient = createPublicClient({
-          chain: monadChain,
-          transport: http(),
-        });
-        
-        if (!ALLNADS_CONTRACT_ADDRESS) {
-          setNftError("Contract address not configured");
-          console.error("AllNads contract address is not configured");
-          return;
-        }
-        
-        console.log("Checking NFTs for address:", user.wallet.address);
-        console.log("ALLNADS_CONTRACT_ADDRESS:", ALLNADS_CONTRACT_ADDRESS);
-        
-        // Check if user has any AllNads NFTs
-        const balance = await publicClient.readContract({
-          address: ALLNADS_CONTRACT_ADDRESS as Address,
-          abi: AllNadsABI,
-          functionName: 'balanceOf',
-          args: [user.wallet.address as Address],
-        });
-        
-        console.log("NFT balance:", balance);
-        
-        // If user doesn't have any NFTs, redirect to airdrop page
-        if (Number(balance) === 0) {
-          console.log('User has no AllNads NFTs. Redirecting to airdrop page');
-          router.push('/airdrop');
-          return;
-        }
-        
-        // Get the first NFT token ID
-        const tokenId = await publicClient.readContract({
-          address: ALLNADS_CONTRACT_ADDRESS as Address,
-          abi: AllNadsABI,
-          functionName: 'tokenOfOwnerByIndex',
-          args: [user.wallet.address as Address, 0],
-        });
-        
-        console.log("User's first NFT tokenId:", tokenId);
-        setNftTokenId(String(tokenId));
-        
-        // Get the account address for this token
-        try {
-          const accountAddress = await publicClient.readContract({
-            address: ALLNADS_CONTRACT_ADDRESS as Address,
-            abi: AllNadsABI,
-            functionName: 'accountForToken',
-            args: [tokenId],
-          }) as string;
-          
-          console.log("NFT Token Account:", accountAddress);
-          setNftAccount(accountAddress);
-        } catch (accountError) {
-          console.error("Error fetching account for token:", accountError);
-          // Continue with token URI even if account fetch fails
-        }
-        
-        // Get token URI
-        const tokenURI = await publicClient.readContract({
-          address: ALLNADS_CONTRACT_ADDRESS as Address,
-          abi: AllNadsABI,
-          functionName: 'tokenURI',
-          args: [tokenId],
-        }) as string;
-        
-        console.log("Token URI:", tokenURI);
-        
-        // Parse tokenURI (it's likely base64 encoded JSON)
-        const jsonData = tokenURI.replace('data:application/json,', '');
-        
-        try {
-          const json = JSON.parse(jsonData);
-          
-          console.log("NFT metadata:", json);
-          
-          // Extract name from tokenURI 
-          if (json.name) {
-            setNftName(json.name);
-            console.log("NFT name:", json.name);
-          }
-          
-          // Extract image from tokenURI (which is also base64 encoded)
-          if (json.image) {
-            setAvatarImage(json.image);
-          } else {
-            setNftError("NFT metadata doesn't contain an image");
-          }
-        } catch (parseError) {
-          console.error("Error parsing NFT metadata:", parseError);
-          setNftError("Invalid NFT metadata format");
-        }
-      } catch (error) {
-        console.error('Error checking NFT:', error);
-        setNftError("Failed to load NFT data");
-        // Don't redirect on error, just show error in the UI
-      } finally {
-        setIsLoadingAvatar(false);
-      }
-    }
-    
-    checkAndFetchNFT();
-  }, [isAuthenticated, user, router]);
 
   // Function to render the avatar image (if available)
   const renderAvatarImage = () => {
