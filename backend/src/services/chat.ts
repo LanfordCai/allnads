@@ -322,14 +322,14 @@ export class ChatService {
             console.log(`[工具参数] ${JSON.stringify(toolArgs, null, 2)}`);
             
             // 告知用户即将调用工具
-            this.sendSocketMessage(socket, {
-              type: 'tool_calling',
-              content: `我需要使用 ${toolName} 工具来查询相关信息...`,
-              tool: {
-                name: toolName,
-                args: toolArgs
-              }
-            });
+              this.sendSocketMessage(socket, {
+                type: 'tool_calling',
+                content: `我需要使用 ${toolName} 工具来查询相关信息...`,
+                tool: {
+                  name: toolName,
+                  args: toolArgs
+                }
+              });
             
             // 执行工具调用
             const result = await mcpManager.callTool(toolName, toolArgs);
