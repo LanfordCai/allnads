@@ -2,6 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types/chat';
+import { usePrivyAuth } from '../hooks/usePrivyAuth';
+import { parseEther } from 'viem';
+import { useWallets } from '@privy-io/react-auth';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -24,6 +28,10 @@ export default function ChatArea({
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { privy } = usePrivyAuth();
+  const { wallets } = useWallets();
+  const [isSigningTransaction, setIsSigningTransaction] = useState(false);
+  const { showNotification } = useNotification();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +39,49 @@ export default function ChatArea({
     if (trimmedMessage) {
       onSendMessage(trimmedMessage);
       setNewMessage('');
+    }
+  };
+
+  // 处理交易签名
+  const handleSignTransaction = async (to: string, data: string, value: string) => {
+    try {
+      setIsSigningTransaction(true);
+      showNotification('正在处理交易签名请求...', 'info');
+      
+      // 获取用户钱包
+      if (!wallets || wallets.length === 0) {
+        throw new Error("No wallet connected");
+      }
+      
+      // 使用第一个钱包
+      const wallet = wallets.find((wallet) => wallet.walletClientType === 'privy')!;
+      
+      // 获取钱包的以太坊提供者
+      console.log(wallet.chainId);
+      const provider = await wallet.getEthereumProvider();
+      
+      // 准备交易请求
+      const transactionRequest = {
+        to: to,
+        data: data,
+        value: value === '0' ? '0x0' : `0x${parseEther(value).toString(16)}`, // 转换为十六进制
+      };
+      
+      // 发送交易请求
+      const transactionHash = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [transactionRequest],
+      });
+      
+      // 交易成功，显示成功通知
+      showNotification(`交易已提交，交易哈希: ${transactionHash}`, 'success');
+      
+    } catch (error) {
+      console.error('Transaction signing error:', error);
+      // 显示错误通知
+      showNotification(`交易签名失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    } finally {
+      setIsSigningTransaction(false);
     }
   };
 
@@ -73,6 +124,12 @@ export default function ChatArea({
         const mainContent = parts[0];
         const transactionInfo = parts.slice(1).join('\n\n');
         
+        // 解析交易信息
+        const infoLines = transactionInfo.split('\n');
+        const to = infoLines.find(line => line.startsWith('收款地址:'))?.split(': ')[1] || '';
+        const data = infoLines.find(line => line.startsWith('数据:'))?.split(': ')[1] || '';
+        const value = infoLines.find(line => line.startsWith('金额:'))?.split(': ')[1]?.split(' ')[0] || '0';
+        
         return (
           <>
             <div className="mb-2">{mainContent}</div>
@@ -89,8 +146,14 @@ export default function ChatArea({
                 ))}
               </div>
               <div className="mt-3 flex justify-end">
-                <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
-                  签名交易
+                <button 
+                  className={`${isSigningTransaction 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-500 hover:bg-blue-600'} text-white px-3 py-1 rounded text-sm transition-colors`}
+                  onClick={() => handleSignTransaction(to, data, value)}
+                  disabled={isSigningTransaction}
+                >
+                  {isSigningTransaction ? '签名中...' : '签名交易'}
                 </button>
               </div>
             </div>
