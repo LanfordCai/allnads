@@ -7,8 +7,9 @@ import { z } from 'zod';
 import { ContentResult } from './tools/types.js';
 import { sendMonTool } from './tools/sendMon.js';
 import { transactionSignTool } from './tools/transactionSign.js';
+import { changeTemplateTool } from './tools/changeTemplate.js';
 import { env } from './config/env.js';
-
+import { mintTemplateComponentTool } from './tools/mintTemplateComponent.js';
 // Create a new MCP server instance
 const server = new McpServer({
   name: 'allnads_account_tool',
@@ -56,6 +57,41 @@ server.tool(
     return adaptedResponse;
   }
 );
+
+server.tool(
+  changeTemplateTool.name,
+  changeTemplateTool.description,
+  {
+    allnadsAccount: z.string().describe('The allnads account of the sender'),
+    tokenId: z.number().describe('The token id of the Allnads NFT'),
+    templateId: z.number().describe('The template id to change to'),
+    componentType: z.string().describe('The component type of the template'),
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${changeTemplateTool.name}...`);
+    const result = await changeTemplateTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(changeTemplateTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+server.tool(
+  mintTemplateComponentTool.name,
+  mintTemplateComponentTool.description,
+  {
+    allnadsAccount: z.string().describe('The allnads account of the sender'),
+    templateId: z.number().describe('The template id to mint the component for'),
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${mintTemplateComponentTool.name}...`);
+    const result = await mintTemplateComponentTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(mintTemplateComponentTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
 
 server.tool(
   transactionSignTool.name,
