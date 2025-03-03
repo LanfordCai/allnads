@@ -128,8 +128,6 @@ export class ChatService {
           accessToken = aToken
           idToken = iToken
           
-          console.log('accessToken2', accessToken);
-          console.log('idToken2', idToken);
           if (accessToken && idToken) {
             queryParams.append('accessToken', accessToken);
             queryParams.append('idToken', idToken);
@@ -151,8 +149,6 @@ export class ChatService {
       }
       
       // 如果没有令牌，拒绝连接
-      console.log('accessToken', accessToken);
-      console.log('idToken', idToken);
       if (!accessToken || !idToken) {
         console.log('没有有效的认证令牌，拒绝匿名连接');
         reject(new Error('Authentication required. Please login to use the chat.'));
@@ -165,12 +161,11 @@ export class ChatService {
         connectionUrl += (connectionUrl.includes('?') ? '&' : '?') + queryString;
       }
 
-      console.log(`正在连接WebSocket: ${connectionUrl}`);
+      console.log(`正在连接WebSocket`);
       this.socket = new WebSocket(connectionUrl);
 
       this.socket.onopen = () => {
         console.log('=== WebSocket连接已建立 ===');
-        console.log(`连接URL: ${connectionUrl}`);
         console.log(`使用会话ID: ${this.sessionId || '未指定'}`);
         console.log(`认证状态: ${queryParams.has('token') ? '已认证' : '匿名'}`);
         console.log('=========================');
@@ -342,7 +337,7 @@ export class ChatService {
   }
 
   // Create a message object for local UI updates
-  public createLocalMessage(content: string, role: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error'): ChatMessage {
+  public createLocalMessage(content: string, role: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error' | 'transaction_to_sign'): ChatMessage {
     return {
       id: uuidv4(),
       content,

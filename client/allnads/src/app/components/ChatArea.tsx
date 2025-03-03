@@ -41,9 +41,11 @@ export default function ChatArea({
     
     // 如果是工具类消息，格式化显示
     if (message.role === 'tool') {
+      // 分割消息内容，提取工具信息
       const parts = trimmedContent.split('\n\n');
       if (parts.length >= 2) {
         const [description, ...details] = parts;
+        
         return (
           <>
             <div className="text-xs text-gray-500 mb-1 flex items-center">
@@ -62,7 +64,41 @@ export default function ChatArea({
         );
       }
     }
-
+    
+    // 如果是交易签名消息，特殊格式化显示
+    if (message.role === 'transaction_to_sign') {
+      // 分割消息内容，提取交易信息
+      const parts = trimmedContent.split('\n\n');
+      if (parts.length >= 2) {
+        const mainContent = parts[0];
+        const transactionInfo = parts.slice(1).join('\n\n');
+        
+        return (
+          <>
+            <div className="mb-2">{mainContent}</div>
+            <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded border border-blue-200 dark:border-blue-700 overflow-x-auto">
+              <div className="font-medium text-blue-700 dark:text-blue-300 mb-2">
+                {transactionInfo.split('\n')[0]}
+              </div>
+              <div className="font-mono text-sm">
+                {transactionInfo.split('\n').slice(1).map((line, i) => (
+                  <div key={i} className="mb-1">
+                    <span className="font-medium">{line.split(': ')[0]}: </span>
+                    <span className="break-all">{line.split(': ')[1]}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-end">
+                <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                  签名交易
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      }
+    }
+    
     // 处理正常文本（支持换行）
     return trimmedContent.split('\n').map((line, i) => (
       <span key={i}>
@@ -87,6 +123,8 @@ export default function ChatArea({
         return `${baseClasses} bg-yellow-100 dark:bg-yellow-800 text-center italic mx-auto`;
       case 'tool':
         return `${baseClasses} bg-gray-100 dark:bg-gray-800 rounded-bl-none border border-gray-200 dark:border-gray-700`;
+      case 'transaction_to_sign':
+        return `${baseClasses} bg-white dark:bg-gray-800 rounded-bl-none border border-blue-300 dark:border-blue-700`;
       case 'error':
         return `${baseClasses} bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200`;
       default:
@@ -148,8 +186,8 @@ export default function ChatArea({
         {messages.map((message, index) => {
           // Check if this is the first AI message in a sequence
           const isFirstInSequence = () => {
-            // If it's not an AI message (bot, tool, error, thinking), no need to check
-            if (!['bot', 'tool', 'error', 'thinking'].includes(message.role)) {
+            // If it's not an AI message (bot, tool, error, thinking, transaction_to_sign), no need to check
+            if (!['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(message.role)) {
               return false;
             }
             
@@ -160,7 +198,7 @@ export default function ChatArea({
             
             // Check if the previous message was from a different sender (not AI)
             const prevMessage = messages[index - 1];
-            return !['bot', 'tool', 'error', 'thinking'].includes(prevMessage.role);
+            return !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(prevMessage.role);
           };
           
           // Determine if we should show the avatar
@@ -171,7 +209,7 @@ export default function ChatArea({
               key={message.id}
               className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
             >
-              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && shouldShowAvatar && (
+              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
                 <div className="w-12 h-12 rounded-[8px] overflow-hidden mr-2 flex-shrink-0">
                   <img 
                     src={avatarImage || "https://picsum.photos/500/500"} 
@@ -185,7 +223,7 @@ export default function ChatArea({
                 </div>
               )}
               {/* Add empty space to maintain alignment when avatar is not shown */}
-              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking') && !shouldShowAvatar && (
+              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && !shouldShowAvatar && (
                 <div className="w-12 mr-2 flex-shrink-0"></div>
               )}
               <div className={getMessageClasses(message)}>
@@ -200,7 +238,7 @@ export default function ChatArea({
         {isLoading && (
           <div className="flex justify-start">
             {/* Only show avatar if last message was not from AI */}
-            {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking'].includes(messages[messages.length - 1].role)) && (
+            {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
               <div className="w-8 h-8 overflow-hidden mr-2 flex-shrink-0">
                 <img 
                   src={avatarImage || "https://picsum.photos/500/500"} 
@@ -210,7 +248,7 @@ export default function ChatArea({
               </div>
             )}
             {/* Add empty space to maintain alignment when avatar is not shown */}
-            {messages.length > 0 && ['bot', 'tool', 'error', 'thinking'].includes(messages[messages.length - 1].role) && (
+            {messages.length > 0 && ['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role) && (
               <div className="w-12 mr-2 flex-shrink-0"></div>
             )}
             <div className="max-w-[80%] rounded-lg p-2 bg-gray-200 dark:bg-gray-700 rounded-bl-none">

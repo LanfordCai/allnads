@@ -98,8 +98,6 @@ export default function ChatBot({}: ChatBotProps) {
     
     try {
       const accessToken = await privy.getAccessToken();
-      console.log('accessToken1', accessToken);
-      console.log('identityToken1', identityToken);
       return { accessToken, identityToken };
     } catch (error) {
       console.error('获取Privy访问令牌失败:', error);
@@ -546,26 +544,51 @@ export default function ChatBot({}: ChatBotProps) {
       .on('tool_calling', (message) => {
         // 显示工具调用信息
         if (message.content && message.tool) {
-          // 格式化工具调用消息
-          const toolContent = `${message.content}\n\n工具: ${message.tool.name}\n参数: ${JSON.stringify(message.tool.args, null, 2)}`;
-          const toolMessage = chatService.createLocalMessage(toolContent, 'tool');
-          
-          setSessions(prevSessions => {
-            // 使用ref获取最新的sessionId
-            const currentSessionId = activeSessionIdRef.current;
-            console.log(`Tool calling message received for session: ${currentSessionId}`);
-            return prevSessions.map(session => {
-              if (session.id === currentSessionId) {
-                return {
-                  ...session,
-                  // 移除thinking消息，添加工具调用消息
-                  messages: [...session.messages.filter(msg => msg.role !== 'thinking'), toolMessage],
-                  lastActivity: new Date()
-                };
-              }
-              return session;
+          // 特殊处理交易签名工具
+          if (message.tool.name === 'allnads_tool__transaction_sign') {
+            const { to, data, value } = message.tool.args;
+            // 格式化交易签名消息，使其更清晰
+            const transactionContent = `${message.content}\n\n需要签名的交易:\n收款地址: ${to}\n数据: ${data}\n金额: ${value || '0'} ETH`;
+            const transactionMessage = chatService.createLocalMessage(transactionContent, 'transaction_to_sign');
+            
+            setSessions(prevSessions => {
+              // 使用ref获取最新的sessionId
+              const currentSessionId = activeSessionIdRef.current;
+              console.log(`Transaction sign request received for session: ${currentSessionId}`);
+              return prevSessions.map(session => {
+                if (session.id === currentSessionId) {
+                  return {
+                    ...session,
+                    // 移除thinking消息，添加交易签名消息
+                    messages: [...session.messages.filter(msg => msg.role !== 'thinking'), transactionMessage],
+                    lastActivity: new Date()
+                  };
+                }
+                return session;
+              });
             });
-          });
+          } else {
+            // 处理其他工具调用
+            const toolContent = `${message.content}\n\n工具: ${message.tool.name}\n参数: ${JSON.stringify(message.tool.args, null, 2)}`;
+            const toolMessage = chatService.createLocalMessage(toolContent, 'tool');
+            
+            setSessions(prevSessions => {
+              // 使用ref获取最新的sessionId
+              const currentSessionId = activeSessionIdRef.current;
+              console.log(`Tool calling message received for session: ${currentSessionId}`);
+              return prevSessions.map(session => {
+                if (session.id === currentSessionId) {
+                  return {
+                    ...session,
+                    // 移除thinking消息，添加工具调用消息
+                    messages: [...session.messages.filter(msg => msg.role !== 'thinking'), toolMessage],
+                    lastActivity: new Date()
+                  };
+                }
+                return session;
+              });
+            });
+          }
         }
         
         console.log('Tool being called:', message.tool);

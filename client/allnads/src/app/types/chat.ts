@@ -1,7 +1,7 @@
 export interface ChatMessage {
   id: string;
   content: string;
-  role: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error';
+  role: 'user' | 'bot' | 'thinking' | 'system' | 'tool' | 'error' | 'transaction_to_sign';
   timestamp: Date;
 }
 
