@@ -375,6 +375,7 @@ export default function ChatBot({}: ChatBotProps) {
             isAuthenticated={isAuthenticated}
             user={user}
             router={router}
+            nftAccount={nftAccount}
             onAvatarImageChange={setAvatarImage}
           />
           

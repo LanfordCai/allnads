@@ -29,6 +29,7 @@ interface NFTAvatarDisplayProps {
   isAuthenticated: boolean;
   user: User | null;
   router: AppRouterInstance;
+  nftAccount: string | null;
   onAvatarImageChange?: (avatarImage: string | null) => void;
 }
 
@@ -41,6 +42,7 @@ export function NFTAvatarDisplay({
   isAuthenticated,
   user,
   router,
+  nftAccount,
   onAvatarImageChange
 }: NFTAvatarDisplayProps) {
   const [avatarImage, setAvatarImage] = useState<string | null>(initialAvatarImage || null);
@@ -129,6 +131,7 @@ export function NFTAvatarDisplay({
           alt="Your AllNads Avatar"
           title={nftName || "Your AllNads NFT"}
           onChangeComponent={handleChangeComponent}
+          nftAccount={nftAccount || undefined}
         />
       </div>
     );
