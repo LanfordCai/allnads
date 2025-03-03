@@ -321,9 +321,17 @@ export class ChatService {
     }
 
     if (this.socket) {
+      // Remove event listeners to prevent memory leaks and duplicate handlers
+      this.socket.onopen = null;
+      this.socket.onclose = null;
+      this.socket.onerror = null;
+      this.socket.onmessage = null;
+      
       // Use 1000 (Normal Closure) to indicate a deliberate closure
       this.socket.close(1000);
       this.socket = null;
+      
+      console.log('WebSocket connection closed and event listeners removed');
     }
   }
 

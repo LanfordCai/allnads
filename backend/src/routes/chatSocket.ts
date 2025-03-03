@@ -195,6 +195,7 @@ export class ChatSocketService {
         
         // 只在会话历史为空时发送欢迎消息
         if (historyIsEmpty) {
+          console.log('sent welcome message');
           socket.send(JSON.stringify({
             type: 'connected',
             sessionId: finalSessionId,

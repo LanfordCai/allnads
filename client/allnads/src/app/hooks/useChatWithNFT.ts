@@ -61,6 +61,7 @@ export function useChatWithNFT(chatService: ChatService) {
   const { nftAccount, tokenId, isLoading, error } = useAllNads();
   const [isNftInfoSet, setIsNftInfoSet] = useState(false);
   const lastSessionIdRef = useRef<string | null>(null);
+  const isConnectingRef = useRef(false);
 
   useEffect(() => {
     async function setNFTInfo() {
@@ -186,12 +187,19 @@ export function useChatWithNFT(chatService: ChatService) {
           console.log(`Session ID changed to ${currentSessionId}, reconnecting...`);
         }
         
-        // Now that NFT info is set, connect to the WebSocket
-        try {
-          await chatService.connect();
-          console.log('Connected to WebSocket after setting NFT info');
-        } catch (connectError) {
-          console.error('Failed to connect to WebSocket after setting NFT info:', connectError);
+        // Now that NFT info is set, connect to the WebSocket if not already connecting
+        if (!isConnectingRef.current) {
+          try {
+            isConnectingRef.current = true;
+            await chatService.connect();
+            console.log('Connected to WebSocket after setting NFT info');
+          } catch (connectError) {
+            console.error('Failed to connect to WebSocket after setting NFT info:', connectError);
+          } finally {
+            isConnectingRef.current = false;
+          }
+        } else {
+          console.log('Already connecting to WebSocket, skipping duplicate connection attempt');
         }
       } catch (err) {
         console.error('Error getting NFT metadata:', err);
@@ -207,16 +215,26 @@ export function useChatWithNFT(chatService: ChatService) {
   // Also reconnect when the session ID changes
   useEffect(() => {
     const currentSessionId = chatService.getSessionId();
-    if (isNftInfoSet && currentSessionId !== lastSessionIdRef.current) {
+    console.log(`[useChatWithNFT] Checking session ID: current=${currentSessionId}, last=${lastSessionIdRef.current}, isNftInfoSet=${isNftInfoSet}`);
+    
+    if (isNftInfoSet && currentSessionId !== lastSessionIdRef.current && !isConnectingRef.current) {
       lastSessionIdRef.current = currentSessionId;
-      console.log(`Session ID changed to ${currentSessionId}, reconnecting with NFT info...`);
+      console.log(`[useChatWithNFT] Session ID changed to ${currentSessionId}, reconnecting with NFT info...`);
       
-      // Reconnect with the new session ID
-      chatService.connect().catch(error => {
-        console.error('Failed to reconnect with new session ID:', error);
-      });
+      // Reconnect with the new session ID if not already connecting
+      isConnectingRef.current = true;
+      chatService.connect()
+        .then(() => {
+          console.log('[useChatWithNFT] Successfully reconnected with new session ID');
+        })
+        .catch(error => {
+          console.error('[useChatWithNFT] Failed to reconnect with new session ID:', error);
+        })
+        .finally(() => {
+          isConnectingRef.current = false;
+        });
     }
-  }, [chatService, isNftInfoSet]);
+  }, [chatService, isNftInfoSet, chatService.getSessionId()]);
 
   return {
     nftAccount,
