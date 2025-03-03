@@ -90,7 +90,6 @@ export class ChatSocketService {
         
         // 解析查询参数
         const queryParams = url.parse(request.url || '', true).query;
-        console.log('queryParams', queryParams);
         
         // 使用Zod验证参数
         const paramsResult = wsParamsSchema.safeParse(queryParams);
@@ -128,7 +127,6 @@ export class ChatSocketService {
           const { ethereumWallet, name } = this.extractUserInfo(userIdentity);
           userPrivyWallet = ethereumWallet;
           userName = name;
-          console.log('userIdentity', userIdentity);
           
           // 向客户端发送认证成功消息
           socket.send(JSON.stringify({
@@ -200,7 +198,7 @@ export class ChatSocketService {
           socket.send(JSON.stringify({
             type: 'connected',
             sessionId: finalSessionId,
-            content: `👋 欢迎使用聊天服务！${privyUserId ? '您已登录。' : '您正在匿名访问。'}您的会话ID是: ${finalSessionId}。现在可以开始聊天了，请在输入框中输入您的问题。服务器将使用区块链工具帮助您解答疑问。`
+            content: `👋 欢迎使用聊天服务！您已登录。您的会话ID是: ${finalSessionId}。现在可以开始聊天了，请在输入框中输入您的问题。服务器将使用区块链工具帮助您解答疑问。`
           }));
         }
 

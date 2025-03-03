@@ -285,33 +285,6 @@ export class ChatService {
             timestamp: new Date()
           };
           
-          // 存储前再次检查内容
-          if (assistantPartialMessage.content === '...') {
-            console.error(`[严重错误] 即将存储内容为"..."的消息! 这可能是一个bug。原始响应:`);
-            console.error(JSON.stringify(currentResponse, null, 2));
-            
-            // 尝试修复：如果原始响应中包含有效内容但被错误处理为"...",则使用完整响应重构内容
-            if (currentResponse.choices && 
-                currentResponse.choices[0] && 
-                typeof currentResponse.choices[0].message === 'object') {
-              
-              // 确保完整JSON响应可见以便调试
-              console.log(`[修复尝试] 完整响应对象:`);
-              console.log(JSON.stringify(currentResponse, null, 2));
-              
-              // 尝试从原始响应中提取完整内容
-              const rawContent = currentResponse.choices[0].message.content;
-              if (rawContent && rawContent !== '...') {
-                console.log(`[修复成功] 从原始响应重构内容: "${rawContent.substring(0, 50)}${rawContent.length > 50 ? '...' : ''}"`);
-                assistantPartialMessage.content = rawContent;
-              } else {
-                // 如果无法修复，存储带有警告的内容
-                console.log(`[修复失败] 无法从原始响应重构内容`);
-                assistantPartialMessage.content = "[数据错误] 无法正确获取AI回复内容。原始内容可能已丢失。";
-              }
-            }
-          }
-          
           await SessionService.addMessage(session.id, assistantPartialMessage);
           console.log(`[数据库] 已立即存储助手消息: ${assistantPartialMessage.content.substring(0, 50)}${assistantPartialMessage.content.length > 50 ? '...' : ''}`);
         }
@@ -328,6 +301,7 @@ export class ChatService {
         
         // 将当前响应添加到消息列表
         currentMessages.push(currentResponseMessage);
+        console.log('currentResponseMessage', currentResponseMessage);
         
         // 处理所有工具调用
         for (const toolCall of currentResponseMessage.tool_calls) {
