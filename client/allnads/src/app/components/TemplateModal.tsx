@@ -36,7 +36,7 @@ interface Template {
 interface TemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTemplate: (templateId: bigint) => void;
+  onSelectTemplate: (templateId: bigint, templateDetails?: any) => void;
   nftAccount?: string; // Token bound account address of the AllNads NFT
 }
 
@@ -271,7 +271,31 @@ export default function TemplateModal({
   
   // Function to handle template selection
   const handleSelectTemplate = (templateId: bigint) => {
-    onSelectTemplate(templateId);
+    // Find the template in the templates object
+    let selectedTemplate: Template | undefined;
+    
+    // Search through all template types
+    for (const type in templates) {
+      const foundTemplate = templates[type].find(template => template.id === templateId);
+      if (foundTemplate) {
+        selectedTemplate = foundTemplate;
+        break;
+      }
+    }
+    
+    // Get the component type name
+    const componentTypeName = Object.keys(COMPONENT_TYPES).find(
+      key => COMPONENT_TYPES[key as keyof typeof COMPONENT_TYPES] === selectedTemplate?.componentType
+    );
+    
+    // Create template details object
+    const templateDetails = {
+      ...selectedTemplate,
+      componentTypeName,
+      isOwned: userOwnsTemplate(templateId)
+    };
+    
+    onSelectTemplate(templateId, templateDetails);
     onClose();
   };
   
@@ -308,8 +332,9 @@ export default function TemplateModal({
         >
           {/* Modal Header */}
           <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-            <div className="flex items-center">
+            <div className="flex flex-col">
               <h2 className="text-xl font-bold text-gray-800">Select Component</h2>
+              <p className="text-sm text-gray-500 mt-1">选择模板后将在聊天中发送消息，邀请对方也换上相同的模板</p>
               {(loading || checkingOwnership) && (
                 <div className="ml-3 animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
               )}
@@ -357,9 +382,14 @@ export default function TemplateModal({
                     {/* Owned badge */}
                     {userOwnsTemplate(template.id) && (
                       <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-10">
-                        Owned
+                        已拥有
                       </div>
                     )}
+                    
+                    {/* Template ID badge */}
+                    <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-10">
+                      #{template.id.toString()}
+                    </div>
                     
                     <div className="w-[180px] h-[180px] overflow-hidden bg-gray-100">
                       {template.imageData ? (

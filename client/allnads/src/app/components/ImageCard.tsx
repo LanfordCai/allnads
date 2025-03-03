@@ -15,7 +15,7 @@ interface ImageCardProps {
   alt?: string;
   title?: string;
   caption?: string;
-  onChangeComponent?: (templateId: bigint) => void;
+  onChangeComponent?: (templateId: bigint, templateDetails?: any) => void;
   nftAccount?: string; // Token bound account address of the AllNads NFT
   templateId?: bigint; // Current template ID displayed in the card
 }
@@ -123,9 +123,9 @@ export default function ImageCard({
   };
   
   // Function to handle template selection
-  const handleSelectTemplate = (templateId: bigint) => {
+  const handleSelectTemplate = (templateId: bigint, templateDetails?: any) => {
     if (onChangeComponent) {
-      onChangeComponent(templateId);
+      onChangeComponent(templateId, templateDetails);
     }
   };
   
@@ -136,6 +136,13 @@ export default function ImageCard({
         {isOwned && (
           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-10">
             Owned
+          </div>
+        )}
+        
+        {/* Template ID badge */}
+        {templateId && (
+          <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-10">
+            模板 #{templateId.toString()}
           </div>
         )}
         
@@ -165,7 +172,7 @@ export default function ImageCard({
         onClick={handleOpenModal}
         className="mt-3 w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
       >
-        Change Component
+        更换模板并发送消息
       </button>
       
       {/* Template Selection Modal - Templates are preloaded in the background */}

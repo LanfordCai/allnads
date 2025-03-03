@@ -377,6 +377,7 @@ export default function ChatBot({}: ChatBotProps) {
             router={router}
             nftAccount={nftAccount}
             onAvatarImageChange={setAvatarImage}
+            onSendMessage={handleSendMessage}
           />
           
           <WalletInfoComponent nftAccount={nftAccount} />

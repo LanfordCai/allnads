@@ -31,6 +31,7 @@ interface NFTAvatarDisplayProps {
   router: AppRouterInstance;
   nftAccount: string | null;
   onAvatarImageChange?: (avatarImage: string | null) => void;
+  onSendMessage?: (message: string) => void;
 }
 
 export function NFTAvatarDisplay({
@@ -43,7 +44,8 @@ export function NFTAvatarDisplay({
   user,
   router,
   nftAccount,
-  onAvatarImageChange
+  onAvatarImageChange,
+  onSendMessage
 }: NFTAvatarDisplayProps) {
   const [avatarImage, setAvatarImage] = useState<string | null>(initialAvatarImage || null);
   const [nftName, setNftName] = useState<string | null>(initialNftName || null);
@@ -108,10 +110,40 @@ export function NFTAvatarDisplay({
     }
   };
 
-  // Handle component change (just log for now)
-  const handleChangeComponent = (templateId: bigint) => {
-    console.log(`Selected template ID: ${templateId.toString()}`);
-    // In a real implementation, this would call an API to update the NFT
+  // Handle component change and send a message to the chat
+  const handleChangeComponent = (templateId: bigint, templateDetails?: any) => {
+    console.log(`Selected template ID: ${templateId.toString()}`, templateDetails);
+    
+    // Send a message to the chat
+    if (onSendMessage) {
+      // Create a more detailed message with template information
+      let message = `我选择了一个新模板！`;
+      
+      if (templateDetails) {
+        const { name, componentTypeName, isOwned } = templateDetails;
+        
+        // Add template ID and name
+        message += `\n模板ID: #${templateId.toString()}`;
+        
+        // Add template name if available
+        if (name) {
+          message += `\n名称: ${name}`;
+        }
+        
+        // Add component type if available
+        if (componentTypeName) {
+          message += `\n类型: ${componentTypeName}`;
+        }
+        
+        // Add ownership status
+        message += `\n拥有状态: ${isOwned ? '已拥有 ✅' : '未拥有 ❌'}`;
+        
+        // Add invitation
+        message += `\n\n请你也换上这个模板吧！`;
+      }
+      
+      onSendMessage(message);
+    }
   };
 
   if (isLoadingAvatar) {
@@ -132,6 +164,7 @@ export function NFTAvatarDisplay({
           title={nftName || "Your AllNads NFT"}
           onChangeComponent={handleChangeComponent}
           nftAccount={nftAccount || undefined}
+          templateId={tokenId ? BigInt(tokenId) : undefined}
         />
       </div>
     );
