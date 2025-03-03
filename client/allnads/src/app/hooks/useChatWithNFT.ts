@@ -28,8 +28,8 @@ interface Template {
   componentType: number;
 }
 
-// Define the component type for our metadata
-interface ComponentInfo {
+// Define the component template info for our metadata
+interface ComponentTemplateInfo {
   templateId: string;
   name: string;
   creator: string;
@@ -37,17 +37,20 @@ interface ComponentInfo {
   componentType: string;
 }
 
+// Define the component info with template
+interface ComponentWithTemplate {
+  tokenId: string;
+  template: ComponentTemplateInfo;
+}
+
 // Define the enhanced metadata structure
 interface EnhancedMetadata {
   name: string;
-  backgroundId: string;
-  hairstyleId: string;
-  eyesId: string;
-  mouthId: string;
-  accessoryId: string;
-  components: {
-    [key: string]: ComponentInfo;
-  };
+  background: ComponentWithTemplate;
+  hairstyle: ComponentWithTemplate;
+  eyes: ComponentWithTemplate;
+  mouth: ComponentWithTemplate;
+  accessory: ComponentWithTemplate;
 }
 
 /**
@@ -86,24 +89,13 @@ export function useChatWithNFT(chatService: ChatService) {
           args: [BigInt(tokenId)],
         }) as Avatar;
 
-        // Create enhanced metadata with template information
-        const enhancedMetadata: EnhancedMetadata = {
-          name: avatar.name,
-          backgroundId: avatar.backgroundId.toString(),
-          hairstyleId: avatar.hairstyleId.toString(),
-          eyesId: avatar.eyesId.toString(),
-          mouthId: avatar.mouthId.toString(),
-          accessoryId: avatar.accessoryId.toString(),
-          components: {}
-        };
-
         // 定义组件类型
         const componentTypes = [
-          { id: avatar.backgroundId, type: 'background', key: 'backgroundId' },
-          { id: avatar.hairstyleId, type: 'hairstyle', key: 'hairstyleId' },
-          { id: avatar.eyesId, type: 'eyes', key: 'eyesId' },
-          { id: avatar.mouthId, type: 'mouth', key: 'mouthId' },
-          { id: avatar.accessoryId, type: 'accessory', key: 'accessoryId' }
+          { id: avatar.backgroundId, type: 'background' },
+          { id: avatar.hairstyleId, type: 'hairstyle' },
+          { id: avatar.eyesId, type: 'eyes' },
+          { id: avatar.mouthId, type: 'mouth' },
+          { id: avatar.accessoryId, type: 'accessory' }
         ];
 
         // 第一步：并行获取所有组件的模板ID
@@ -158,16 +150,28 @@ export function useChatWithNFT(chatService: ChatService) {
           })
         );
         
+        // 创建新的元数据结构
+        const enhancedMetadata: Partial<EnhancedMetadata> = {
+          name: avatar.name
+        };
+        
         // 将模板信息添加到元数据中
         templates.forEach(item => {
           if (item) {
-            enhancedMetadata.components[item.component.key] = {
-              templateId: item.templateId.toString(),
-              name: item.template.name,
-              creator: item.template.creator,
-              price: item.template.price.toString(),
-              componentType: item.template.componentType.toString()
+            const componentType = item.component.type;
+            const componentInfo: ComponentWithTemplate = {
+              tokenId: item.component.id.toString(),
+              template: {
+                templateId: item.templateId.toString(),
+                name: item.template.name,
+                creator: item.template.creator,
+                price: item.template.price.toString(),
+                componentType: item.template.componentType.toString()
+              }
             };
+            
+            // 将组件信息添加到对应的字段
+            enhancedMetadata[componentType as keyof EnhancedMetadata] = componentInfo as any;
           }
         });
 

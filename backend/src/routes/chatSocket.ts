@@ -8,6 +8,8 @@ import { SessionService } from '../services/session';
 import { v4 as uuidv4 } from 'uuid';
 import { privyService } from '../services/PrivyService';
 import { z } from 'zod';
+import { isAddress } from 'viem';
+import { User } from '@privy-io/server-auth';
 /**
  * WebSocket聊天服务
  */
@@ -26,6 +28,18 @@ export class ChatSocketService {
     });
     this.init();
     ChatSocketService.instance = this;
+  }
+
+  /**
+   * 从用户身份信息中提取电子邮件和以太坊钱包地址
+   * @param userIdentity Privy用户身份信息对象
+   * @returns 包含电子邮件和钱包地址的对象
+   */
+  private extractUserInfo(user: User): { email: string; ethereumWallet: string; name: string } {
+    const email = user.linkedAccounts?.find((account) => account.type === 'email')?.address;
+    const ethereumWallet = user.linkedAccounts?.find((account) => account.type === 'wallet')?.address;
+    const name = email ? email.split('@')[0] : 'Anonymous';
+    return { email: email || 'Anonymous', ethereumWallet: ethereumWallet || 'Anonymous', name };
   }
   
   /**
@@ -48,7 +62,26 @@ export class ChatSocketService {
         .regex(
           /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*$/,
           { message: "ID令牌必须是有效的JWT格式" }
-        )
+        ),
+      nftTokenId: z.string()
+        .min(1, { message: "NFT令牌ID不能为空" }),
+      nftAccount: z.string()
+        .min(1, { message: "NFT账户地址不能为空" })
+        .refine((val) => isAddress(val), { 
+          message: "NFT账户地址必须是有效的以太坊地址" 
+        }),
+      nftMetadata: z.string()
+        .min(1, { message: "NFT元数据不能为空" })
+        .refine((val) => {
+          try {
+            JSON.parse(val);
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }, { 
+          message: "NFT元数据必须是有效的JSON格式" 
+        })
     });
 
     this.wss.on('connection', async (socket, request) => {
@@ -77,12 +110,14 @@ export class ChatSocketService {
         }
         
         // 从验证后的结果中提取参数
-        const { sessionId, accessToken, idToken} = paramsResult.data;
+        const { sessionId, accessToken, idToken, nftTokenId, nftAccount, nftMetadata } = paramsResult.data;
         
         console.log(`会话ID: ${sessionId}`);
         
         // 鉴权逻辑：验证Privy令牌
         let privyUserId: string;
+        let userPrivyWallet: string;
+        let userName: string;
         try {
           // 验证Privy访问令牌
           const userData = await privyService.verifyAccessToken(accessToken);
@@ -90,6 +125,9 @@ export class ChatSocketService {
           console.log(`用户已认证，Privy用户ID: ${privyUserId}`);
 
           const userIdentity = await privyService.getUserFromIdToken(idToken);
+          const { ethereumWallet, name } = this.extractUserInfo(userIdentity);
+          userPrivyWallet = ethereumWallet;
+          userName = name;
           console.log('userIdentity', userIdentity);
           
           // 向客户端发送认证成功消息
@@ -107,16 +145,30 @@ export class ChatSocketService {
           socket.close(4001, '认证失败');
           return;
         }
-        
+
         // 获取或创建会话
         let session;
         let finalSessionId = sessionId;
+
+        const metadata = JSON.parse(nftMetadata);
+        const allNadsName = metadata.name;
+        const allNadsTokenId = nftTokenId;
+        const allNadsAccount = nftAccount;
         
         // 获取系统提示词
-        const systemPrompt = getSystemPrompt();
+        const systemPrompt = getSystemPrompt(
+          allNadsName, 
+          allNadsTokenId, 
+          allNadsAccount, 
+          nftMetadata, 
+          userName, 
+          userPrivyWallet
+        );
+
+        console.log('systemPrompt', systemPrompt);
         
         // 尝试获取现有会话
-        session = await SessionService.getSession(sessionId);
+        session = await SessionService.getSession(sessionId, systemPrompt);
         
         // 如果会话不存在，则创建一个新会话
         if (!session) {
@@ -255,4 +307,4 @@ export async function closeChatWebSocket(): Promise<void> {
   if (instance) {
     await instance.close();
   }
-} 
+}
