@@ -163,8 +163,6 @@ export class ChatSocketService {
           userPrivyWallet
         );
 
-        console.log('systemPrompt', systemPrompt);
-        
         // 尝试获取现有会话
         session = await SessionService.getSession(sessionId, systemPrompt);
         
@@ -188,10 +186,11 @@ export class ChatSocketService {
         }
         
         console.log(`最终会话ID: ${finalSessionId}`);
+        console.log('历史消息', session.messages);
         console.log(`会话历史: ${session.messages.length} 条消息`);
         
         // 判断会话历史是否为空(只有系统提示消息时也视为空)
-        const historyIsEmpty = session.messages.length < 1;
+        const historyIsEmpty = session.messages.length <= 1;
         
         // 只在会话历史为空时发送欢迎消息
         if (historyIsEmpty) {
@@ -226,7 +225,8 @@ export class ChatSocketService {
             };
             
             // 处理聊天请求
-            await ChatService.streamChat(chatRequest, socket, session);
+            const session = await SessionService.getSession(finalSessionId);
+            await ChatService.streamChat(chatRequest, socket, session!);
             
           } catch (error) {
             console.error('处理消息时出错:', error);

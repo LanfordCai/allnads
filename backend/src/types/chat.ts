@@ -12,6 +12,7 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   timestamp: Date;
+  sessionId?: string;
 }
 
 // 聊天会话

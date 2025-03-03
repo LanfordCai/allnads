@@ -141,6 +141,7 @@ export class ChatService {
     
     // 获取会话历史消息
     const history = session.messages;
+    console.log('history', history);
     
     // 构建LLM消息
     const llmMessages: Message[] = [];
@@ -156,18 +157,34 @@ export class ChatService {
     
     // 添加历史消息（不包括系统消息）
     const historyMessages = history.filter(msg => msg.role !== ChatRole.SYSTEM);
+    console.log('historyMessages', historyMessages);
+    
+    // 确保所有历史消息都有正确的会话ID
     for (const msg of historyMessages) {
-      llmMessages.push({
-        role: msg.role === ChatRole.USER ? 'user' : 'assistant',
-        content: msg.content
-      });
+      // 如果消息没有会话ID或会话ID不匹配，添加警告日志
+      if (!msg.sessionId) {
+        console.warn(`[警告] 历史消息没有会话ID，已自动设置为当前会话ID: ${session.id}`);
+        msg.sessionId = session.id;
+      } else if (msg.sessionId !== session.id) {
+        console.warn(`[警告] 历史消息的会话ID(${msg.sessionId})与当前会话ID(${session.id})不匹配，可能导致消息混淆`);
+        // 不修改会话ID，但记录警告
+      }
+      
+      // 只添加属于当前会话的消息到LLM消息列表
+      if (msg.sessionId === session.id) {
+        llmMessages.push({
+          role: msg.role === ChatRole.USER ? 'user' : 'assistant',
+          content: msg.content
+        });
+      }
     }
     
     // 添加用户消息
     const userMessage: ChatMessage = {
       role: ChatRole.USER,
       content: message,
-      timestamp: new Date()
+      timestamp: new Date(),
+      sessionId: session.id
     };
     
     // 将用户消息添加到会话
@@ -193,43 +210,26 @@ export class ChatService {
       if (enableTools) {
         const mcpTools = this.getMCPToolDefinitions();
         if (mcpTools.length > 0) {
-          console.log(`[工具] 可用工具数量: ${mcpTools.length}`);
           requestOptions.tools = mcpTools;
           requestOptions.tool_choice = 'auto';
         }
       }
       
-      // 记录发送给大模型的初始请求
-      console.log('\n[发送给大模型的初始请求]');
-      console.log(`消息数量: ${requestOptions.messages.length}`);
-      console.log(`工具数量: ${requestOptions.tools ? requestOptions.tools.length : 0}`);
-      console.log(`用户消息: ${message.substring(0, 150)}${message.length > 150 ? '...' : ''}`);
-      
       // 发送初始请求
       let response = await this.llmService.sendChatRequest(requestOptions);
       
-      // 记录大模型的原始响应
-      console.log('\n[大模型原始响应]');
-      console.log(JSON.stringify(response, null, 2));
-      
       // 处理消息处理的主循环
       let currentMessages = [...llmMessages];
+      console.log('currentMessages', currentMessages);
       let continueProcessing = true;
       let toolCallRounds = 0;
       const MAX_TOOL_CALL_ROUNDS = 5;
       
       while (continueProcessing && toolCallRounds < MAX_TOOL_CALL_ROUNDS) {
-        console.log(`\n[工具调用回合 ${toolCallRounds + 1}]`);
-        
         // 如果是第一轮，使用已经获取的响应；否则发送新请求
         let currentResponse = toolCallRounds === 0 ? response : null;
         
         if (toolCallRounds > 0 || currentResponse === null) {
-          // 记录发送给大模型的后续请求
-          console.log(`[发送给大模型的第 ${toolCallRounds + 1} 轮请求]`);
-          console.log(`消息数量: ${currentMessages.length}`);
-          console.log(currentMessages);
-          
           currentResponse = await this.llmService.sendChatRequest({
             model: this.getModelName(),
             messages: currentMessages,
@@ -237,10 +237,6 @@ export class ChatService {
             tools: requestOptions.tools,
             tool_choice: 'auto'
           });
-          
-          // 记录大模型的响应
-          console.log(`[大模型第 ${toolCallRounds + 1} 轮响应]`);
-          console.log(JSON.stringify(currentResponse, null, 2));
         }
         
         // 确保currentResponse不为null
@@ -254,18 +250,6 @@ export class ChatService {
         
         // 始终发送文本内容（如果有），即使存在工具调用
         if (currentResponseMessage.content) {
-          // 详细记录原始内容
-          console.log(`[助手原始消息] 长度: ${currentResponseMessage.content.length} 字符`);
-          console.log(`[助手原始消息] 内容前200字符:\n${currentResponseMessage.content.substring(0, 200)}${currentResponseMessage.content.length > 200 ? '...' : ''}`);
-          
-          // 检查内容是否有异常
-          if (currentResponseMessage.content === '...') {
-            console.warn(`[警告] 检测到内容为"..."的响应！完整响应对象：`);
-            console.warn(JSON.stringify(currentResponse, null, 2));
-          }
-          
-          // 记录并发送消息
-          console.log(`[助手文本消息] ${currentResponseMessage.content}`);
           this.sendSocketMessage(socket, {
             type: 'assistant_message',
             content: currentResponseMessage.content
@@ -282,11 +266,11 @@ export class ChatService {
           const assistantPartialMessage: ChatMessage = {
             role: ChatRole.ASSISTANT,
             content: currentResponseMessage.content,
-            timestamp: new Date()
+            timestamp: new Date(),
+            sessionId: session.id
           };
           
           await SessionService.addMessage(session.id, assistantPartialMessage);
-          console.log(`[数据库] 已立即存储助手消息: ${assistantPartialMessage.content.substring(0, 50)}${assistantPartialMessage.content.length > 50 ? '...' : ''}`);
         }
         
         // 如果没有工具调用，或者已经到达最后一轮，处理结束
@@ -318,8 +302,6 @@ export class ChatService {
             toolArgs = typeof toolCall.function.arguments === 'string'
               ? JSON.parse(toolCall.function.arguments)
               : toolCall.function.arguments;
-            
-            console.log(`[工具参数] ${JSON.stringify(toolArgs, null, 2)}`);
             
             // 告知用户即将调用工具
               this.sendSocketMessage(socket, {
@@ -415,16 +397,9 @@ export class ChatService {
           temperature: 0.7
         });
         
-        // 记录总结响应
-        console.log(`[大模型总结响应]`);
-        console.log(JSON.stringify(finalResponse, null, 2));
-        
         // 处理总结响应
         const finalSummaryMessage = finalResponse.choices[0].message;
         if (finalSummaryMessage.content) {
-          // 记录总结文本内容
-          console.log(`[发送总结文本内容] ${finalSummaryMessage.content}`);
-          
           // 发送总结消息给客户端
           this.sendSocketMessage(socket, {
             type: 'assistant_message',
@@ -437,33 +412,12 @@ export class ChatService {
           const assistantSummaryMessage: ChatMessage = {
             role: ChatRole.ASSISTANT,
             content: finalSummaryMessage.content,
-            timestamp: new Date()
+            timestamp: new Date(),
+            sessionId: session.id
           };
           
-          // 检查总结内容
-          if (assistantSummaryMessage.content === '...') {
-            console.error(`[严重错误] 总结消息内容为"..."! 这可能是一个bug。原始响应:`);
-            console.error(JSON.stringify(finalResponse, null, 2));
-            
-            // 尝试修复
-            if (finalResponse.choices && 
-                finalResponse.choices[0] && 
-                typeof finalResponse.choices[0].message === 'object') {
-              
-              // 尝试从原始响应中提取完整内容
-              const rawContent = finalResponse.choices[0].message.content;
-              if (rawContent && rawContent !== '...') {
-                console.log(`[修复成功] 从原始总结响应重构内容`);
-                assistantSummaryMessage.content = rawContent;
-              } else {
-                // 如果无法修复，存储带有警告的内容
-                assistantSummaryMessage.content = "[数据错误] 无法正确获取AI总结内容。原始内容可能已丢失。";
-              }
-            }
-          }
           
           await SessionService.addMessage(session.id, assistantSummaryMessage);
-          console.log(`[数据库] 已立即存储总结消息: ${assistantSummaryMessage.content.substring(0, 50)}${assistantSummaryMessage.content.length > 50 ? '...' : ''}`);
         }
       }
     } catch (error) {
@@ -482,10 +436,10 @@ export class ChatService {
       const errorAssistantMessage: ChatMessage = {
         role: ChatRole.ASSISTANT,
         content: errorMessage,
-        timestamp: new Date()
+        timestamp: new Date(),
+        sessionId: session.id
       };
       await SessionService.addMessage(session.id, errorAssistantMessage);
-      console.log(`[数据库] 已立即存储错误消息: ${errorMessage.substring(0, 50)}${errorMessage.length > 50 ? '...' : ''}`);
     }
     
     // 发送完成信号 - 使用前端传入的原始sessionId

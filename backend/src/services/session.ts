@@ -4,6 +4,7 @@ import { db } from '../config/database';
 import { sessions, messages } from '../models/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
+const sessionsCache = new Map<string, ChatSession>();
 /**
  * 会话管理服务
  */
@@ -35,6 +36,7 @@ export class SessionService {
       role: ChatRole.SYSTEM,
       content: systemPrompt,
       timestamp: now,
+      sessionId: sessionId
     };
     
     // 添加系统消息
@@ -47,6 +49,7 @@ export class SessionService {
     });
     
     session.messages.push(systemMessage);
+    sessionsCache.set(sessionId, session);
     
     return session;
   }
@@ -82,6 +85,7 @@ export class SessionService {
           role: ChatRole.SYSTEM,
           content: systemPrompt,
           timestamp: now,
+          sessionId: sessionId
         };
         
         // 添加系统消息到数据库
@@ -135,8 +139,12 @@ export class SessionService {
           role: msg.role,
           content: msg.content,
           timestamp: msg.timestamp,
+          sessionId: sessionId
         })),
       };
+
+      // 添加到缓存
+      sessionsCache.set(sessionId, session);
       
       return session;
     } catch (error) {
@@ -154,6 +162,14 @@ export class SessionService {
     
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
+    }
+    
+    // 确保消息包含正确的会话ID
+    if (message.sessionId && message.sessionId !== sessionId) {
+      console.warn(`[警告] 消息的会话ID(${message.sessionId})与目标会话ID(${sessionId})不匹配，已自动修正`);
+      message.sessionId = sessionId;
+    } else if (!message.sessionId) {
+      message.sessionId = sessionId;
     }
     
     // 更新会话的最后修改时间
@@ -174,6 +190,8 @@ export class SessionService {
     // 更新缓存
     session.messages.push(message);
     session.updatedAt = now;
+    sessionsCache.set(sessionId, session);
+
     
     return session;
   }
@@ -201,6 +219,7 @@ export class SessionService {
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp,
+        sessionId: sessionId
       }));
     } catch (error) {
       console.error(`Error fetching history for session ${sessionId}:`, error);
@@ -216,6 +235,8 @@ export class SessionService {
       // 会话表有级联删除约束，因此删除会话会自动删除所有关联消息
       const result = await db.delete(sessions)
         .where(eq(sessions.id, sessionId));
+
+      sessionsCache.delete(sessionId);
       
       return result.rowCount ? result.rowCount > 0 : false;
     } catch (error) {
