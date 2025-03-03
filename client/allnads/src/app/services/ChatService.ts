@@ -96,10 +96,23 @@ export class ChatService {
       if (this.nftMetadata) {
         // Use a custom replacer function to handle BigInt values
         const replacer = (key: string, value: any) => {
-          // Convert BigInt to string with 'n' suffix to indicate it's a BigInt
+          // Convert BigInt to string
           if (typeof value === 'bigint') {
             return value.toString();
           }
+          
+          // Handle objects that might contain BigInt values
+          if (value !== null && typeof value === 'object') {
+            // Check if it's not an array and has a toString method that's not the default Object.toString
+            if (!Array.isArray(value) && 
+                value.toString !== Object.prototype.toString && 
+                typeof value.toString === 'function' && 
+                value.constructor && 
+                value.constructor.name === 'BigInt') {
+              return value.toString();
+            }
+          }
+          
           return value;
         };
         
