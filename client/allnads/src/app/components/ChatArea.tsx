@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types/chat';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
-import { parseEther } from 'viem';
+import { parseEther, isAddress } from 'viem';
 import { useWallets } from '@privy-io/react-auth';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAllNads } from '../hooks/useAllNads';
@@ -284,7 +284,99 @@ export default function ChatArea({
       }
     }
     
-    // Handle normal text (supporting line breaks and <ComponentChanged> tags)
+    // Helper function to detect and format Ethereum addresses and transaction IDs
+    const formatEthereumEntities = (text: string) => {
+      // Regex for Ethereum addresses (0x followed by 40 hex characters)
+      const addressRegex = /(0x[a-fA-F0-9]{40})/g;
+      
+      // Regex for Ethereum transaction IDs (0x followed by 64 hex characters)
+      const txidRegex = /(0x[a-fA-F0-9]{64})/g;
+      
+      // First split by possible txids (they're longer, so we check them first)
+      const txidParts = text.split(txidRegex);
+      
+      if (txidParts.length > 1) {
+        return (
+          <>
+            {txidParts.map((part, i) => {
+              // Every odd index is a match
+              if (i % 2 === 1 && txidRegex.test(part)) {
+                return (
+                  <a 
+                    key={i} 
+                    href={`https://testnet.monadexplorer.com/tx/${part}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-purple-500 decoration-2 text-inherit hover:text-purple-500 transition-colors"
+                  >
+                    {part}
+                  </a>
+                );
+              }
+              
+              // For non-txid parts, check for addresses
+              const addressParts = part.split(addressRegex);
+              if (addressParts.length > 1) {
+                return (
+                  <span key={i}>
+                    {addressParts.map((addressPart, j) => {
+                      // Verify it's a valid Ethereum address using isAddress
+                      if (j % 2 === 1 && isAddress(addressPart)) {
+                        return (
+                          <a 
+                            key={j} 
+                            href={`https://testnet.monadexplorer.com/address/${addressPart}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline decoration-purple-500 decoration-2 text-inherit hover:text-purple-500 transition-colors"
+                          >
+                            {addressPart}
+                          </a>
+                        );
+                      }
+                      return addressPart;
+                    })}
+                  </span>
+                );
+              }
+              
+              return part;
+            })}
+          </>
+        );
+      }
+      
+      // If no txids found, check for addresses
+      const addressParts = text.split(addressRegex);
+      if (addressParts.length > 1) {
+        return (
+          <>
+            {addressParts.map((part, i) => {
+              // Every odd index is a match
+              if (i % 2 === 1 && isAddress(part)) {
+                return (
+                  <a 
+                    key={i} 
+                    href={`https://testnet.monadexplorer.com/address/${part}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-purple-500 decoration-2 text-inherit hover:text-purple-500 transition-colors"
+                  >
+                    {part}
+                  </a>
+                );
+              }
+              return part;
+            })}
+          </>
+        );
+      }
+      
+      // If no matches, return the original text
+      return text;
+    };
+    
+    // Handle normal text (supporting line breaks, <ComponentChanged> tags, and Ethereum entities)
     return trimmedContent.split('\n').map((line, i) => {
       // Check if it contains the <ComponentChanged> tag
       if (line.includes('<ComponentChanged>')) {
@@ -292,18 +384,18 @@ export default function ChatArea({
         const parts = line.split('<ComponentChanged>');
         return (
           <span key={i}>
-            {parts[0]}
+            {formatEthereumEntities(parts[0])}
             <span className="text-xs opacity-50 italic text-gray-500 dark:text-gray-400">&lt;ComponentChanged&gt;</span>
-            {parts[1]}
+            {formatEthereumEntities(parts[1])}
             {i < trimmedContent.split('\n').length - 1 && <br />}
           </span>
         );
       }
       
-      // Normal line
+      // Normal line with Ethereum entity detection
       return (
         <span key={i}>
-          {line}
+          {formatEthereumEntities(line)}
           {i < trimmedContent.split('\n').length - 1 && <br />}
         </span>
       );
