@@ -2,6 +2,7 @@ import { createPublicClient, http, PublicClient, Address, formatEther } from 'vi
 import { monadTestnet, contractAddresses } from '../config/chains';
 import AllNadsComponentABI from '../contracts/AllNadsComponent.json';
 import AllNadsABI from '../contracts/AllNads.json';
+import { RateLimiter, withRateLimitAndRetry } from '../utils/rateLimit';
 
 // Define Template interface
 export interface Template {
@@ -19,12 +20,39 @@ export interface Template {
 class BlockchainService {
   private static instance: BlockchainService;
   private publicClient: PublicClient;
+  private rateLimiter: RateLimiter;
+  private callCounter: number = 0;
 
   private constructor() {
     this.publicClient = createPublicClient({
       chain: monadTestnet,
       transport: http(process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC!),
     });
+    
+    // Initialize rate limiter with 10 requests per second
+    this.rateLimiter = new RateLimiter(10);
+    
+    // Log rate limiter status periodically
+    this.startStatusLogging();
+  }
+
+  /**
+   * Start periodic logging of rate limiter status
+   */
+  private startStatusLogging(): void {
+    // Log status every 5 seconds if there's activity
+    setInterval(() => {
+      const status = this.rateLimiter.getStatus();
+      if (status.active > 0 || status.queued > 0) {
+        console.log(
+          `[BlockchainService] Status summary - ` +
+          `Active requests: ${status.active}, ` +
+          `Queued requests: ${status.queued}, ` +
+          `Available tokens: ${status.availableTokens.toFixed(2)}, ` +
+          `Total calls made: ${this.callCounter}`
+        );
+      }
+    }, 5000);
   }
 
   public static getInstance(): BlockchainService {
@@ -38,9 +66,43 @@ class BlockchainService {
     return this.publicClient;
   }
 
+  /**
+   * Get current rate limiter status
+   */
+  public getRateLimiterStatus(): { active: number; queued: number; availableTokens: number } {
+    return this.rateLimiter.getStatus();
+  }
+
+  /**
+   * Wraps a blockchain call with rate limiting and retry logic
+   * @param fn Function to wrap
+   * @returns Rate-limited and retry-enabled function
+   */
+  private wrapBlockchainCall<T extends (...args: any[]) => Promise<any>>(fn: T, methodName: string): T {
+    const wrappedFn = async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+      const callId = ++this.callCounter;
+      console.log(`[BlockchainCall #${callId}] Starting ${methodName}`);
+      
+      try {
+        const result = await fn(...args);
+        console.log(`[BlockchainCall #${callId}] Completed ${methodName} successfully`);
+        return result;
+      } catch (error) {
+        console.error(`[BlockchainCall #${callId}] Failed ${methodName}:`, error);
+        throw error;
+      }
+    };
+    
+    return withRateLimitAndRetry(wrappedFn as T, this.rateLimiter, 3);
+  }
+
   public async getBalance(address: Address): Promise<string> {
-    const balance = await this.publicClient.getBalance({ address });
-    return formatEther(balance);
+    const getBalanceWithRetry = this.wrapBlockchainCall(async () => {
+      const balance = await this.publicClient.getBalance({ address });
+      return formatEther(balance);
+    }, 'getBalance');
+    
+    return await getBalanceWithRetry();
   }
 
   public getContractAddress(contractName: keyof typeof contractAddresses[typeof monadTestnet.id]): Address {
@@ -75,13 +137,16 @@ class BlockchainService {
     
     console.log(`Fetching templates for component type ${componentType}...`);
     
-    const templateIds = await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsComponentABI,
-      functionName: 'getTemplatesByType',
-      args: [componentType],
-    }) as bigint[];
+    const getTemplatesWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsComponentABI,
+        functionName: 'getTemplatesByType',
+        args: [componentType],
+      }) as bigint[];
+    }, 'getTemplatesByType');
     
+    const templateIds = await getTemplatesWithRetry();
     console.log(`Found ${templateIds.length} templates for component type ${componentType}`);
     
     return templateIds;
@@ -94,12 +159,16 @@ class BlockchainService {
     const contractAddress = this.getContractAddress('allNadsComponent');
     
     try {
-      const templateData = await this.publicClient.readContract({
-        address: contractAddress,
-        abi: AllNadsComponentABI,
-        functionName: 'getTemplate',
-        args: [templateId],
-      }) as any;
+      const getTemplateWithRetry = this.wrapBlockchainCall(async () => {
+        return await this.publicClient.readContract({
+          address: contractAddress,
+          abi: AllNadsComponentABI,
+          functionName: 'getTemplate',
+          args: [templateId],
+        }) as any;
+      }, `getTemplateById(${templateId})`);
+      
+      const templateData = await getTemplateWithRetry();
       
       return {
         id: templateId,
@@ -125,14 +194,16 @@ class BlockchainService {
     const contractAddress = this.getContractAddress('allNadsComponent');
     
     try {
-      const tokenId = await this.publicClient.readContract({
-        address: contractAddress,
-        abi: AllNadsComponentABI,
-        functionName: 'getAddressTemplateToken',
-        args: [nftAccountAddress as `0x${string}`, templateId],
-      }) as bigint;
+      const checkOwnershipWithRetry = this.wrapBlockchainCall(async () => {
+        return await this.publicClient.readContract({
+          address: contractAddress,
+          abi: AllNadsComponentABI,
+          functionName: 'getAddressTemplateToken',
+          args: [nftAccountAddress as `0x${string}`, templateId],
+        }) as bigint;
+      }, `checkTemplateOwnership(${templateId})`);
       
-      return tokenId;
+      return await checkOwnershipWithRetry();
     } catch (error) {
       // Silently handle the error as it's expected to fail for templates not owned
       return BigInt(0);
@@ -148,26 +219,36 @@ class BlockchainService {
   ): Promise<Record<string, bigint>> {
     if (!nftAccountAddress || templateIds.length === 0) return {};
     
-    console.log(`Checking template ownership for NFT account: ${nftAccountAddress}`);
+    console.log(`Checking template ownership for NFT account: ${nftAccountAddress}, ${templateIds.length} templates`);
     
-    // Create batch of promises to check ownership for each template
-    const ownershipPromises = templateIds.map(templateId => 
-      this.checkTemplateOwnership(nftAccountAddress, templateId)
-        .then(tokenId => ({ templateId, tokenId }))
-    );
+    // Process in smaller batches to avoid overwhelming the rate limiter
+    const batchSize = 10; // Process 10 at a time
+    const results: { templateId: bigint; tokenId: bigint }[] = [];
     
-    // Wait for all ownership checks to complete
-    const ownershipResults = await Promise.all(ownershipPromises);
+    for (let i = 0; i < templateIds.length; i += batchSize) {
+      const batch = templateIds.slice(i, i + batchSize);
+      console.log(`Processing batch ${i / batchSize + 1}/${Math.ceil(templateIds.length / batchSize)}, size: ${batch.length}`);
+      
+      // Create batch of promises to check ownership for each template in this batch
+      const batchPromises = batch.map(templateId => 
+        this.checkTemplateOwnership(nftAccountAddress, templateId)
+          .then(tokenId => ({ templateId, tokenId }))
+      );
+      
+      // Wait for this batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+    }
     
     // Create a map of template IDs to token IDs
-    const ownedTemplatesMap = ownershipResults.reduce((acc, { templateId, tokenId }) => {
+    const ownedTemplatesMap = results.reduce((acc, { templateId, tokenId }) => {
       if (tokenId && tokenId > BigInt(0)) {
         acc[templateId.toString()] = tokenId;
       }
       return acc;
     }, {} as Record<string, bigint>);
     
-    console.log('Owned templates by NFT account:', ownedTemplatesMap);
+    console.log(`Found ${Object.keys(ownedTemplatesMap).length} owned templates out of ${templateIds.length} checked`);
     return ownedTemplatesMap;
   }
 
@@ -179,12 +260,16 @@ class BlockchainService {
       const contractAddress = this.getContractAddress('allNads');
       
       // Get token URI
-      const tokenURI = await this.publicClient.readContract({
-        address: contractAddress,
-        abi: AllNadsABI,
-        functionName: 'tokenURI',
-        args: [BigInt(tokenId)],
-      }) as string;
+      const getTokenURIWithRetry = this.wrapBlockchainCall(async () => {
+        return await this.publicClient.readContract({
+          address: contractAddress,
+          abi: AllNadsABI,
+          functionName: 'tokenURI',
+          args: [BigInt(tokenId)],
+        }) as string;
+      }, `fetchTokenURI(${tokenId})`);
+      
+      const tokenURI = await getTokenURIWithRetry();
       
       // Parse tokenURI (it's likely base64 encoded JSON)
       const jsonData = tokenURI.replace('data:application/json,', '');
@@ -212,11 +297,15 @@ class BlockchainService {
   public async getComponentContractAddress(): Promise<Address> {
     const contractAddress = this.getContractAddress('allNads');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsABI,
-      functionName: 'componentContract',
-    }) as Address;
+    const getComponentAddressWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsABI,
+        functionName: 'componentContract',
+      }) as Address;
+    }, 'getComponentContractAddress');
+    
+    return await getComponentAddressWithRetry();
   }
 
   /**
@@ -225,12 +314,16 @@ class BlockchainService {
   public async getAvatarData(tokenId: string): Promise<any> {
     const contractAddress = this.getContractAddress('allNads');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsABI,
-      functionName: 'getAvatar',
-      args: [BigInt(tokenId)],
-    });
+    const getAvatarDataWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsABI,
+        functionName: 'getAvatar',
+        args: [BigInt(tokenId)],
+      });
+    }, `getAvatarData(${tokenId})`);
+    
+    return await getAvatarDataWithRetry();
   }
 
   /**
@@ -239,12 +332,16 @@ class BlockchainService {
   public async getTokenTemplate(componentId: bigint): Promise<bigint> {
     const contractAddress = this.getContractAddress('allNadsComponent');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsComponentABI,
-      functionName: 'getTokenTemplate',
-      args: [componentId],
-    }) as bigint;
+    const getTokenTemplateWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsComponentABI,
+        functionName: 'getTokenTemplate',
+        args: [componentId],
+      }) as bigint;
+    }, `getTokenTemplate(${componentId})`);
+    
+    return await getTokenTemplateWithRetry();
   }
 
   /**
@@ -253,12 +350,16 @@ class BlockchainService {
   public async getTokenURI(tokenId: string): Promise<string> {
     const contractAddress = this.getContractAddress('allNads');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsABI,
-      functionName: 'tokenURI',
-      args: [BigInt(tokenId)],
-    }) as string;
+    const getTokenURIWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsABI,
+        functionName: 'tokenURI',
+        args: [BigInt(tokenId)],
+      }) as string;
+    }, `getTokenURI(${tokenId})`);
+    
+    return await getTokenURIWithRetry();
   }
 
   /**
@@ -267,12 +368,16 @@ class BlockchainService {
   public async getNFTBalance(address: string): Promise<bigint> {
     const contractAddress = this.getContractAddress('allNads');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsABI,
-      functionName: 'balanceOf',
-      args: [address as `0x${string}`],
-    }) as bigint;
+    const getNFTBalanceWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsABI,
+        functionName: 'balanceOf',
+        args: [address as `0x${string}`],
+      }) as bigint;
+    }, `getNFTBalance(${address})`);
+    
+    return await getNFTBalanceWithRetry();
   }
 
   /**
@@ -281,12 +386,16 @@ class BlockchainService {
   public async getTokenOfOwnerByIndex(address: string, index: number): Promise<bigint> {
     const contractAddress = this.getContractAddress('allNads');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsABI,
-      functionName: 'tokenOfOwnerByIndex',
-      args: [address as `0x${string}`, index],
-    }) as bigint;
+    const getTokenByIndexWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsABI,
+        functionName: 'tokenOfOwnerByIndex',
+        args: [address as `0x${string}`, index],
+      }) as bigint;
+    }, `getTokenOfOwnerByIndex(${address}, ${index})`);
+    
+    return await getTokenByIndexWithRetry();
   }
 
   /**
@@ -295,12 +404,16 @@ class BlockchainService {
   public async getAccountForToken(tokenId: bigint): Promise<string> {
     const contractAddress = this.getContractAddress('allNads');
     
-    return await this.publicClient.readContract({
-      address: contractAddress,
-      abi: AllNadsABI,
-      functionName: 'accountForToken',
-      args: [tokenId],
-    }) as string;
+    const getAccountForTokenWithRetry = this.wrapBlockchainCall(async () => {
+      return await this.publicClient.readContract({
+        address: contractAddress,
+        abi: AllNadsABI,
+        functionName: 'accountForToken',
+        args: [tokenId],
+      }) as string;
+    }, `getAccountForToken(${tokenId})`);
+    
+    return await getAccountForTokenWithRetry();
   }
 }
 
