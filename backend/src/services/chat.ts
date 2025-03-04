@@ -304,7 +304,7 @@ export class ChatService {
             // Send indication of tool result
             this.sendSocketMessage(socket, {
               type: 'thinking',
-              content: `I have obtained data from ${toolName}`
+              content: `I have obtained data from the tool`
             });
             
             // Add tool result to message list

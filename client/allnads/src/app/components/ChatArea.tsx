@@ -462,7 +462,7 @@ export default function ChatArea({
                 if (!['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(message.role)) {
                   return false;
                 }
-                
+
                 // If it's the first message overall, it's the first in sequence
                 if (index === 0) {
                   return true;
@@ -508,31 +508,33 @@ export default function ChatArea({
               );
             })}
             {isLoading && (
-              <div className="flex justify-start">
-                {/* Only show avatar if last message was not from AI */}
-                {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
-                  <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
-                    <img 
-                      src={localAvatarImage || "https://picsum.photos/500/500"} 
-                      alt="AI Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                {/* Add empty space to maintain alignment when avatar is not shown */}
-                {messages.length > 0 && ['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role) && (
-                  <div className="w-12 mr-2 flex-shrink-0"></div>
-                )}
-                <div className="max-w-[80%] rounded-xl p-3 bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700">
-                  <div className="flex space-x-2 items-center">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce"></div>
-                      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              messages.length > 0 && messages[messages.length - 1].role === 'thinking' ? null : (
+                <div className="flex justify-start">
+                  {/* Only show avatar if last message was not from AI */}
+                  {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
+                      <img 
+                        src={localAvatarImage || "https://picsum.photos/500/500"} 
+                        alt="AI Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  {/* Add empty space to maintain alignment when avatar is not shown */}
+                  {messages.length > 0 && ['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role) && (
+                    <div className="w-12 mr-2 flex-shrink-0"></div>
+                  )}
+                  <div className="max-w-[80%] rounded-xl p-3 bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700">
+                    <div className="flex space-x-2 items-center">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce"></div>
+                        <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )
             )}
             <div ref={messagesEndRef} />
           </div>
