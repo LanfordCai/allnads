@@ -159,12 +159,12 @@ export default function ImageCard({
                   bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
                   hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
               >
-                Change Template
+                Change Component
               </button>
             </div>
           )}
           
-          {/* Only display change template button on non-small screens or when chat switch function is not available */}
+          {/* Only display change component button on non-small screens or when chat switch function is not available */}
           {(!isSmallScreen || !onSwitchToChat) && (
             <button 
               onClick={handleOpenModal}
@@ -172,7 +172,7 @@ export default function ImageCard({
                 bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
                 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
             >
-              Change Template
+              Change Component
             </button>
           )}
         </div>

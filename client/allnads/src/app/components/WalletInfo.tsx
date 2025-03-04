@@ -71,7 +71,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
           <div className="mb-6">
             <div className="flex items-end justify-between">
               {isLoadingBalance ? (
-                <div className="animate-pulse h-8 w-32 bg-[#EDE9FE] rounded"></div>
+                <div className="h-8 w-32 bg-[#EDE9FE] rounded"></div>
               ) : (
                 <>
                   <div className="flex items-end">
@@ -125,7 +125,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
               }`}
               disabled={!nftAccount}
             >
-              Receive
+              Top Up
             </button>
           </div>
         </div>
@@ -169,13 +169,25 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
           )}
           
           <div className="mb-6">
-            <div className="flex items-end">
+            <div className="flex items-end justify-between">
               {isLoadingPrivyBalance ? (
-                <div className="animate-pulse h-8 w-32 bg-[#EDE9FE] rounded"></div>
+                <div className="h-8 w-32 bg-[#EDE9FE] rounded"></div>
               ) : (
                 <>
-                  <span className="text-2xl font-bold text-[#5B21B6]">{Number(privyWalletBalance).toFixed(4)}</span>
-                  <span className="text-[#8B5CF6] text-base ml-2">MON</span>
+                  <div className="flex items-end">
+                    <span className="text-2xl font-bold text-[#5B21B6]">{Number(privyWalletBalance).toFixed(4)}</span>
+                    <span className="text-[#8B5CF6] text-base ml-2">MON</span>
+                  </div>
+                  <button 
+                    className={`py-2 px-5 rounded-lg text-sm font-medium transition-all ${
+                      !walletAddress 
+                        ? 'bg-purple-100 text-purple-300 cursor-not-allowed' 
+                        : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
+                    }`}
+                    disabled={!walletAddress}
+                  >
+                    Top Up
+                  </button>
                 </>
               )}
             </div>

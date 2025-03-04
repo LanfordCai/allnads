@@ -204,8 +204,8 @@ export default function ChatArea({
                 </svg>
                 Calling
                 <div className="ml-1 flex">
-                  <span className="bg-[#6D28D9] text-white px-2 py-0.5 rounded-l-md rounded-r-none text-xs font-medium">{leftTag}</span>
-                  <span className="bg-[#EDE9FE] dark:bg-[#7C3AED]/30 text-[#6D28D9] dark:text-white px-2 py-0.5 rounded-r-md rounded-l-none text-xs font-medium">{rightTag}</span>
+                  <span className="bg-[#7C3AED] text-white px-2 py-0.5 rounded-l-md rounded-r-none text-xs font-medium">{leftTag}</span>
+                  <span className="bg-[#EDE9FE] dark:bg-[#7C3AED]/30 text-[#7C3AED] dark:text-white px-2 py-0.5 rounded-r-md rounded-l-none text-xs font-medium">{rightTag}</span>
                 </div>
               </div>
               <div className="text-xs font-mono overflow-x-auto">
@@ -353,6 +353,20 @@ export default function ChatArea({
   const messagesRef = useRef<ChatMessage[]>(messages);
   // Track message count changes
   const prevMessagesLengthRef = useRef(messages.length);
+  // Reference to the last message element for resize observation
+  const lastMessageRef = useRef<HTMLDivElement | null>(null);
+  // Reference to the loading indicator element
+  const loadingIndicatorRef = useRef<HTMLDivElement | null>(null);
+  // Reference to the messages container
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Helper function to scroll to the bottom of the chat
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    // Use a small timeout to ensure DOM has been updated
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }, 50);
+  };
   
   // Scroll to bottom when conversation loads or new message is added
   useEffect(() => {
@@ -365,18 +379,81 @@ export default function ChatArea({
     
     if (isSessionChange) {
       // Conversation switch, scroll immediately to bottom
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-      }, 0);
+      scrollToBottom('auto');
     } else if (hasNewMessages) {
       // New message added, smooth scroll to bottom
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom('smooth');
     }
     
     // Update reference
     messagesRef.current = messages;
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
+
+  // Use ResizeObserver to detect when message content changes size
+  useEffect(() => {
+    // Only observe if there are messages
+    if (messages.length === 0 && !isLoading) return;
+    
+    // Create a ResizeObserver to watch the last message and loading indicator
+    const resizeObserver = new ResizeObserver((entries) => {
+      // When the observed element resizes, scroll to ensure it's visible
+      scrollToBottom();
+    });
+    
+    // If we have a reference to the last message element, observe it
+    if (lastMessageRef.current) {
+      resizeObserver.observe(lastMessageRef.current);
+    }
+    
+    // If we have a reference to the loading indicator and it's visible, observe it
+    if (loadingIndicatorRef.current && isLoading) {
+      resizeObserver.observe(loadingIndicatorRef.current);
+    }
+    
+    // Cleanup function to disconnect the observer when component unmounts
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [messages.length, isLoading]); // Re-run when message count or loading state changes
+
+  // Use MutationObserver to detect when new content is added to the messages container
+  useEffect(() => {
+    if (!messagesContainerRef.current) return;
+    
+    // Create a MutationObserver to watch for changes to the messages container
+    const mutationObserver = new MutationObserver((mutations) => {
+      // When new content is added, scroll to ensure it's visible
+      scrollToBottom();
+    });
+    
+    // Start observing the messages container for changes to its children
+    mutationObserver.observe(messagesContainerRef.current, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+    
+    // Cleanup function to disconnect the observer when component unmounts
+    return () => {
+      mutationObserver.disconnect();
+    };
+  }, []); // Only run once on mount
+
+  // Monitor message content changes to ensure proper scrolling
+  useEffect(() => {
+    // If there are no messages, no need to check
+    if (messages.length === 0) return;
+    
+    // Get the last message
+    const lastMessage = messages[messages.length - 1];
+    
+    // If the last message is from the bot or a tool, it might be updated with new content
+    if (['bot', 'tool'].includes(lastMessage.role)) {
+      // Scroll to ensure the message is visible
+      scrollToBottom();
+    }
+  }, [messages.map(m => m.content).join('')]); // Dependency on message content
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 chat-area-container">
@@ -454,7 +531,7 @@ export default function ChatArea({
       {/* Messages area */}
       <div className="flex-1 overflow-hidden relative">
         <div className="absolute inset-0 overflow-y-auto px-0 py-6 messages-container">
-          <div className="max-w-3xl mx-auto px-6 space-y-4">
+          <div className="max-w-3xl mx-auto px-6 space-y-4" ref={messagesContainerRef}>
             {messages.map((message, index) => {
               // Check if this is the first AI message in a sequence
               const isFirstInSequence = () => {
@@ -476,10 +553,14 @@ export default function ChatArea({
               // Determine if we should show the avatar
               const shouldShowAvatar = isFirstInSequence();
               
+              // Check if this is the last message to attach the ref
+              const isLastMessage = index === messages.length - 1;
+              
               return (
                 <div
                   key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
+                  ref={isLastMessage ? lastMessageRef : null}
                 >
                   {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
                     <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
@@ -509,7 +590,7 @@ export default function ChatArea({
             })}
             {isLoading && (
               messages.length > 0 && messages[messages.length - 1].role === 'thinking' ? null : (
-                <div className="flex justify-start">
+                <div className="flex justify-start" ref={loadingIndicatorRef}>
                   {/* Only show avatar if last message was not from AI */}
                   {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
                     <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
