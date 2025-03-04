@@ -455,31 +455,37 @@ export default function ChatArea({
       </div>
 
       {/* Message input */}
-      <div className="p-4 bg-white dark:bg-gray-800 border-t-4 border-[#8B5CF6]">
-        <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 border-2 border-[#C4B5FD] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6] focus:border-[#8B5CF6] bg-white dark:bg-gray-700 dark:text-white"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            className={`
-              py-3 px-6 rounded-xl font-black text-center uppercase transition-all
-              border-4 
-              ${!newMessage.trim() || isLoading
-                ? 'bg-purple-200 text-purple-400 border-purple-300 cursor-not-allowed'
-                : 'bg-[#8B5CF6] text-white border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
-              }
-            `}
-            disabled={!newMessage.trim() || isLoading}
-          >
-            Send
-          </button>
-        </form>
+      <div className="px-4">
+        <div className="bg-white dark:bg-gray-800 rounded-t-[2rem] overflow-hidden shadow-md border-2 border-[#C4B5FD]">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="px-6 py-5">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full focus:outline-none bg-transparent dark:text-white text-gray-800 text-lg"
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="flex justify-end py-2 px-4 border-t border-[#C4B5FD]/30">
+              <button
+                type="submit"
+                className={`
+                  py-1 px-4 rounded-xl font-black text-center uppercase transition-all
+                  ${!newMessage.trim() || isLoading
+                    ? 'bg-purple-200 text-purple-400 border-4 border-purple-300 cursor-not-allowed'
+                    : 'bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
+                  }
+                `}
+                disabled={!newMessage.trim() || isLoading}
+              >
+                Send
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
