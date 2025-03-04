@@ -231,21 +231,21 @@ export default function TemplateModal({
       >
         {/* Modal content */}
         <div 
-          className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col m-4"
+          className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] border-4 border-[#8B5CF6] w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col m-4"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
-          <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+          <div className="p-4 border-b-4 border-[#8B5CF6] flex justify-between items-center">
             <div className="flex flex-col">
               <h2 className="text-xl font-bold text-gray-800">Select Component</h2>
-              <p className="text-sm text-gray-500 mt-1">选择模板后将在聊天中发送消息，邀请对方也换上相同的模板</p>
+              <p className="text-sm text-gray-500 mt-1">选择模板后将在聊天中发送消息，让 AllNads 更换模板</p>
               {(loading || checkingOwnership) && (
-                <div className="ml-3 animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                <div className="ml-3 animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8B5CF6]"></div>
               )}
             </div>
             <button 
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-[#8B5CF6] hover:text-[#7C3AED] transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -254,13 +254,13 @@ export default function TemplateModal({
           </div>
           
           {/* Component Type Tabs - Fixed to ensure they're not covered */}
-          <div className="flex border-b border-gray-200 overflow-x-auto sticky top-0 bg-white z-10">
+          <div className="flex border-b-4 border-[#8B5CF6] overflow-x-auto sticky top-0 bg-white z-10">
             {Object.keys(COMPONENT_TYPES).map((type) => (
               <button
                 key={type}
-                className={`px-4 py-3 font-medium text-sm ${activeTab === type 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
-                  : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-2 sm:px-4 py-2 sm:py-3 font-medium text-xs sm:text-sm ${activeTab === type 
+                  ? 'bg-[#EDE9FE] text-[#8B5CF6] font-bold' 
+                  : 'text-gray-500 hover:text-[#8B5CF6]'}`}
                 onClick={() => setActiveTab(type)}
               >
                 {type.charAt(0) + type.slice(1).toLowerCase()}
@@ -268,34 +268,34 @@ export default function TemplateModal({
             ))}
           </div>
           
-          {/* Templates Grid - Using flex layout with proper spacing */}
-          <div className="flex-1 overflow-y-auto p-4">
+          {/* Templates Grid - Using flex layout with proper spacing, limited to 2 rows */}
+          <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '400px' }}>
             {loading && templates[activeTab]?.length === 0 ? (
               <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6]"></div>
               </div>
             ) : templates[activeTab]?.length > 0 ? (
-              <div className="flex flex-wrap justify-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {templates[activeTab].map((template) => (
                   <div 
                     key={template.id.toString()} 
-                    className="m-2 flex flex-col bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer relative"
-                    style={{ width: '180px' }}
+                    className="flex flex-col bg-white border-2 border-[#8B5CF6] rounded-xl shadow-[4px_4px_0px_0px_#8B5CF6] hover:shadow-[2px_2px_0px_0px_#8B5CF6] hover:translate-x-[2px] hover:translate-y-[2px] transition-all overflow-hidden cursor-pointer relative"
+                    style={{ minWidth: '150px', maxWidth: '200px', margin: '0 auto', width: '100%' }}
                     onClick={() => handleSelectTemplate(template.id)}
                   >
                     {/* Owned badge */}
                     {userOwnsTemplate(template.id) && (
-                      <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-10">
+                      <div className="absolute top-2 right-2 bg-[#4CAF50] text-white text-xs px-2 py-1 rounded-full z-10 border-2 border-[#388E3C]">
                         已拥有
                       </div>
                     )}
                     
                     {/* Template ID badge */}
-                    <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-10">
+                    <div className="absolute top-2 left-2 bg-[#8B5CF6] text-white text-xs px-2 py-1 rounded-full z-10 border-2 border-[#7C3AED]">
                       #{template.id.toString()}
                     </div>
                     
-                    <div className="w-[180px] h-[180px] overflow-hidden bg-gray-100">
+                    <div className="w-full aspect-square overflow-hidden bg-gray-100">
                       {template.imageData ? (
                         <img 
                           src={`data:image/png;base64,${PNG_HEADER}${template.imageData}`}
@@ -331,10 +331,12 @@ export default function TemplateModal({
           </div>
           
           {/* Modal Footer */}
-          <div className="p-3 border-t border-gray-200 flex justify-end">
+          <div className="p-4 border-t-4 border-[#8B5CF6] flex justify-end">
             <button 
               onClick={onClose}
-              className="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-md transition-colors"
+              className="py-3 px-6 rounded-xl font-bold text-center transition-all
+                bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+                hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
             >
               Cancel
             </button>
