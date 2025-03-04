@@ -12,7 +12,7 @@ const Notification: FC<NotificationProps> = ({ message, type, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 5000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [onClose]);
@@ -30,7 +30,7 @@ const Notification: FC<NotificationProps> = ({ message, type, onClose }) => {
   };
 
   return (
-    <div className={`fixed top-[72px] right-4 z-50 px-4 py-3 rounded border ${bgColor} flex items-center shadow-lg max-w-xs`}>
+    <div className={`fixed top-[104px] right-8 z-50 px-4 py-3 rounded border ${bgColor} flex items-center shadow-lg max-w-xs`}>
       <span className="mr-2 truncate" title={message}>{truncateMessage(message)}</span>
       <button
         onClick={onClose}

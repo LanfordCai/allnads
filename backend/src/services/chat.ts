@@ -41,22 +41,22 @@ export class ChatService {
     try {
       const tools: ChatCompletionTool[] = [];
       const servers = mcpConfig.servers;
-      
+
       for (const server of servers) {
         const serverTools = mcpManager.getServerTools(server.name);
-        
+
         for (const tool of serverTools) {
           // Build LLM tool format
           const parameters = tool.inputSchema || {};
-          
+
           if (!parameters.type) {
             parameters.type = 'object';
           }
-          
+
           if (parameters.type === 'object' && !parameters.properties) {
             parameters.properties = {};
           }
-          
+
           tools.push({
             type: 'function' as const,
             function: {
@@ -67,14 +67,14 @@ export class ChatService {
           });
         }
       }
-      
+
       return tools;
     } catch (error) {
       console.error(`Failed to get MCP tool definitions:`, error);
       return [];
     }
   }
-  
+
   /**
    * Stream process chat request, providing real-time updates via WebSocket
    * @param request Chat request
@@ -85,23 +85,23 @@ export class ChatService {
   static async streamChat(request: ChatRequest, socket: WebSocket, session: ChatSession): Promise<string> {
     console.log('\n============== Project-LLM Interaction Log ==============');
     const { sessionId, message, enableTools } = request;
-    
+
     // Save original sessionId from frontend for returning to client
     const originalSessionId = sessionId;
-    
+
     // Send initial thinking message
     this.sendSocketMessage(socket, {
       type: 'thinking',
       content: 'I am thinking about your question...'
     });
-    
+
     // Get session history messages
     const history = session.messages;
     console.log('history', history);
-    
+
     // Build LLM messages
     const llmMessages: Message[] = [];
-    
+
     // Add system message (if any)
     const systemMessage = history.find(msg => msg.role === ChatRole.SYSTEM);
     if (systemMessage) {
@@ -110,11 +110,11 @@ export class ChatService {
         content: systemMessage.content
       });
     }
-    
+
     // Add history messages (excluding system message)
     const historyMessages = history.filter(msg => msg.role !== ChatRole.SYSTEM);
     console.log('historyMessages', historyMessages);
-    
+
     // Ensure all history messages have correct session ID
     for (const msg of historyMessages) {
       // If message has no session ID or session ID doesn't match, add warning log
@@ -125,7 +125,7 @@ export class ChatService {
         console.warn(`[Warning] History message session ID(${msg.sessionId}) doesn't match current session ID(${session.id}), may cause message confusion`);
         // Don't modify session ID, but log warning
       }
-      
+
       // Only add messages belonging to current session to LLM message list
       if (msg.sessionId === session.id) {
         llmMessages.push({
@@ -134,7 +134,7 @@ export class ChatService {
         });
       }
     }
-    
+
     // Add user message
     const userMessage: ChatMessage = {
       role: ChatRole.USER,
@@ -142,18 +142,18 @@ export class ChatService {
       timestamp: new Date(),
       sessionId: session.id
     };
-    
+
     // Add user message to session
     await SessionService.addMessage(session.id, userMessage);
-    
+
     llmMessages.push({
       role: 'user',
       content: message
     });
-    
+
     let assistantContent = '';
     let assistantMessage: ChatMessage;
-    
+
     try {
       // Prepare initial request parameters
       const requestOptions: any = {
@@ -161,7 +161,7 @@ export class ChatService {
         messages: llmMessages,
         temperature: 0.7
       };
-      
+
       // If tools are enabled, add tool definitions
       if (enableTools) {
         const mcpTools = this.getMCPToolDefinitions();
@@ -170,21 +170,21 @@ export class ChatService {
           requestOptions.tool_choice = 'auto';
         }
       }
-      
+
       // Send initial request
       let response = await this.llmService.sendChatRequest(requestOptions);
-      
+
       // Main message processing loop
       let currentMessages = [...llmMessages];
       console.log('currentMessages', currentMessages);
       let continueProcessing = true;
       let toolCallRounds = 0;
       const MAX_TOOL_CALL_ROUNDS = 5;
-      
+
       while (continueProcessing && toolCallRounds < MAX_TOOL_CALL_ROUNDS) {
         // If first round, use already fetched response; otherwise send new request
         let currentResponse = toolCallRounds === 0 ? response : null;
-        
+
         if (toolCallRounds > 0 || currentResponse === null) {
           currentResponse = await this.llmService.sendChatRequest({
             model: this.getModelName(),
@@ -194,30 +194,30 @@ export class ChatService {
             tool_choice: 'auto'
           });
         }
-        
+
         // Ensure currentResponse is not null
         if (!currentResponse) {
           console.error('Error: currentResponse is null');
           break;
         }
-        
+
         // Get message from current response
         const currentResponseMessage = currentResponse.choices[0].message;
-        
+
         // Always send text content (if any), even if tool calls exist
         if (currentResponseMessage.content) {
           this.sendSocketMessage(socket, {
             type: 'assistant_message',
             content: currentResponseMessage.content
           });
-          
+
           // Accumulate assistant content for final storage
           if (!assistantContent) {
             assistantContent = currentResponseMessage.content;
           } else {
             assistantContent += "\n\n" + currentResponseMessage.content;
           }
-          
+
           // Immediately store this assistant message to database
           const assistantPartialMessage: ChatMessage = {
             role: ChatRole.ASSISTANT,
@@ -225,53 +225,58 @@ export class ChatService {
             timestamp: new Date(),
             sessionId: session.id
           };
-          
+
           await SessionService.addMessage(session.id, assistantPartialMessage);
         }
-        
+
         // If no tool calls or all tool calls have been processed, processing ends
-        if (!currentResponseMessage.tool_calls || 
-            currentResponseMessage.tool_calls.length === 0 || 
-            toolCallRounds === MAX_TOOL_CALL_ROUNDS - 1) {
-          
+        if (!currentResponseMessage.tool_calls ||
+          currentResponseMessage.tool_calls.length === 0 ||
+          toolCallRounds === MAX_TOOL_CALL_ROUNDS - 1) {
+
           // Terminate loop
           continueProcessing = false;
           break;
         }
-        
+
         // Add current response to message list
         currentMessages.push(currentResponseMessage);
         console.log('currentResponseMessage', currentResponseMessage);
-        
+
         // Process all tool calls
         for (const toolCall of currentResponseMessage.tool_calls) {
           if (toolCall.type !== 'function') {
             continue;
           }
-          
+
           const toolName = toolCall.function.name;
           console.log(`\n[Tool Call] ${toolName}`);
-          
+
           let toolArgs: Record<string, any> = {};
-          
+
           try {
             toolArgs = typeof toolCall.function.arguments === 'string'
               ? JSON.parse(toolCall.function.arguments)
               : toolCall.function.arguments;
-            
+
+            let content = `I need to use ${toolName} tool to query related information...`;
+            if (toolName.includes(`transaction_sign`)) {
+              content = `Here is the transaction info:`
+            }
+
             // Inform user about tool call
-              this.sendSocketMessage(socket, {
-                type: 'tool_calling',
-                content: `I need to use ${toolName} tool to query related information...`,
-                tool: {
-                  name: toolName,
-                  args: toolArgs
-                }
-              });
-            
+            this.sendSocketMessage(socket, {
+              type: 'tool_calling',
+              content: content,
+              tool: {
+                name: toolName,
+                args: toolArgs
+              }
+            });
+
             // Execute tool call
             const result = await mcpManager.callTool(toolName, toolArgs);
-            
+
             // Extract content from result
             let resultContent = '';
             if (result.content && result.content.length > 0) {
@@ -279,7 +284,7 @@ export class ChatService {
               for (const contentItem of result.content) {
                 // Process content based on type
                 const itemType = contentItem.type || 'unknown';
-                
+
                 if (itemType === 'text') {
                   // Process text content
                   const textContent = (contentItem as TextContent).text;
@@ -297,33 +302,33 @@ export class ChatService {
                 }
               }
             }
-            
+
             // Log tool call result
             console.log(`[Tool Result] ${resultContent.substring(0, 500)}${resultContent.length > 500 ? '...' : ''}`);
-            
+
             // Send indication of tool result
             this.sendSocketMessage(socket, {
               type: 'thinking',
               content: `I have obtained data from the tool`
             });
-            
+
             // Add tool result to message list
             currentMessages.push({
               role: 'tool',
               tool_call_id: toolCall.id,
               content: resultContent
             });
-            
+
           } catch (error) {
             console.error(`[Tool Error] ${error}`);
             const errorMessage = `Tool call failed: ${error instanceof Error ? error.message : String(error)}`;
-            
+
             // Inform user about tool call failure
             this.sendSocketMessage(socket, {
               type: 'tool_error',
               content: `Tool ${toolName} call failed: ${errorMessage}`
             });
-            
+
             // Add error result to message list
             currentMessages.push({
               role: 'tool',
@@ -332,27 +337,27 @@ export class ChatService {
             });
           }
         }
-        
+
         // Increase tool call round count
         toolCallRounds++;
       }
-      
+
       // If maximum rounds reached but there are still unfinished tool calls, send final summary request
       if (toolCallRounds >= MAX_TOOL_CALL_ROUNDS && continueProcessing) {
         console.log(`\n[Reached tool call limit] Request summary answer`);
-        
+
         // Add summary request
         currentMessages.push({
           role: 'user',
           content: 'Please provide a complete summary answer based on all information up to this point.'
         });
-        
+
         const finalResponse = await this.llmService.sendChatRequest({
           model: this.getModelName(),
           messages: currentMessages,
           temperature: 0.7
         });
-        
+
         // Process summary response
         const finalSummaryMessage = finalResponse.choices[0].message;
         if (finalSummaryMessage.content) {
@@ -361,9 +366,9 @@ export class ChatService {
             type: 'assistant_message',
             content: finalSummaryMessage.content
           });
-          
+
           assistantContent = finalSummaryMessage.content;
-          
+
           // Immediately store summary message to database
           const assistantSummaryMessage: ChatMessage = {
             role: ChatRole.ASSISTANT,
@@ -371,23 +376,23 @@ export class ChatService {
             timestamp: new Date(),
             sessionId: session.id
           };
-          
-          
+
+
           await SessionService.addMessage(session.id, assistantSummaryMessage);
         }
       }
     } catch (error) {
       console.error('[Error] Failed to process chat request:', error);
       const errorMessage = `Sorry, there was a problem processing your request: ${error instanceof Error ? error.message : String(error)}`;
-      
+
       // Send error information
       this.sendSocketMessage(socket, {
         type: 'error',
         content: errorMessage
       });
-      
+
       assistantContent = errorMessage;
-      
+
       // Immediately store error message to database
       const errorAssistantMessage: ChatMessage = {
         role: ChatRole.ASSISTANT,
@@ -397,18 +402,18 @@ export class ChatService {
       };
       await SessionService.addMessage(session.id, errorAssistantMessage);
     }
-    
+
     // Send completion signal - use original sessionId from frontend
     this.sendSocketMessage(socket, {
       type: 'complete',
       sessionId: originalSessionId
     });
-    
+
     console.log('\n============== Interaction Log Ends ==============\n');
-    
+
     return session.id;
   }
-  
+
   /**
    * Send WebSocket message
    * @private

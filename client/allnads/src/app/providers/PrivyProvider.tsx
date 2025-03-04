@@ -47,7 +47,7 @@ export default function PrivyProvider({ children }: PrivyProviderProps) {
         // Customize Privy appearance in the application
         appearance: {
           theme: 'light',
-          accentColor: '#3B82F6', // Use blue as accent color, consistent with existing UI
+          accentColor: '#8B5CF6', // Use blue as accent color, consistent with existing UI
           logo: '/logo.png', // Please replace with your actual logo URL
         },
         // Create embedded wallets for users without wallets
@@ -55,7 +55,7 @@ export default function PrivyProvider({ children }: PrivyProviderProps) {
           createOnLogin: 'users-without-wallets',
         },
         // Login method configuration
-        loginMethods: ['email', 'wallet'],
+        loginMethods: ['email', 'google', 'twitter'],
         // Configure default chain and supported chains
         defaultChain: monadTestnet,
         supportedChains: [monadTestnet],

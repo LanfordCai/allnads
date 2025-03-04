@@ -187,7 +187,7 @@ export function useChatWebSocket(
           if (message.tool.name === 'allnads_tool__transaction_sign') {
             const { to, data, value } = message.tool.args;
             // 格式化交易签名消息，使其更清晰
-            const transactionContent = `${message.content}\n\n需要签名的交易:\n收款地址: ${to}\n数据: ${data}\n金额: ${value || '0'} ETH`;
+            const transactionContent = `${message.content}\n\nTransaction Request:\nTo: ${to}\nData: ${data}\nValue: ${value || '0'} ETH`;
             const transactionMessage = chatService.createLocalMessage(transactionContent, 'transaction_to_sign');
              
             setSessions(prevSessions => {

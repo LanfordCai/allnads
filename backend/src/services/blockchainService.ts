@@ -173,7 +173,8 @@ const NETWORKS = {
         default: { http: [process.env.MONAD_TESTNET_RPC as string] }
       }
     },
-    allnadsAddress: process.env.MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS as Address,
+    allnadsAddress: process.env.MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as Address,
+    allnadsComponentAddress: process.env.MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS as Address,
     airdropperAddress: process.env.MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS as Address,
     privateKey: process.env.MONAD_AIRDROPPER_PRIVATE_KEY
   }
@@ -205,6 +206,7 @@ export class BlockchainService {
   private walletClient;
   private account;
   private allnadsAddress: Address;
+  private allnadsComponentAddress: Address;
   private airdropperAddress: Address;
   
   // Template cache
@@ -249,6 +251,7 @@ export class BlockchainService {
     });
     
     this.allnadsAddress = networkConfig.allnadsAddress;
+    this.allnadsComponentAddress = networkConfig.allnadsComponentAddress;
     this.airdropperAddress = networkConfig.airdropperAddress;
 
     // Set template cache file path using process.cwd() which is the current working directory
@@ -407,7 +410,7 @@ export class BlockchainService {
         
         // Get template IDs directly from blockchain
         const templateIds = await this.publicClient.readContract({
-          address: this.allnadsAddress,
+          address: this.allnadsComponentAddress,
           abi: AllNadsComponentABI,
           functionName: 'getTemplatesByType',
           args: [componentType],
@@ -419,7 +422,7 @@ export class BlockchainService {
           try {
             // Get template details directly from blockchain
             const templateData = await this.publicClient.readContract({
-              address: this.allnadsAddress,
+              address: this.allnadsComponentAddress,
               abi: AllNadsComponentABI,
               functionName: 'getTemplate',
               args: [templateId],

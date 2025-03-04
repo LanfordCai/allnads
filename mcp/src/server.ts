@@ -106,7 +106,7 @@ server.tool(
       content: [
         {
           type: 'text',
-          text: '签名请求已经发送给用户，等待用户处理。你没有权限签名，不要谎称你完成了签名。只有用户有权限签名。'
+          text: 'transaction request has been sent to the user, waiting for the user to process. You do not have permission to sign, do not falsely claim that you have completed the signature. Only the user has permission to sign. And the transaction is not confirmed yet, do not pretend that you have finished the component change!'
         }
       ]
     });
@@ -221,8 +221,8 @@ if (USE_HTTP) {
     return originalSend.call(this, message);
   };
   
-  // 注：Stdio传输不提供接收消息的事件监听，所以只能记录发送的消息
-  console.log('⚠️ 注意: 无法记录Stdio模式下的传入消息，因为StdioServerTransport不提供事件监听接口');
+  // Note: Stdio transport does not provide event listeners for receiving messages, so only outgoing messages can be logged
+  console.log('⚠️ Note: Cannot log incoming messages in Stdio mode because StdioServerTransport does not provide an event listening interface');
   
   await server.connect(transport);
 } 

@@ -30,6 +30,11 @@ export default function AirdropPage() {
           
           if (result.success && result.data) {
             setHasNFT(result.data.hasNFT);
+            if (result.data.hasNFT) {
+              setTimeout(() => {
+                router.push('/app');
+              }, 2000);
+            }
           }
         } catch (error) {
           console.error('Error checking NFT:', error);
