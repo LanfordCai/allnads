@@ -247,9 +247,9 @@ export default function ChatArea({
         
         // Parse transaction information
         const infoLines = transactionInfo.split('\n');
-        const to = infoLines.find(line => line.startsWith('Recipient address:'))?.split(': ')[1] || '';
+        const to = infoLines.find(line => line.startsWith('To:'))?.split(': ')[1] || '';
         const data = infoLines.find(line => line.startsWith('Data:'))?.split(': ')[1] || '';
-        const value = infoLines.find(line => line.startsWith('Amount:'))?.split(': ')[1]?.split(' ')[0] || '0';
+        const value = infoLines.find(line => line.startsWith('Value:'))?.split(': ')[1]?.split(' ')[0] || '0';
         
         return (
           <>
@@ -275,7 +275,7 @@ export default function ChatArea({
                   onClick={() => handleSignTransaction(to, data, value)}
                   disabled={isSigningTransaction}
                 >
-                  {isSigningTransaction ? 'Signing...' : 'Sign Transaction'}
+                  {isSigningTransaction ? 'Signing...' : 'Sign'}
                 </button>
               </div>
             </div>
