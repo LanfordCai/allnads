@@ -114,7 +114,7 @@ export function NFTAvatarDisplay({
         message += `\n拥有状态: ${isOwned ? '已拥有 ✅' : '未拥有 ❌'}`;
         
         // Add invitation
-        message += `\n\n请你也换上这个模板吧！`;
+        message += `\n\n请你换上这个模板吧！`;
       }
       
       onSendMessage(message);
