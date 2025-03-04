@@ -415,6 +415,55 @@ class BlockchainService {
     
     return await getAccountForTokenWithRetry();
   }
+
+  /**
+   * Fetch all templates from the API
+   */
+  public async fetchAllTemplatesFromAPI(): Promise<Record<string, Template[]>> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/nft/templates`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log('API response:', responseData);
+      
+      // Check if the response has the expected structure
+      if (!responseData.success) {
+        throw new Error(`API returned error: ${responseData.message || 'Unknown error'}`);
+      }
+      
+      // Extract templates from the response
+      const templates = responseData.data?.templates || {};
+      
+      // Convert template IDs from string to bigint and ensure other properties are correctly typed
+      const processedTemplates: Record<string, Template[]> = {};
+      
+      Object.entries(templates).forEach(([typeName, typeTemplates]) => {
+        if (Array.isArray(typeTemplates)) {
+          processedTemplates[typeName] = typeTemplates.map(template => ({
+            id: BigInt(template.id),
+            name: template.name,
+            creator: template.creator,
+            maxSupply: template.maxSupply ? BigInt(template.maxSupply) : BigInt(0),
+            currentSupply: template.currentSupply ? BigInt(template.currentSupply) : BigInt(0),
+            price: BigInt(template.price || 0),
+            imageData: template.imageData,
+            isActive: template.isActive,
+            componentType: template.componentType
+          }));
+        }
+      });
+      
+      console.log('Processed templates:', processedTemplates);
+      return processedTemplates;
+    } catch (error) {
+      console.error('Error fetching templates from API:', error);
+      throw error;
+    }
+  }
 }
 
 export const blockchainService = BlockchainService.getInstance(); 

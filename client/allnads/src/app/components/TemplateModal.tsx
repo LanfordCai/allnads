@@ -55,47 +55,6 @@ export default function TemplateModal({
     }
   };
   
-  // Function to fetch templates by type
-  const fetchTemplatesByType = async (componentType: number, typeName: string) => {
-    try {
-      console.log(`Fetching templates for ${typeName}...`);
-      
-      // Get template IDs for the specified component type
-      const templateIds = await blockchainService.getTemplatesByType(componentType);
-      
-      console.log(`Found ${templateIds.length} templates for ${typeName}`);
-      
-      // Add template IDs to the allTemplateIds array for ownership checking
-      setAllTemplateIds(prev => {
-        const newIds = templateIds.filter(id => !prev.some(existingId => existingId === id));
-        return [...prev, ...newIds];
-      });
-      
-      // For each template ID, get the full template details
-      const templatePromises = templateIds.map(async (templateId) => {
-        try {
-          return await blockchainService.getTemplateById(templateId);
-        } catch (error) {
-          console.error(`Error fetching template ${templateId}:`, error);
-          return null;
-        }
-      });
-      
-      const fetchedTemplates = (await Promise.all(templatePromises)).filter(Boolean) as Template[];
-      
-      console.log(`Successfully fetched ${fetchedTemplates.length} templates for ${typeName}`);
-      
-      // Update state with the fetched templates
-      setTemplates(prev => ({
-        ...prev,
-        [typeName]: fetchedTemplates
-      }));
-      
-    } catch (error) {
-      console.error(`Error fetching templates for component type ${componentType}:`, error);
-    }
-  };
-  
   // Function to get the connected user's address
   const getUserAddress = async () => {
     return blockchainService.getUserAddress();
@@ -110,23 +69,28 @@ export default function TemplateModal({
     
     setLoading(true);
     try {
-      console.log("Starting background loading of all templates...");
-      const typeNames = Object.keys(COMPONENT_TYPES);
-      const typeValues = Object.values(COMPONENT_TYPES);
+      console.log("Starting to load all templates from API...");
       
-      // Create an array of promises for all template types
-      const fetchPromises = typeNames.map((typeName, index) => {
-        return fetchTemplatesByType(typeValues[index], typeName);
+      // Fetch all templates from the API in a single request
+      const templatesByType = await blockchainService.fetchAllTemplatesFromAPI();
+      
+      // Update the templates state with the fetched data
+      setTemplates(templatesByType);
+      
+      // Collect all template IDs for ownership checking
+      const allIds: bigint[] = [];
+      Object.values(templatesByType).forEach(typeTemplates => {
+        typeTemplates.forEach(template => {
+          allIds.push(template.id);
+        });
       });
       
-      // Execute all promises in parallel
-      await Promise.all(fetchPromises);
+      setAllTemplateIds(allIds);
       
-      console.log("All templates loaded successfully in the background");
+      console.log("All templates loaded successfully from API");
       setTemplatesLoaded(true);
     } catch (error) {
-      console.error("Error loading templates in the background:", error);
-      // We don't set templatesLoaded to false here so it will try again next time if needed
+      console.error("Error loading templates:", error);
     } finally {
       setLoading(false);
     }
