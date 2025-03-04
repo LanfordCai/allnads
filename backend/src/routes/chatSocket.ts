@@ -16,6 +16,8 @@ import { User } from '@privy-io/server-auth';
 export class ChatSocketService {
   private wss: WebSocket.Server;
   private static instance: ChatSocketService;
+  // Add a static map to track sessions that have sent welcome messages
+  private static welcomeMessageSentSessions: Set<string> = new Set();
   
   /**
    * Initialize WebSocket service
@@ -189,12 +191,16 @@ export class ChatSocketService {
         console.log('History messages', session.messages);
         console.log(`Session history: ${session.messages.length} messages`);
         
-        // Determine if session history is empty (also considered empty if only system prompt message exists)
-        const historyIsEmpty = session.messages.length <= 1;
+        // Check if there are any existing assistant messages in the session history
+        const hasExistingAssistantMessages = session.messages.some(
+          msg => msg.role === ChatRole.ASSISTANT && msg.content.trim() !== ''
+        );
         
-
-        // Only send welcome message when session history is empty
-        if (historyIsEmpty) {
+        // Only send welcome message when there are no existing assistant messages
+        if (!hasExistingAssistantMessages && !ChatSocketService.welcomeMessageSentSessions.has(finalSessionId)) {
+          // Mark this session as having sent a welcome message to prevent duplicates
+          ChatSocketService.welcomeMessageSentSessions.add(finalSessionId);
+          
           // Define multiple welcome messages
           const welcomeMessages = [
             `Hey there ${userName}! I'm ${allNadsName}, your AllNads NFT assistant. What can I help you with today?`,
@@ -208,12 +214,6 @@ export class ChatSocketService {
           
           // Randomly select a welcome message
           const randomWelcomeMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
-          
-          // Send the randomly selected welcome message
-          socket.send(JSON.stringify({
-            type: 'assistant_message',
-            content: randomWelcomeMessage
-          }));
 
           // Save welcome message to database
           const welcomeMessage: ChatMessage = {
@@ -223,9 +223,15 @@ export class ChatSocketService {
             sessionId: finalSessionId
           };
           
-          // Add welcome message to session history
+          // Add welcome message to session history and wait for it to complete
           await SessionService.addMessage(finalSessionId, welcomeMessage);
           console.log(`Welcome message saved to database: ${randomWelcomeMessage}`);
+          
+          // Only send the welcome message to the client after it's been saved to the database
+          socket.send(JSON.stringify({
+            type: 'assistant_message',
+            content: randomWelcomeMessage
+          }));
         }
 
         // Handle messages
@@ -282,6 +288,14 @@ export class ChatSocketService {
         socket.close(4000, 'Connection error');
       }
     });
+  }
+  
+  /**
+   * Clear welcome message tracking for a session
+   * @param sessionId The session ID to clear tracking for
+   */
+  public static clearWelcomeMessageTracking(sessionId: string): void {
+    this.welcomeMessageSentSessions.delete(sessionId);
   }
   
   /**

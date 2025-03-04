@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, ChatRole, ChatSession } from '../types/chat';
 import { db } from '../config/database';
 import { sessions, messages } from '../models/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, ne } from 'drizzle-orm';
+import { ChatSocketService } from '../routes/chatSocket';
 
 const sessionsCache = new Map<string, ChatSession>();
 /**
@@ -238,9 +239,81 @@ export class SessionService {
 
       sessionsCache.delete(sessionId);
       
+      // Clear welcome message tracking for this session
+      ChatSocketService.clearWelcomeMessageTracking(sessionId);
+      
       return result.rowCount ? result.rowCount > 0 : false;
     } catch (error) {
       console.error(`Error deleting session ${sessionId}:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Reset session messages (delete all messages except system prompt)
+   */
+  static async resetSession(sessionId: string, systemPrompt?: string): Promise<boolean> {
+    try {
+      // Check if session exists
+      const sessionExists = await db.select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId));
+      
+      if (sessionExists.length === 0) {
+        return false;
+      }
+      
+      // Delete all non-system messages
+      await db.delete(messages)
+        .where(
+          and(
+            eq(messages.sessionId, sessionId),
+            ne(messages.role, ChatRole.SYSTEM)
+          )
+        );
+      
+      // Update system message if provided
+      if (systemPrompt) {
+        const systemMessageExists = await db.select().from(messages)
+          .where(
+            and(
+              eq(messages.sessionId, sessionId),
+              eq(messages.role, ChatRole.SYSTEM)
+            )
+          );
+        
+        if (systemMessageExists.length > 0) {
+          // Update existing system message
+          await db.update(messages)
+            .set({ content: systemPrompt })
+            .where(
+              and(
+                eq(messages.sessionId, sessionId),
+                eq(messages.role, ChatRole.SYSTEM)
+              )
+            );
+        } else {
+          // Create new system message
+          const now = new Date();
+          await db.insert(messages).values({
+            sessionId,
+            role: ChatRole.SYSTEM,
+            content: systemPrompt,
+            timestamp: now,
+            createdAt: now,
+          });
+        }
+      }
+      
+      // Remove from cache to force reload
+      sessionsCache.delete(sessionId);
+      
+      // Clear welcome message tracking for this session
+      ChatSocketService.clearWelcomeMessageTracking(sessionId);
+      
+      return true;
+    } catch (error) {
+      console.error(`Error resetting session ${sessionId}:`, error);
       return false;
     }
   }
