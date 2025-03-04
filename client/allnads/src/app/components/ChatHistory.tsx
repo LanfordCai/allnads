@@ -32,6 +32,32 @@ export default function ChatHistory({
     }
   }, []);
 
+  // 格式化时间的辅助函数
+  const formatTime = (date: Date) => {
+    const now = new Date();
+    const messageDate = new Date(date);
+    
+    // 如果是今天的消息，只显示时间
+    if (messageDate.toDateString() === now.toDateString()) {
+      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // 如果是昨天的消息
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (messageDate.toDateString() === yesterday.toDateString()) {
+      return '昨天';
+    }
+    
+    // 如果是今年的消息
+    if (messageDate.getFullYear() === now.getFullYear()) {
+      return messageDate.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+    }
+    
+    // 其他情况显示完整日期
+    return messageDate.toLocaleDateString([], { year: 'numeric', month: 'numeric', day: 'numeric' });
+  };
+
   return (
     <div className={`flex flex-col h-full bg-white ${isFullscreen ? 'w-full' : ''}`}>
       <div 
@@ -86,13 +112,30 @@ export default function ChatHistory({
             >
               <div className="flex justify-between items-center">
                 <div className="truncate flex-1">
-                  <div className={`font-bold truncate ${session.id === activeSessionId ? 'text-[#5B21B6]' : 'text-[#6D28D9]'}`}>
+                  <div className={`font-bold truncate ${
+                    session.id === activeSessionId 
+                      ? 'text-[#5B21B6]' 
+                      : 'text-[#A78BFA]'
+                  }`}>
                     {session.title || 'New Chat'}
                   </div>
-                  <div className={`text-sm truncate ${session.id === activeSessionId ? 'text-[#7C3AED]' : 'text-[#8B5CF6]'}`}>
-                    {session.messages.length > 0
-                      ? `${session.messages.length} message${session.messages.length === 1 ? '' : 's'}`
-                      : 'No messages yet'}
+                  <div className="flex justify-between items-center">
+                    <div className={`text-sm truncate ${
+                      session.id === activeSessionId 
+                        ? 'text-[#7C3AED]' 
+                        : 'text-[#C4B5FD]'
+                    }`}>
+                      {session.messages.length > 0
+                        ? `${session.messages.length} message${session.messages.length === 1 ? '' : 's'}`
+                        : 'No messages yet'}
+                    </div>
+                    <div className={`text-xs ml-2 ${
+                      session.id === activeSessionId 
+                        ? 'text-[#7C3AED]' 
+                        : 'text-[#C4B5FD]'
+                    }`}>
+                      {session.lastActivity && formatTime(session.lastActivity)}
+                    </div>
                   </div>
                 </div>
                 {session.id === activeSessionId && (
@@ -101,7 +144,7 @@ export default function ChatHistory({
                       e.stopPropagation();
                       onDeleteSession(session.id);
                     }}
-                    className="p-1.5 rounded-lg hover:bg-[#EDE9FE] text-[#8B5CF6] hover:text-[#6D28D9] border border-[#C4B5FD]"
+                    className="p-1.5 rounded-lg hover:bg-[#EDE9FE] text-[#8B5CF6] hover:text-[#6D28D9] border border-[#C4B5FD] ml-2"
                     aria-label="Delete chat"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">

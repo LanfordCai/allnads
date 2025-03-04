@@ -349,9 +349,33 @@ export default function ChatArea({
     }
   };
 
-  // Scroll to bottom when messages change
+  // 跟踪消息列表的引用，用于检测会话切换
+  const messagesRef = useRef<ChatMessage[]>(messages);
+  // 跟踪消息数量的变化
+  const prevMessagesLengthRef = useRef(messages.length);
+  
+  // 在会话加载或新消息添加时滚动到底部
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // 检测是否是会话切换（消息ID完全不同）
+    const isSessionChange = messages.length > 0 && messagesRef.current.length > 0 && 
+                           messages[0]?.id !== messagesRef.current[0]?.id;
+    
+    // 检测是否有新消息添加（消息数量增加）
+    const hasNewMessages = messages.length > prevMessagesLengthRef.current;
+    
+    if (isSessionChange) {
+      // 会话切换时，立即滚动到底部
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 0);
+    } else if (hasNewMessages) {
+      // 新消息添加时，平滑滚动到底部
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // 更新引用
+    messagesRef.current = messages;
+    prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
   return (
