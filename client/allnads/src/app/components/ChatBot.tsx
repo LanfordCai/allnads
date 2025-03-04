@@ -59,6 +59,10 @@ export default function ChatBot({}: ChatBotProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isMediumScreen, setIsMediumScreen] = useState(false);
+  // 添加模态框状态
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  // 添加 ChatHistory 全屏状态
+  const [isHistoryFullscreen, setIsHistoryFullscreen] = useState(false);
   
   // Privy authentication
   const { privy, isAuthenticated, isReady, user } = usePrivyAuth();
@@ -332,6 +336,127 @@ export default function ChatBot({}: ChatBotProps) {
         ></div>
       )}
       
+      {/* 聊天模态框 - 在小屏幕下显示 */}
+      {isMobile && isChatModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center">
+          <div className="fixed inset-0 bg-gray-50 z-[51] flex flex-col">
+            {/* 模态框头部 */}
+            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+              {/* 左侧：呼出 ChatHistory 的按钮 */}
+              <button 
+                onClick={() => {
+                  setIsHistoryFullscreen(true);
+                }}
+                className="p-2 rounded-lg hover:bg-[#F3F0FF] transition-colors focus:outline-none"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-[#8B5CF6]"
+                >
+                  <line x1="3" y1="12" x2="21" y2="12"></line>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+              </button>
+              
+              {/* 右侧：关闭按钮 */}
+              <button 
+                onClick={() => setIsChatModalOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="24" 
+                  height="24" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            
+            {/* 模态框内容 - ChatArea */}
+            <div className="flex-1 overflow-hidden">
+              <ChatArea
+                messages={activeSession.messages}
+                onSendMessage={handleSendMessage}
+                isLoading={isLoading}
+                isMobile={isMobile}
+                isMediumScreen={isMediumScreen}
+                avatarImage={avatarImage}
+                onAvatarImageChange={setAvatarImage}
+                isInModal={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* ChatHistory 全屏模态框 - 在小屏幕下显示 */}
+      {isMobile && isHistoryFullscreen && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center">
+          <div className="fixed inset-0 bg-white z-[61] flex flex-col">
+            {/* 模态框头部 */}
+            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+              <h2 className="text-lg font-bold">聊天历史</h2>
+              
+              {/* 右侧：关闭按钮 */}
+              <button 
+                onClick={() => setIsHistoryFullscreen(false)}
+                className="p-2 rounded-full hover:bg-gray-100"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="24" 
+                  height="24" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            
+            {/* 模态框内容 - ChatHistory */}
+            <div className="flex-1 overflow-hidden">
+              <ChatHistory
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={(sessionId) => {
+                  handleSelectSession(sessionId);
+                  setIsHistoryFullscreen(false);
+                }}
+                onCreateSession={() => {
+                  createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet);
+                  setIsHistoryFullscreen(false);
+                }}
+                onDeleteSession={deleteSession}
+                onClose={() => setIsHistoryFullscreen(false)}
+                isFullscreen={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Sidebar */}
       <div
         className={`${
@@ -352,7 +477,7 @@ export default function ChatBot({}: ChatBotProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
         {/* Chat area */}
-        <div className="flex-1 h-full overflow-hidden flex flex-col mx-auto w-full">
+        <div className={`${isMobile ? 'hidden' : 'flex-1'} h-full overflow-hidden flex flex-col mx-auto w-full`}>
           {authStatus === 'authenticated' ? (
             <ChatArea
               messages={activeSession.messages}
@@ -398,7 +523,7 @@ export default function ChatBot({}: ChatBotProps) {
         </div>
         
         {/* Right column for wallet info on larger screens */}
-        <div className="w-full md:w-96 md:flex-shrink-0 md:border-l border-gray-200 md:h-full md:overflow-y-auto p-4 bg-gray-50">
+        <div className="w-full md:w-96 md:flex-shrink-0 md:border-l border-gray-200 md:h-full h-screen overflow-y-auto p-4 bg-gray-50">
           {/* NFT Avatar Image */}
           <NFTAvatarDisplay 
             isLoadingAvatar={isLoadingNFT}
@@ -412,6 +537,25 @@ export default function ChatBot({}: ChatBotProps) {
             nftAccount={nftAccount}
             onAvatarImageChange={setAvatarImage}
             onSendMessage={handleSendMessage}
+            isSmallScreen={isMobile}
+            onSwitchToChat={() => {
+              // 在小屏幕下打开聊天模态框
+              if (isMobile) {
+                setIsChatModalOpen(true);
+              } else {
+                // 在大屏幕下滚动到聊天区域
+                // Close the sidebar if it's open on mobile
+                if (isMediumScreen && isSidebarOpen) {
+                  setIsSidebarOpen(false);
+                }
+                
+                // Scroll to the chat area
+                const chatArea = document.querySelector('.chat-area-container');
+                if (chatArea) {
+                  chatArea.scrollIntoView({ behavior: 'smooth' });
+                }
+              }
+            }}
           />
           
           <WalletInfoComponent nftAccount={nftAccount} />

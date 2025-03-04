@@ -10,6 +10,7 @@ interface ChatHistoryProps {
   onCreateSession: () => void;
   onDeleteSession: (id: string) => void;
   onClose: () => void;
+  isFullscreen?: boolean;
 }
 
 export default function ChatHistory({
@@ -19,6 +20,7 @@ export default function ChatHistory({
   onCreateSession,
   onDeleteSession,
   onClose,
+  isFullscreen = false,
 }: ChatHistoryProps) {
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(80); // 默认高度
@@ -31,10 +33,10 @@ export default function ChatHistory({
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className={`flex flex-col h-full bg-white ${isFullscreen ? 'w-full' : ''}`}>
       <div 
         ref={headerRef}
-        className="flex items-center justify-between p-4 border-b-4 border-[#8B5CF6] bg-white sticky top-0 z-[5]"
+        className={`flex items-center justify-between p-4 ${!isFullscreen ? 'border-b-4 border-[#8B5CF6]' : 'border-b border-gray-200'} bg-white sticky top-0 z-[5]`}
       >
         <h2 className="text-xl font-bold text-[#5B21B6]">Chats</h2>
         <div className="flex space-x-2">
@@ -47,6 +49,18 @@ export default function ChatHistory({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
+          
+          {!isFullscreen && (
+            <button
+              onClick={onClose}
+              className="md:hidden py-2 px-4 bg-gray-200 text-gray-700 font-bold uppercase rounded-xl border-4 border-gray-300 shadow-[4px_4px_0px_0px_#9CA3AF] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#9CA3AF] transition-all"
+              aria-label="Close sidebar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       

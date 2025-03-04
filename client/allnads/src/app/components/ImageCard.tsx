@@ -11,6 +11,8 @@ interface ImageCardProps {
   onChangeComponent?: (templateId: bigint, templateDetails?: any) => void;
   nftAccount?: string; // Token bound account address of the AllNads NFT
   templateId?: bigint; // Current template ID displayed in the card
+  onSwitchToChat?: () => void; // 切换到聊天区域的回调函数
+  isSmallScreen?: boolean; // 是否为小屏幕
 }
 
 export default function ImageCard({ 
@@ -19,7 +21,9 @@ export default function ImageCard({
   title,
   onChangeComponent,
   nftAccount,
-  templateId
+  templateId,
+  onSwitchToChat,
+  isSmallScreen = false
 }: ImageCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isOwned, setIsOwned] = useState(false);
@@ -101,6 +105,13 @@ export default function ImageCard({
     }
   };
   
+  // 处理切换到聊天区域
+  const handleSwitchToChat = () => {
+    if (onSwitchToChat) {
+      onSwitchToChat();
+    }
+  };
+  
   return (
     <div className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] mb-4">
       <div className="w-full aspect-square relative">
@@ -120,14 +131,29 @@ export default function ImageCard({
           <h3 className="text-lg font-bold text-gray-700 mb-3">{title}</h3>
         )}
         
-        <button 
-          onClick={handleOpenModal}
-          className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
-            bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
-            hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
-        >
-          更换模板
-        </button>
+        {/* 在小屏幕上显示聊天按钮 */}
+        {isSmallScreen && onSwitchToChat && (
+          <button 
+            onClick={handleSwitchToChat}
+            className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+              bg-[#4CAF50] text-white border-4 border-[#388E3C] shadow-[4px_4px_0px_0px_#2E7D32] 
+              hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#2E7D32]"
+          >
+            切换到聊天
+          </button>
+        )}
+        
+        {/* 在非小屏幕上或没有聊天切换功能时显示更换模板按钮 */}
+        {(!isSmallScreen || !onSwitchToChat) && (
+          <button 
+            onClick={handleOpenModal}
+            className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+              bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+              hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
+          >
+            更换模板
+          </button>
+        )}
       </div>
       
       {/* Template Selection Modal - Templates are preloaded in the background */}

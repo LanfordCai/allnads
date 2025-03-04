@@ -19,6 +19,7 @@ interface ChatAreaProps {
   isSidebarOpen?: boolean;
   avatarImage?: string | null;
   onAvatarImageChange?: (newAvatarImage: string | null) => void;
+  isInModal?: boolean;
 }
 
 export default function ChatArea({ 
@@ -30,7 +31,8 @@ export default function ChatArea({
   isMediumScreen = false,
   isSidebarOpen = true,
   avatarImage = null,
-  onAvatarImageChange
+  onAvatarImageChange,
+  isInModal = false
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -319,9 +321,9 @@ export default function ChatArea({
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      {/* Toggle sidebar button for mobile and medium screens */}
-      {(isMobile || isMediumScreen) && (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 chat-area-container">
+      {/* Toggle sidebar button for mobile and medium screens - 不在模态框中才显示 */}
+      {(isMobile || isMediumScreen) && !isInModal && (
         <div className="p-2 border-b-4 border-[#8B5CF6] bg-white dark:bg-gray-800 sticky top-0 z-[10]">
           <button 
             onClick={onToggleSidebar} 

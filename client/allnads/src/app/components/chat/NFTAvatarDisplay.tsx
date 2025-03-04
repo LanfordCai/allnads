@@ -18,6 +18,8 @@ interface NFTAvatarDisplayProps {
   nftAccount: string | null;
   onAvatarImageChange?: (avatarImage: string | null) => void;
   onSendMessage?: (message: string) => void;
+  onSwitchToChat?: () => void;
+  isSmallScreen?: boolean;
 }
 
 export function NFTAvatarDisplay({
@@ -31,7 +33,9 @@ export function NFTAvatarDisplay({
   router,
   nftAccount,
   onAvatarImageChange,
-  onSendMessage
+  onSendMessage,
+  onSwitchToChat,
+  isSmallScreen = false
 }: NFTAvatarDisplayProps) {
   const [avatarImage, setAvatarImage] = useState<string | null>(initialAvatarImage || null);
   const [nftName, setNftName] = useState<string | null>(initialNftName || null);
@@ -117,6 +121,13 @@ export function NFTAvatarDisplay({
     }
   };
 
+  // Handle switch to chat area
+  const handleSwitchToChat = () => {
+    if (onSwitchToChat) {
+      onSwitchToChat();
+    }
+  };
+
   if (isLoadingAvatar) {
     return (
       <div className="mx-auto text-center mt-4 mb-6">
@@ -136,6 +147,8 @@ export function NFTAvatarDisplay({
           onChangeComponent={handleChangeComponent}
           nftAccount={nftAccount || undefined}
           templateId={tokenId ? BigInt(tokenId) : undefined}
+          isSmallScreen={isSmallScreen}
+          onSwitchToChat={onSwitchToChat}
         />
       </div>
     );
