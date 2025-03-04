@@ -128,7 +128,7 @@ export function NFTAvatarDisplay({
   
   if (avatarImage) {
     return (
-      <div className="mx-auto max-w-xs mt-4 mb-6">
+      <div className="mx-auto max-w-[320px] mt-4 mb-6">
         <ImageCard 
           imageUrl={avatarImage} 
           alt="Your AllNads Avatar"

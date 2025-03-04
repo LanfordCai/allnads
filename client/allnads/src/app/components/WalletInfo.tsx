@@ -20,154 +20,176 @@ interface WalletInfoProps {
   nftAccount?: string | null;
 }
 
-type Tab = 'tokens' | 'nfts';
-
 export default function WalletInfo({ nftAccount }: WalletInfoProps) {
-  const { isAuthenticated } = usePrivyAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('tokens');
+  const { isAuthenticated, user } = usePrivyAuth();
+  const [showTokensModal, setShowTokensModal] = useState(false);
   const { balance, isLoading: isLoadingBalance } = useAccountBalance(nftAccount as Address);
   
+  // Get user wallet address
+  const walletAddress = user?.wallet?.address;
+  const { balance: privyWalletBalance, isLoading: isLoadingPrivyBalance } = useAccountBalance(walletAddress as Address);
+  
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-medium text-gray-700">AllNads Account</h2>
-      </div>
-      
-      {nftAccount ? (
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-mono text-blue-700">
-              {`${nftAccount.slice(0, 6)}...${nftAccount.slice(-4)}`}
-            </span>
+    <div className="flex flex-col items-center gap-y-6 w-full">
+      {/* AllNads Account Section */}
+      <div className="bg-white rounded-xl border-4 border-[#8B5CF6] shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden w-full max-w-[320px] relative">
+        <div className="absolute top-3 left-3">
+          <span className="bg-[#8B5CF6] text-white text-xs font-medium px-3 py-1 rounded-full">
+            AllNads Account
+          </span>
+        </div>
+        
+        <div className="p-4 pt-12">
+          {nftAccount && (
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-mono text-[#6D28D9] text-sm">
+                {`${nftAccount.slice(0, 10)}...${nftAccount.slice(-8)}`}
+              </span>
+              <button 
+                className="p-1.5 text-[#8B5CF6] hover:bg-[#F3F0FF] rounded-md transition-colors"
+                onClick={() => {
+                  navigator.clipboard.writeText(nftAccount);
+                  // Could add a toast notification here
+                }}
+                aria-label="Copy address"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                </svg>
+              </button>
+            </div>
+          )}
+          
+          {!nftAccount && (
+            <div className="mb-4 p-3 bg-[#FEF3C7] rounded-lg border border-[#FCD34D] text-sm">
+              <p className="text-[#92400E]">
+                No AllNads account found. Get an NFT to access your account.
+              </p>
+            </div>
+          )}
+          
+          <div className="mb-6">
+            <div className="flex items-end justify-between">
+              {isLoadingBalance ? (
+                <div className="animate-pulse h-8 w-32 bg-[#EDE9FE] rounded"></div>
+              ) : (
+                <>
+                  <div className="flex items-end">
+                    <span className="text-2xl font-bold text-[#5B21B6]">{Number(balance).toFixed(4)}</span>
+                    <span className="text-[#8B5CF6] text-base ml-2">MON</span>
+                  </div>
+                  <button 
+                    onClick={() => setShowTokensModal(true)}
+                    className={`py-1.5 px-3 rounded-lg font-bold text-sm transition-all
+                      ${!nftAccount
+                        ? 'bg-purple-200 text-purple-400 cursor-not-allowed'
+                        : 'bg-[#8B5CF6] text-white border-2 border-[#7C3AED] shadow-[2px_2px_0px_0px_#5B21B6] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#5B21B6]'
+                      }
+                    `}
+                    disabled={!nftAccount}
+                  >
+                    Tokens
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="grid grid-cols-3 gap-3 mb-1">
             <button 
-              className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded transition-colors"
-              onClick={() => {
-                navigator.clipboard.writeText(nftAccount);
-                // Could add a toast notification here
-              }}
+              className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                !nftAccount 
+                  ? 'bg-purple-100 text-purple-300 cursor-not-allowed' 
+                  : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
+              }`}
+              disabled={!nftAccount}
             >
-              Copy
+              Send
+            </button>
+            <button 
+              className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                !nftAccount 
+                  ? 'bg-purple-100 text-purple-300 cursor-not-allowed' 
+                  : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
+              }`}
+              disabled={!nftAccount}
+            >
+              Swap
+            </button>
+            <button 
+              className={`p-2 rounded-lg text-sm font-medium transition-all ${
+                !nftAccount 
+                  ? 'bg-purple-100 text-purple-300 cursor-not-allowed' 
+                  : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
+              }`}
+              disabled={!nftAccount}
+            >
+              Receive
             </button>
           </div>
         </div>
-      ) : (
-        <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-          <p className="text-sm text-yellow-700">
-            No AllNads account found. Get an NFT to access your account.
-          </p>
-        </div>
-      )}
+      </div>
       
-      <div className="mb-8">
-        <p className="text-gray-500 text-sm mb-1">Account Balance</p>
-        <div className="flex items-end">
-          {isLoadingBalance ? (
-            <div className="animate-pulse h-8 w-32 bg-gray-200 rounded"></div>
-          ) : (
-            <>
-              <span className="text-3xl font-semibold">{Number(balance).toFixed(4)}</span>
-              <span className="text-gray-400 text-lg ml-2">MON</span>
-            </>
+      {/* Privy Linked Wallet Section */}
+      <div className="bg-white rounded-xl border-4 border-[#8B5CF6] shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden w-full max-w-[320px] relative">
+        <div className="absolute top-3 left-3">
+          <span className="bg-[#8B5CF6] text-white text-xs font-medium px-3 py-1 rounded-full">
+            Privy Linked Wallet
+          </span>
+        </div>
+        
+        <div className="p-4 pt-12">
+          {walletAddress && (
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-mono text-[#6D28D9] text-sm">
+                {`${walletAddress.slice(0, 10)}...${walletAddress.slice(-8)}`}
+              </span>
+              <button 
+                className="p-1.5 text-[#8B5CF6] hover:bg-[#F3F0FF] rounded-md transition-colors"
+                onClick={() => {
+                  navigator.clipboard.writeText(walletAddress);
+                  // Could add a toast notification here
+                }}
+                aria-label="Copy address"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                </svg>
+              </button>
+            </div>
           )}
+          
+          {!walletAddress && (
+            <div className="mb-4 p-3 bg-[#FEF3C7] rounded-lg border border-[#FCD34D] text-sm">
+              <p className="text-[#92400E]">
+                No wallet connected. Please connect a wallet.
+              </p>
+            </div>
+          )}
+          
+          <div className="mb-6">
+            <div className="flex items-end">
+              {isLoadingPrivyBalance ? (
+                <div className="animate-pulse h-8 w-32 bg-[#EDE9FE] rounded"></div>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold text-[#5B21B6]">{Number(privyWalletBalance).toFixed(4)}</span>
+                  <span className="text-[#8B5CF6] text-base ml-2">MON</span>
+                </>
+              )}
+            </div>
+          </div>
+          
+          <div className="p-3 bg-[#F9F7FF] rounded-lg border border-[#C4B5FD] text-sm">
+            <p className="text-[#6D28D9]">
+              <span className="font-medium">Note:</span> AllNads Account transaction fees are paid from this wallet. This wallet is also the holder of your AllNads NFT.
+            </p>
+          </div>
         </div>
       </div>
       
-      {/* Action buttons */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <button 
-          className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          disabled={!nftAccount}
-        >
-          Send
-        </button>
-        <button 
-          className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          disabled={!nftAccount}
-        >
-          Swap
-        </button>
-        <button 
-          className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          disabled={!nftAccount}
-        >
-          Top up
-        </button>
-      </div>
-      
-      {/* Tab switcher */}
-      <div className="mb-6">
-        <div className="flex border-b border-gray-200">
-          <button
-            className={`flex-1 py-2 text-sm font-medium ${
-              activeTab === 'tokens'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setActiveTab('tokens')}
-          >
-            Tokens
-          </button>
-          <button
-            className={`flex-1 py-2 text-sm font-medium ${
-              activeTab === 'nfts'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setActiveTab('nfts')}
-          >
-            NFTs
-          </button>
-        </div>
-      </div>
-      
-      {/* Tab content */}
-      <div className="space-y-4 max-h-48 overflow-y-auto">
-        {activeTab === 'tokens' ? (
-          <div className="space-y-3">
-            {/* Token list */}
-            <div className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-medium text-blue-600">MON</span>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium">Monad</p>
-                    <p className="text-xs text-gray-500">Native Token</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{Number(balance).toFixed(4)}</p>
-                  <p className="text-xs text-gray-500">MON</p>
-                </div>
-              </div>
-            </div>
-            {/* Add more tokens here */}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {/* NFT list */}
-            <div className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-medium text-purple-600">AN</span>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium">AllNads</p>
-                    <p className="text-xs text-gray-500">Account NFT</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">#1</p>
-                  <p className="text-xs text-gray-500">ID</p>
-                </div>
-              </div>
-            </div>
-            {/* Add more NFTs here */}
-          </div>
-        )}
-      </div>
+      {/* Token Modal would be implemented here */}
     </div>
   );
 } 
