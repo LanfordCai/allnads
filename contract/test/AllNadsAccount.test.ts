@@ -861,4 +861,159 @@ describe("AllNadsAccount", function () {
     
     expect(hasFunction).to.be.true;
   });
+
+  describe("TBA Component Minting", function () {
+    it("Should mint a component using funds from the TBA", async function () {
+      const { allNads, component, user1, publicClient } = await loadFixture(deployAllNadsAccountFixture);
+      
+      // Mint an NFT and get the TBA address
+      const { tokenId, accountAddr } = await mintNFTAndGetAccount(allNads, component, user1);
+      
+      // Send some ETH to the TBA
+      const fundAmount = parseEther("0.5");
+      await user1.sendTransaction({
+        to: accountAddr,
+        value: fundAmount
+      });
+      
+      // Verify the TBA has received the funds
+      const tbaBalance = await publicClient.getBalance({ address: accountAddr });
+      expect(tbaBalance).to.equal(fundAmount);
+      
+      // Create a new component template (type: BACKGROUND)
+      const templateCreationFee = parseEther("0.1");
+      const mintPrice = parseEther("0.05");
+      
+      await component.write.createTemplate([
+        "TBA Paid Background",
+        100n,
+        mintPrice,
+        "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAQMAAABmvDolAAAAA1BMVEWVpJ2TJdvlAAAAH0lEQVR42u3BAQ0AAADCIPunNsc3YAAAAAAAAAAAABwKDsAAAV0tqVQAAAAASUVORK5CYII=",
+        0 // BACKGROUND component type
+      ], {
+        value: templateCreationFee,
+        account: user1.account
+      });
+      
+      // Get the new template ID
+      const newTemplateId = await component.read.nextTemplateId() - 1n;
+      
+      // Get the AllNadsAccount contract instance
+      const account = await hre.viem.getContractAt(
+        "AllNadsAccount",
+        accountAddr,
+        { client: { wallet: user1 } }
+      );
+      
+      // Define the ABIs for encoding function calls
+      const MintComponentABI = [
+        {
+          name: "mintComponent",
+          type: "function",
+          inputs: [
+            { name: "templateId", type: "uint256" },
+            { name: "to", type: "address" }
+          ],
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "payable"
+        }
+      ];
+      
+      const ExecuteCallABI = [
+        {
+          name: "executeCall",
+          type: "function",
+          inputs: [
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "data", type: "bytes" }
+          ],
+          outputs: [{ name: "", type: "bytes" }],
+          stateMutability: "payable"
+        }
+      ];
+      
+      // Encode the function call data for the 'mintComponent' method
+      const mintComponentCallData = encodeFunctionData({
+        abi: MintComponentABI,
+        functionName: 'mintComponent',
+        args: [newTemplateId, accountAddr]
+      });
+      
+      // Execute the call through the TBA
+      // The TBA will pay the mint price from its balance
+      const tx = await account.write.executeCall([
+        component.address,
+        mintPrice, // Send the mint price from the TBA
+        mintComponentCallData
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Get the new component ID
+      const newComponentId = await component.read.nextTokenId() - 1n;
+      
+      // Verify the TBA owns the new component
+      const componentBalance = await component.read.balanceOf([accountAddr, newComponentId]);
+      expect(componentBalance).to.equal(1n);
+      
+      // Verify the TBA's balance has decreased by the mint price
+      const tbaBalanceAfter = await publicClient.getBalance({ address: accountAddr });
+      
+      // Check that the balance decreased
+      expect(tbaBalanceAfter < fundAmount).to.be.true;
+      
+      // Check that the balance decreased by approximately the mint price (allowing for gas costs)
+      const balanceDifference = fundAmount - tbaBalanceAfter;
+      expect(balanceDifference >= mintPrice).to.be.true;
+      const maxExpectedDifference = mintPrice + parseEther("0.001");
+      expect(balanceDifference <= maxExpectedDifference).to.be.true;
+      
+      // Now use the new component to update the avatar
+      // First approve the TBA to operate on the NFT
+      await allNads.write.approve([accountAddr, tokenId], {
+        account: user1.account
+      });
+      
+      // Define the ABI for changeComponent
+      const ChangeComponentABI = [
+        {
+          name: "changeComponent",
+          type: "function",
+          inputs: [
+            { name: "tokenId", type: "uint256" },
+            { name: "componentId", type: "uint256" },
+            { name: "componentType", type: "uint8" }
+          ],
+          outputs: [],
+          stateMutability: "nonpayable"
+        }
+      ];
+      
+      // Encode the function call data for the 'changeComponent' method
+      const changeComponentCallData = encodeFunctionData({
+        abi: ChangeComponentABI,
+        functionName: 'changeComponent',
+        args: [tokenId, newComponentId, 0] // 0 is BACKGROUND component type
+      });
+      
+      // Execute the call through the TBA
+      const changeTx = await account.write.executeCall([
+        allNads.address,
+        0n, // No ETH value needed
+        changeComponentCallData
+      ]);
+      
+      await publicClient.waitForTransactionReceipt({ hash: changeTx });
+      
+      // Get the updated components
+      const updatedComponents = await allNads.read.getAvatarComponents([tokenId]);
+      
+      // Verify the background component has been changed
+      expect(updatedComponents[0]).to.equal(newComponentId);
+      
+      // Verify the new component is equipped
+      expect(await component.read.isEquipped([newComponentId])).to.be.true;
+    });
+  });
 });

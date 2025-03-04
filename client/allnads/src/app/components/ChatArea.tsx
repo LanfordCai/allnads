@@ -8,7 +8,6 @@ import { useWallets } from '@privy-io/react-auth';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAllNads } from '../hooks/useAllNads';
 import { blockchainService } from '../services/blockchain';
-import AllNadsABI from '../contracts/AllNads.json';
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -78,17 +77,8 @@ export default function ChatArea({
         showNotification('正在刷新 NFT 元数据...', 'info');
         
         try {
-          // Fetch updated NFT metadata
-          const publicClient = blockchainService.getPublicClient();
-          const contractAddress = blockchainService.getContractAddress('allNads');
-          
-          // Get token URI
-          const tokenURI = await publicClient.readContract({
-            address: contractAddress,
-            abi: AllNadsABI,
-            functionName: 'tokenURI',
-            args: [BigInt(tokenId)],
-          }) as string;
+          // 使用 blockchain 服务获取 token URI
+          const tokenURI = await blockchainService.getTokenURI(tokenId);
           
           // Parse tokenURI
           const jsonData = tokenURI.replace('data:application/json,', '');
@@ -117,12 +107,11 @@ export default function ChatArea({
       } else {
         // 即使不包含 <ComponentChanged>，也标记为已处理
         processedMessageIdsRef.current.add(latestMessage.id);
-        console.log(`消息不包含 <ComponentChanged> 标签，已标记为处理过，消息 ID: ${latestMessage.id}`);
       }
     };
     
     checkForComponentChanged();
-  }, [messages, tokenId, isRefreshingNFT, showNotification, onAvatarImageChange, blockchainService]);
+  }, [messages, tokenId, isRefreshingNFT, onAvatarImageChange, showNotification]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { createPublicClient, http } from 'viem';
-import { monadTestnet } from 'viem/chains';
-import AllNadsComponentABI from '../contracts/AllNadsComponent.json';
+import { blockchainService, Template } from '../services/blockchain';
 
 // Define component types matching the enum in the contract
 const COMPONENT_TYPES = {
@@ -15,23 +13,6 @@ const COMPONENT_TYPES = {
 
 // PNG header constant
 const PNG_HEADER = "iVBORw0KGgoAAAANSUhEUgAA";
-
-// Contract addresses
-const CONTRACT_ADDRESSES = {
-  COMPONENT: process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS
-};
-
-interface Template {
-  id: bigint;
-  name: string;
-  creator: string;
-  maxSupply: bigint;
-  currentSupply: bigint;
-  price: bigint;
-  imageData: string;
-  isActive: boolean;
-  componentType: number;
-}
 
 interface TemplateModalProps {
   isOpen: boolean;
@@ -60,43 +41,10 @@ export default function TemplateModal({
     
     setCheckingOwnership(true);
     try {
-      const contractAddress = CONTRACT_ADDRESSES.COMPONENT as string;
-      
-      // Create a public client
-      const client = createPublicClient({
-        chain: monadTestnet,
-        transport: http(process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC!),
-      });
-      
-      console.log(`Checking template ownership for NFT account: ${nftAccountAddress}`);
-      
-      // Create batch of promises to check ownership for each template
-      const ownershipPromises = templateIds.map(async (templateId) => {
-        try {
-          const tokenId = await client.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: AllNadsComponentABI,
-            functionName: 'getAddressTemplateToken',
-            args: [nftAccountAddress as `0x${string}`, templateId],
-          }) as bigint;
-          
-          return { templateId, tokenId };
-        } catch (error) {
-          // Silently handle the error as it's expected to fail for templates not owned
-          return { templateId, tokenId: BigInt(0) };
-        }
-      });
-      
-      // Wait for all ownership checks to complete
-      const ownershipResults = await Promise.all(ownershipPromises);
-      
-      // Create a map of template IDs to token IDs
-      const ownedTemplatesMap = ownershipResults.reduce((acc, { templateId, tokenId }) => {
-        if (tokenId && tokenId > BigInt(0)) {
-          acc[templateId.toString()] = tokenId;
-        }
-        return acc;
-      }, {} as Record<string, bigint>);
+      const ownedTemplatesMap = await blockchainService.checkMultipleTemplateOwnership(
+        nftAccountAddress,
+        templateIds
+      );
       
       setOwnedTemplates(ownedTemplatesMap);
       console.log('Owned templates by NFT account:', ownedTemplatesMap);
@@ -110,24 +58,10 @@ export default function TemplateModal({
   // Function to fetch templates by type
   const fetchTemplatesByType = async (componentType: number, typeName: string) => {
     try {
-      // Use environment variable for contract address or fallback to a default
-      const contractAddress = process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS!;
-      
-      // Create a public client
-      const client = createPublicClient({
-        chain: monadTestnet,
-        transport: http(process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC!),
-      });
-      
       console.log(`Fetching templates for ${typeName}...`);
       
       // Get template IDs for the specified component type
-      const templateIds = await client.readContract({
-        address: contractAddress as `0x${string}`,
-        abi: AllNadsComponentABI,
-        functionName: 'getTemplatesByType',
-        args: [componentType],
-      }) as bigint[];
+      const templateIds = await blockchainService.getTemplatesByType(componentType);
       
       console.log(`Found ${templateIds.length} templates for ${typeName}`);
       
@@ -140,24 +74,7 @@ export default function TemplateModal({
       // For each template ID, get the full template details
       const templatePromises = templateIds.map(async (templateId) => {
         try {
-          const templateData = await client.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: AllNadsComponentABI,
-            functionName: 'getTemplate',
-            args: [templateId],
-          }) as any;
-          
-          return {
-            id: templateId,
-            name: templateData.name || '',
-            creator: templateData.creator || '',
-            maxSupply: templateData.maxSupply || BigInt(0),
-            currentSupply: templateData.currentSupply || BigInt(0),
-            price: templateData.price || BigInt(0),
-            imageData: templateData.imageData || '',
-            isActive: templateData.isActive || false,
-            componentType: templateData.componentType || 0
-          } as Template;
+          return await blockchainService.getTemplateById(templateId);
         } catch (error) {
           console.error(`Error fetching template ${templateId}:`, error);
           return null;
@@ -181,20 +98,7 @@ export default function TemplateModal({
   
   // Function to get the connected user's address
   const getUserAddress = async () => {
-    try {
-      // Check if window.ethereum is available
-      if (typeof window !== 'undefined' && window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts && accounts.length > 0) {
-          console.log("Got user wallet address:", accounts[0]);
-          return accounts[0];
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting user address:', error);
-      return null;
-    }
+    return blockchainService.getUserAddress();
   };
   
   // Function to load all templates

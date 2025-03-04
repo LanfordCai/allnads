@@ -1,14 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { createPublicClient, http } from 'viem';
-import { monadTestnet } from 'viem/chains';
-import AllNadsComponentABI from '../contracts/AllNadsComponent.json';
+import { blockchainService } from '../services/blockchain';
 import TemplateModal from './TemplateModal';
-
-// Contract addresses
-const CONTRACT_ADDRESSES = {
-  COMPONENT: process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS
-};
 
 interface ImageCardProps {
   imageUrl?: string;
@@ -39,20 +32,7 @@ export default function ImageCard({
 
   // Function to get the connected user's address
   const getUserAddress = async () => {
-    try {
-      // Check if window.ethereum is available
-      if (typeof window !== 'undefined' && window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts && accounts.length > 0) {
-          console.log("ImageCard: Got user wallet address:", accounts[0]);
-          return accounts[0];
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('ImageCard: Error getting user address:', error);
-      return null;
-    }
+    return blockchainService.getUserAddress();
   };
 
   // Function to check if the NFT account owns this template
@@ -73,33 +53,20 @@ export default function ImageCard({
       let accountToCheck = nftAccount;
       if (!accountToCheck) {
         console.log("No nftAccount provided, attempting to get user address");
-        accountToCheck = await getUserAddress();
-        if (!accountToCheck) {
+        const userAddress = await getUserAddress();
+        if (!userAddress) {
           console.log("Could not get user address, skipping ownership check");
           return;
         }
+        accountToCheck = userAddress;
         console.log("Using user wallet address for ownership check:", accountToCheck);
       }
       
       console.log(`Starting ownership check for account: ${accountToCheck}, templateId: ${templateId}`);
       setCheckingOwnership(true);
       try {
-        const contractAddress = CONTRACT_ADDRESSES.COMPONENT as string;
-        
-        // Create a public client
-        const client = createPublicClient({
-          chain: monadTestnet,
-          transport: http(process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC!),
-        });
-        
         // Check if the account owns this template
-        console.log(`Calling contract to check ownership: ${contractAddress}`);
-        const tokenId = await client.readContract({
-          address: contractAddress as `0x${string}`,
-          abi: AllNadsComponentABI,
-          functionName: 'getAddressTemplateToken',
-          args: [accountToCheck as `0x${string}`, templateId],
-        }) as bigint;
+        const tokenId = await blockchainService.checkTemplateOwnership(accountToCheck, templateId);
         
         // If tokenId is greater than 0, the account owns this template
         const owned = tokenId > BigInt(0);

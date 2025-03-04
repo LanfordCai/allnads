@@ -1,24 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createPublicClient, http, Address } from 'viem';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import ImageCard from '../ImageCard';
-import AllNadsABI from '../../contracts/AllNads.json';
 import { User } from '@privy-io/react-auth';
-
-// Define Monad Testnet chain
-const monadChain = {
-  id: 10143,
-  name: 'Monad Testnet',
-  nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
-  rpcUrls: {
-    default: { http: [process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || 'https://rpc.testnet.monad.xyz/'] }
-  }
-};
-
-// Contract address for AllNads
-const ALLNADS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as string;
+import { blockchainService } from '../../services/blockchain';
 
 interface NFTAvatarDisplayProps {
   isLoadingAvatar: boolean;
@@ -77,41 +63,17 @@ export function NFTAvatarDisplay({
   // Function to fetch token image and name
   const fetchTokenImage = async (tokenId: string) => {
     try {
-      // Create public client
-      const publicClient = createPublicClient({
-        chain: monadChain,
-        transport: http(),
-      });
+      const result = await blockchainService.fetchTokenImageAndName(tokenId);
       
-      // Get token URI
-      const tokenURI = await publicClient.readContract({
-        address: ALLNADS_CONTRACT_ADDRESS as Address,
-        abi: AllNadsABI,
-        functionName: 'tokenURI',
-        args: [BigInt(tokenId)],
-      }) as string;
+      if (result.name) {
+        setNftName(result.name);
+        console.log("NFT name:", result.name);
+      }
       
-      // Parse tokenURI (it's likely base64 encoded JSON)
-      const jsonData = tokenURI.replace('data:application/json,', '');
-      
-      try {
-        const json = JSON.parse(jsonData);
-        
-        // Extract name from tokenURI 
-        if (json.name) {
-          setNftName(json.name);
-          console.log("NFT name:", json.name);
-        }
-        
-        // Extract image from tokenURI (which is also base64 encoded)
-        if (json.image) {
-          setAvatarImage(json.image);
-        } else {
-          setError("NFT metadata doesn't contain an image");
-        }
-      } catch (parseError) {
-        console.error("Error parsing NFT metadata:", parseError);
-        setError("Invalid NFT metadata format");
+      if (result.image) {
+        setAvatarImage(result.image);
+      } else {
+        setError("NFT metadata doesn't contain an image");
       }
     } catch (error) {
       console.error('Error fetching token image:', error);

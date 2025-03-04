@@ -2,8 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useAllNads } from './useAllNads';
 import { ChatService } from '../services/ChatService';
 import { blockchainService } from '../services/blockchain';
-import AllNadsABI from '../contracts/AllNads.json';
-import AllNadsComponentABI from '../contracts/AllNadsComponent.json';
 import { Address } from 'viem';
 
 // Define the Avatar type based on the contract structure
@@ -73,24 +71,13 @@ export function useChatWithNFT(chatService: ChatService) {
       }
 
       try {
-        // Get NFT metadata
-        const publicClient = blockchainService.getPublicClient();
-        const contractAddress = blockchainService.getContractAddress('allNads');
-        const componentContractAddress = await publicClient.readContract({
-          address: contractAddress,
-          abi: AllNadsABI,
-          functionName: 'componentContract',
-        }) as Address;
+        // Get component contract address
+        const componentContractAddress = await blockchainService.getComponentContractAddress();
 
         // Get avatar data
-        const avatar = await publicClient.readContract({
-          address: contractAddress,
-          abi: AllNadsABI,
-          functionName: 'getAvatar',
-          args: [BigInt(tokenId)],
-        }) as Avatar;
+        const avatar = await blockchainService.getAvatarData(tokenId);
 
-        // 定义组件类型
+        // Define component types
         const componentTypes = [
           { id: avatar.backgroundId, type: 'background' },
           { id: avatar.hairstyleId, type: 'hairstyle' },
@@ -99,64 +86,54 @@ export function useChatWithNFT(chatService: ChatService) {
           { id: avatar.accessoryId, type: 'accessory' }
         ];
 
-        // 第一步：并行获取所有组件的模板ID
+        // Step 1: Get all template IDs in parallel
         const templateIdPromises = componentTypes.map(component => ({
           component,
-          promise: publicClient.readContract({
-            address: componentContractAddress,
-            abi: AllNadsComponentABI,
-            functionName: 'getTokenTemplate',
-            args: [component.id],
-          }) as Promise<bigint>
+          promise: blockchainService.getTokenTemplate(component.id)
         }));
         
-        // 等待所有模板ID获取完成
+        // Wait for all template IDs to be fetched
         const templateIds = await Promise.all(
           templateIdPromises.map(async ({ component, promise }) => {
             try {
               const templateId = await promise;
               return { component, templateId };
             } catch (err) {
-              console.error(`获取${component.type}模板ID时出错:`, err);
+              console.error(`Error getting template ID for ${component.type}:`, err);
               return null;
             }
           })
         );
         
-        // 过滤掉获取失败的模板ID
+        // Filter out failed template ID fetches
         const validTemplateIds = templateIds.filter(item => item !== null);
         
-        // 第二步：并行获取所有模板的详细信息
+        // Step 2: Get all template details in parallel
         const templatePromises = validTemplateIds.map(item => ({
           component: item!.component,
           templateId: item!.templateId,
-          promise: publicClient.readContract({
-            address: componentContractAddress,
-            abi: AllNadsComponentABI,
-            functionName: 'getTemplate',
-            args: [item!.templateId],
-          }) as Promise<Template>
+          promise: blockchainService.getTemplateById(item!.templateId)
         }));
         
-        // 等待所有模板信息获取完成
+        // Wait for all template information to be fetched
         const templates = await Promise.all(
           templatePromises.map(async ({ component, templateId, promise }) => {
             try {
               const template = await promise;
               return { component, templateId, template };
             } catch (err) {
-              console.error(`获取${component.type}模板信息时出错:`, err);
+              console.error(`Error getting template information for ${component.type}:`, err);
               return null;
             }
           })
         );
         
-        // 创建新的元数据结构
+        // Create new metadata structure
         const enhancedMetadata: Partial<EnhancedMetadata> = {
           name: avatar.name
         };
         
-        // 将模板信息添加到元数据中
+        // Add template information to metadata
         templates.forEach(item => {
           if (item) {
             const componentType = item.component.type;
@@ -171,7 +148,7 @@ export function useChatWithNFT(chatService: ChatService) {
               }
             };
             
-            // 将组件信息添加到对应的字段
+            // Add component information to corresponding field
             enhancedMetadata[componentType as keyof EnhancedMetadata] = componentInfo as any;
           }
         });

@@ -177,7 +177,7 @@ export const mintTemplateComponentTool = {
       const transactionRequest = {
         to: allnadsAccount, // The AllNads account address
         data: data,
-        value: formatEther(template.price)
+        value: '0'
       };
 
       return createTextResponse(`[Transaction Request]\n${JSON.stringify(transactionRequest, null, 2)}`);
