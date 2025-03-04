@@ -216,8 +216,8 @@ export default function ChatArea({
         return (
           <>
             <div className="mb-2">{mainContent}</div>
-            <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded border border-blue-200 dark:border-blue-700 overflow-x-auto">
-              <div className="font-medium text-blue-700 dark:text-blue-300 mb-2">
+            <div className="bg-[#F3F0FF] dark:bg-[#4C1D95] p-3 rounded-lg border-2 border-[#8B5CF6] dark:border-[#7C3AED] overflow-x-auto">
+              <div className="font-medium text-[#6D28D9] dark:text-[#C4B5FD] mb-2">
                 {transactionInfo.split('\n')[0]}
               </div>
               <div className="font-mono text-sm">
@@ -231,8 +231,9 @@ export default function ChatArea({
               <div className="mt-3 flex justify-end">
                 <button 
                   className={`${isSigningTransaction 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-500 hover:bg-blue-600'} text-white px-3 py-1 rounded text-sm transition-colors`}
+                    ? 'bg-gray-400 cursor-not-allowed border-gray-500' 
+                    : 'bg-[#8B5CF6] hover:bg-[#7C3AED] border-[#7C3AED] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'} 
+                    text-white px-4 py-2 rounded-lg text-sm transition-all font-bold uppercase border-2 shadow-[4px_4px_0px_0px_#5B21B6]`}
                   onClick={() => handleSignTransaction(to, data, value)}
                   disabled={isSigningTransaction}
                 >
@@ -273,23 +274,23 @@ export default function ChatArea({
 
   // 获取消息的样式类
   const getMessageClasses = (message: ChatMessage) => {
-    const baseClasses = "max-w-[80%] rounded-lg p-2 ";
+    const baseClasses = "max-w-[80%] rounded-xl p-3 ";
     
     switch (message.role) {
       case 'user':
-        return `${baseClasses} bg-blue-500 text-white rounded-br-none ml-auto`;
+        return `${baseClasses} bg-[#8B5CF6] text-white rounded-br-none ml-auto border-2 border-[#7C3AED]`;
       case 'bot':
-        return `${baseClasses} bg-gray-200 dark:bg-gray-700 rounded-bl-none`;
+        return `${baseClasses} bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700`;
       case 'thinking':
-        return `${baseClasses} bg-gray-200 dark:bg-gray-700 rounded-bl-none animate-pulse`;
+        return `${baseClasses} bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700 animate-pulse`;
       case 'system':
-        return `${baseClasses} bg-yellow-100 dark:bg-yellow-800 text-center italic mx-auto`;
+        return `${baseClasses} bg-[#F3F0FF] dark:bg-[#4C1D95] text-center italic mx-auto border-2 border-[#C4B5FD] dark:border-[#7C3AED]`;
       case 'tool':
-        return `${baseClasses} bg-gray-100 dark:bg-gray-800 rounded-bl-none border border-gray-200 dark:border-gray-700`;
+        return `${baseClasses} bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700`;
       case 'transaction_to_sign':
-        return `${baseClasses} bg-white dark:bg-gray-800 rounded-bl-none border border-blue-300 dark:border-blue-700`;
+        return `${baseClasses} bg-white dark:bg-gray-800 rounded-bl-none border-2 border-[#C4B5FD] dark:border-[#7C3AED]`;
       case 'error':
-        return `${baseClasses} bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200`;
+        return `${baseClasses} bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border-2 border-red-300 dark:border-red-700`;
       default:
         return baseClasses;
     }
@@ -301,7 +302,7 @@ export default function ChatArea({
     
     switch (message.role) {
       case 'user':
-        return `${baseClasses} text-blue-100 text-right`;
+        return `${baseClasses} text-purple-200 text-right`;
       case 'system':
       case 'error':
         return `${baseClasses} text-gray-500 text-center`;
@@ -316,13 +317,13 @@ export default function ChatArea({
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center p-3 border-b border-gray-200">
-        {isMobile && (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* 移除顶部标题栏 */}
+      {isMobile && (
+        <div className="p-2 border-b-4 border-[#8B5CF6] bg-white dark:bg-gray-800">
           <button 
             onClick={onToggleSidebar} 
-            className="mr-2 p-1 rounded-md hover:bg-gray-100 transition-colors focus:outline-none"
+            className="p-2 rounded-lg hover:bg-[#F3F0FF] dark:hover:bg-[#4C1D95] transition-colors focus:outline-none"
           >
             <svg
               viewBox="0 0 24 24"
@@ -333,19 +334,18 @@ export default function ChatArea({
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`${isSidebarOpen ? 'transform rotate-90' : ''}`}
+              className={`${isSidebarOpen ? 'transform rotate-90' : ''} text-[#8B5CF6]`}
             >
               <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-        )}
-        <h2 className="text-lg font-medium">Chat with AllNads</h2>
-      </div>
+        </div>
+      )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.map((message, index) => {
           // Check if this is the first AI message in a sequence
           const isFirstInSequence = () => {
@@ -373,7 +373,7 @@ export default function ChatArea({
               className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
             >
               {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
-                <div className="w-12 h-12 rounded-[8px] overflow-hidden mr-2 flex-shrink-0">
+                <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
                   <img 
                     src={localAvatarImage || "https://picsum.photos/500/500"} 
                     alt="AI Avatar"
@@ -402,7 +402,7 @@ export default function ChatArea({
           <div className="flex justify-start">
             {/* Only show avatar if last message was not from AI */}
             {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
-              <div className="w-8 h-8 overflow-hidden mr-2 flex-shrink-0">
+              <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
                 <img 
                   src={localAvatarImage || "https://picsum.photos/500/500"} 
                   alt="AI Avatar"
@@ -414,12 +414,12 @@ export default function ChatArea({
             {messages.length > 0 && ['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role) && (
               <div className="w-12 mr-2 flex-shrink-0"></div>
             )}
-            <div className="max-w-[80%] rounded-lg p-2 bg-gray-200 dark:bg-gray-700 rounded-bl-none">
+            <div className="max-w-[80%] rounded-xl p-3 bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700">
               <div className="flex space-x-2 items-center">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce"></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-500 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce"></div>
+                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                 </div>
               </div>
             </div>
@@ -429,19 +429,26 @@ export default function ChatArea({
       </div>
 
       {/* Message input */}
-      <div className="border-t border-gray-200 p-4">
-        <form onSubmit={handleSubmit} className="flex items-center">
+      <div className="p-4 bg-white dark:bg-gray-800 border-t-4 border-[#8B5CF6]">
+        <form onSubmit={handleSubmit} className="flex items-center space-x-3">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border-2 border-[#C4B5FD] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6] focus:border-[#8B5CF6] bg-white dark:bg-gray-700 dark:text-white"
             disabled={isLoading}
           />
           <button
             type="submit"
-            className="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300"
+            className={`
+              py-3 px-6 rounded-xl font-black text-center uppercase transition-all
+              border-4 
+              ${!newMessage.trim() || isLoading
+                ? 'bg-purple-200 text-purple-400 border-purple-300 cursor-not-allowed'
+                : 'bg-[#8B5CF6] text-white border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
+              }
+            `}
             disabled={!newMessage.trim() || isLoading}
           >
             Send

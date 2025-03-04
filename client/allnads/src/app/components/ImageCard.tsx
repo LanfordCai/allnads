@@ -102,8 +102,8 @@ export default function ImageCard({
   };
   
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-      <div className="w-full aspect-square rounded-md overflow-hidden border border-gray-100 relative">
+    <div className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] mb-4">
+      <div className="w-full aspect-square relative">
         <img 
           src={imageUrl} 
           alt={alt}
@@ -115,16 +115,20 @@ export default function ImageCard({
         />
       </div>
 
-      {title && (
-        <h3 className="px-1 pt-2 text-lg font-bold text-gray-700">{title}</h3>
-      )}
-      
-      <button 
-        onClick={handleOpenModal}
-        className="mt-3 w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
-      >
-        更换模板并发送消息
-      </button>
+      <div className="p-4">
+        {title && (
+          <h3 className="text-lg font-bold text-gray-700 mb-3">{title}</h3>
+        )}
+        
+        <button 
+          onClick={handleOpenModal}
+          className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+            bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+            hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
+        >
+          更换模板
+        </button>
+      </div>
       
       {/* Template Selection Modal - Templates are preloaded in the background */}
       <TemplateModal 
