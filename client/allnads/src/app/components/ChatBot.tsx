@@ -12,7 +12,6 @@ import { useRouter } from 'next/navigation';
 import { useIdentityToken } from '@privy-io/react-auth';
 import { useChatWithNFT } from '../hooks/useChatWithNFT';
 import { NFTAvatarDisplay } from './chat/NFTAvatarDisplay';
-import { AuthStatusPanel } from './chat/AuthStatusPanel';
 import { useChatSessions } from '../hooks/useChatSessions';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
 // Define Monad Testnet chain
@@ -387,13 +386,6 @@ export default function ChatBot({}: ChatBotProps) {
           />
           
           <WalletInfoComponent nftAccount={nftAccount} />
-          
-          {/* 认证状态和登录按钮 */}
-          <AuthStatusPanel 
-            authStatus={authStatus}
-            isAuthenticated={isAuthenticated}
-            privy={privy}
-          />
         </div>
       </div>
     </div>
