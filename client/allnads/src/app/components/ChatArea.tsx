@@ -55,40 +55,40 @@ export default function ChatArea({
   // Check for <ComponentChanged> in messages and refresh NFT metadata
   useEffect(() => {
     const checkForComponentChanged = async () => {
-      // 只有当有消息时才继续
+      // Only continue if there are messages
       if (messages.length === 0) return;
       
-      // 只检查最新的消息
+      // Only check the latest message
       const latestMessage = messages[messages.length - 1];
       
-      // 如果这个消息已经处理过，则跳过
+      // Skip if this message has already been processed
       if (!latestMessage || processedMessageIdsRef.current.has(latestMessage.id)) {
         return;
       }
       
-      console.log(`检查消息 ID: ${latestMessage.id}, 内容: ${latestMessage.content.substring(0, 50)}...`);
+      console.log(`Checking message ID: ${latestMessage.id}, content: ${latestMessage.content.substring(0, 50)}...`);
       
-      // 检查消息是否包含 <ComponentChanged> 标签
+      // Check if the message contains the <ComponentChanged> tag
       if (latestMessage.role === 'bot' && 
           latestMessage.content.includes('<ComponentChanged>') && 
           !isRefreshingNFT && tokenId) {
         
-        // 标记这个消息已处理
+        // Mark this message as processed
         processedMessageIdsRef.current.add(latestMessage.id);
-        console.log(`发现 <ComponentChanged> 标签，开始刷新 NFT 元数据，消息 ID: ${latestMessage.id}`);
+        console.log(`Found <ComponentChanged> tag, starting to refresh NFT metadata, message ID: ${latestMessage.id}`);
         
         setIsRefreshingNFT(true);
-        showNotification('正在刷新 NFT 元数据...', 'info');
+        showNotification('Refreshing NFT metadata...', 'info');
         
         try {
-          // 使用 blockchain 服务获取 token URI
+          // Use blockchain service to get token URI
           const tokenURI = await blockchainService.getTokenURI(tokenId);
           
           // Parse tokenURI
           const jsonData = tokenURI.replace('data:application/json,', '');
           const json = JSON.parse(jsonData);
           
-          console.log('获取到的 NFT 元数据:', json);
+          console.log('Retrieved NFT metadata:', json);
           
           // Extract image from tokenURI
           if (json.image) {
@@ -97,19 +97,19 @@ export default function ChatArea({
             if (onAvatarImageChange) {
               onAvatarImageChange(json.image);
             }
-            console.log('NFT 头像已更新:', json.image.substring(0, 50) + '...');
-            showNotification('NFT 元数据已更新', 'success');
+            console.log('NFT avatar updated:', json.image.substring(0, 50) + '...');
+            showNotification('NFT metadata updated', 'success');
           } else {
             throw new Error("NFT metadata doesn't contain an image");
           }
         } catch (error) {
           console.error('Error refreshing NFT metadata:', error);
-          showNotification('刷新 NFT 元数据失败', 'error');
+          showNotification('Failed to refresh NFT metadata', 'error');
         } finally {
           setIsRefreshingNFT(false);
         }
       } else {
-        // 即使不包含 <ComponentChanged>，也标记为已处理
+        // Mark as processed even if it doesn't contain <ComponentChanged>
         processedMessageIdsRef.current.add(latestMessage.id);
       }
     };
@@ -126,70 +126,70 @@ export default function ChatArea({
     }
   };
 
-  // 处理交易签名
+  // Handle transaction signing
   const handleSignTransaction = async (to: string, data: string, value: string) => {
     try {
       setIsSigningTransaction(true);
-      showNotification('正在处理交易签名请求...', 'info');
+      showNotification('Processing transaction signature request...', 'info');
       
-      // 获取用户钱包
+      // Get user wallet
       if (!wallets || wallets.length === 0) {
         throw new Error("No wallet connected");
       }
       
-      // 使用第一个钱包
+      // Use the first wallet
       const wallet = wallets.find((wallet) => wallet.walletClientType === 'privy')!;
       
-      // 获取钱包的以太坊提供者
+      // Get the wallet's Ethereum provider
       console.log(wallet.chainId);
       const provider = await wallet.getEthereumProvider();
       
-      // 准备交易请求
+      // Prepare transaction request
       const transactionRequest = {
         to: to,
         data: data,
-        value: value === '0' ? '0x0' : `0x${parseEther(value).toString(16)}`, // 转换为十六进制
+        value: value === '0' ? '0x0' : `0x${parseEther(value).toString(16)}`, // Convert to hexadecimal
       };
       
-      // 发送交易请求
+      // Send transaction request
       const transactionHash = await provider.request({
         method: 'eth_sendTransaction',
         params: [transactionRequest],
       });
       
-      // 交易成功，显示成功通知
-      showNotification(`交易已提交，交易哈希: ${transactionHash}`, 'success');
+      // Transaction successful, show success notification
+      showNotification(`Transaction submitted, transaction hash: ${transactionHash}`, 'success');
       
-      // 将交易哈希发送到聊天界面
-      onSendMessage(`我已经签署并发送了交易，交易哈希是: ${transactionHash}`);
+      // Send transaction hash to chat interface
+      onSendMessage(`I have signed and sent the transaction, the transaction hash is: ${transactionHash}`);
       
     } catch (error) {
       console.error('Transaction signing error:', error);
-      // 显示错误通知
-      showNotification(`交易签名失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      // Show error notification
+      showNotification(`Transaction signing failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
     } finally {
       setIsSigningTransaction(false);
     }
   };
 
-  // 渲染消息内容，支持换行和工具调用格式
+  // Render message content, supporting line breaks and tool call formats
   const renderMessageContent = (message: ChatMessage) => {
-    // 先对整个消息内容进行trim处理
+    // First, trim the entire message content
     const trimmedContent = message.content.trim();
     
-    // 如果是工具类消息，格式化显示
+    // If it's a tool message, format it for display
     if (message.role === 'tool') {
-      // 分割消息内容，提取工具信息
+      // Split the message content, extract tool information
       const parts = trimmedContent.split('\n\n');
       if (parts.length >= 2) {
         const [description, ...details] = parts;
         
-        // 检查是否是 MCP 工具调用格式 (例如: evm_tool__evm_transaction_info)
+        // Check if it's an MCP tool call format (e.g., evm_tool__evm_transaction_info)
         const toolName = details[0]?.split(': ')[1]?.split('\n')[0];
         const isMcpTool = toolName && toolName.includes('__');
         
         if (isMcpTool) {
-          // 分割工具名称为两个标签
+          // Split tool name into two tags
           const [leftTag, rightTag] = toolName.split('__').map(tag => 
             tag.split('_').map(word => 
               word.charAt(0).toUpperCase() + word.slice(1)
@@ -217,7 +217,7 @@ export default function ChatArea({
           );
         }
         
-        // 原来的工具调用显示
+        // Original tool call display
         return (
           <>
             <div className="text-xs text-gray-500 mb-1 flex items-center">
@@ -237,19 +237,19 @@ export default function ChatArea({
       }
     }
     
-    // 如果是交易签名消息，特殊格式化显示
+    // If it's a transaction signature message, special format it for display
     if (message.role === 'transaction_to_sign') {
-      // 分割消息内容，提取交易信息
+      // Split the message content, extract transaction information
       const parts = trimmedContent.split('\n\n');
       if (parts.length >= 2) {
         const mainContent = parts[0];
         const transactionInfo = parts.slice(1).join('\n\n');
         
-        // 解析交易信息
+        // Parse transaction information
         const infoLines = transactionInfo.split('\n');
-        const to = infoLines.find(line => line.startsWith('收款地址:'))?.split(': ')[1] || '';
-        const data = infoLines.find(line => line.startsWith('数据:'))?.split(': ')[1] || '';
-        const value = infoLines.find(line => line.startsWith('金额:'))?.split(': ')[1]?.split(' ')[0] || '0';
+        const to = infoLines.find(line => line.startsWith('Recipient address:'))?.split(': ')[1] || '';
+        const data = infoLines.find(line => line.startsWith('Data:'))?.split(': ')[1] || '';
+        const value = infoLines.find(line => line.startsWith('Amount:'))?.split(': ')[1]?.split(' ')[0] || '0';
         
         return (
           <>
@@ -275,7 +275,7 @@ export default function ChatArea({
                   onClick={() => handleSignTransaction(to, data, value)}
                   disabled={isSigningTransaction}
                 >
-                  {isSigningTransaction ? '签名中...' : '签名交易'}
+                  {isSigningTransaction ? 'Signing...' : 'Sign Transaction'}
                 </button>
               </div>
             </div>
@@ -284,11 +284,11 @@ export default function ChatArea({
       }
     }
     
-    // 处理正常文本（支持换行和 <ComponentChanged> 标签）
+    // Handle normal text (supporting line breaks and <ComponentChanged> tags)
     return trimmedContent.split('\n').map((line, i) => {
-      // 检查是否包含 <ComponentChanged> 标签
+      // Check if it contains the <ComponentChanged> tag
       if (line.includes('<ComponentChanged>')) {
-        // 将 <ComponentChanged> 标签替换为带样式的版本
+        // Replace <ComponentChanged> tag with styled version
         const parts = line.split('<ComponentChanged>');
         return (
           <span key={i}>
@@ -300,7 +300,7 @@ export default function ChatArea({
         );
       }
       
-      // 正常行
+      // Normal line
       return (
         <span key={i}>
           {line}
@@ -310,7 +310,7 @@ export default function ChatArea({
     });
   };
 
-  // 获取消息的样式类
+  // Get message style classes
   const getMessageClasses = (message: ChatMessage) => {
     const baseClasses = "max-w-[80%] rounded-xl p-3 ";
     
@@ -334,7 +334,7 @@ export default function ChatArea({
     }
   };
 
-  // 获取消息的时间戳样式
+  // Get message timestamp style classes
   const getTimestampClasses = (message: ChatMessage) => {
     const baseClasses = "text-xs mt-1 ";
     
@@ -349,38 +349,38 @@ export default function ChatArea({
     }
   };
 
-  // 跟踪消息列表的引用，用于检测会话切换
+  // Track message list reference for conversation switch detection
   const messagesRef = useRef<ChatMessage[]>(messages);
-  // 跟踪消息数量的变化
+  // Track message count changes
   const prevMessagesLengthRef = useRef(messages.length);
   
-  // 在会话加载或新消息添加时滚动到底部
+  // Scroll to bottom when conversation loads or new message is added
   useEffect(() => {
-    // 检测是否是会话切换（消息ID完全不同）
+    // Check if it's a conversation switch (completely different message IDs)
     const isSessionChange = messages.length > 0 && messagesRef.current.length > 0 && 
                            messages[0]?.id !== messagesRef.current[0]?.id;
     
-    // 检测是否有新消息添加（消息数量增加）
+    // Check if there's a new message added (message count increases)
     const hasNewMessages = messages.length > prevMessagesLengthRef.current;
     
     if (isSessionChange) {
-      // 会话切换时，立即滚动到底部
+      // Conversation switch, scroll immediately to bottom
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
       }, 0);
     } else if (hasNewMessages) {
-      // 新消息添加时，平滑滚动到底部
+      // New message added, smooth scroll to bottom
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     
-    // 更新引用
+    // Update reference
     messagesRef.current = messages;
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 chat-area-container">
-      {/* Toggle sidebar button for mobile and medium screens - 不在模态框中才显示 */}
+      {/* Toggle sidebar button for mobile and medium screens - Not shown in modal */}
       {(isMobile || isMediumScreen) && !isInModal && (
         <div className="p-2 border-b-4 border-[#8B5CF6] bg-white dark:bg-gray-800 sticky top-0 z-[10]">
           <button 
@@ -406,32 +406,32 @@ export default function ChatArea({
         </div>
       )}
 
-      {/* 添加全局滚动条样式 */}
+      {/* Add global scrollbar styles */}
       <style jsx global>{`
-        /* 滚动条整体样式 */
+        /* Scrollbar overall style */
         ::-webkit-scrollbar {
           width: 6px;
           height: 6px;
         }
         
-        /* 滚动条轨道 */
+        /* Scrollbar track */
         ::-webkit-scrollbar-track {
           background: #f1f1f1;
           border-radius: 10px;
         }
         
-        /* 滚动条滑块 */
+        /* Scrollbar slider */
         ::-webkit-scrollbar-thumb {
           background: #C4B5FD;
           border-radius: 10px;
         }
         
-        /* 鼠标悬停在滚动条上的滑块样式 */
+        /* Scrollbar slider style when hovered */
         ::-webkit-scrollbar-thumb:hover {
           background: #A78BFA;
         }
 
-        /* 确保滚动条始终可见 */
+        /* Ensure scrollbar is always visible */
         .messages-container {
           scrollbar-width: thin;
           scrollbar-color: #C4B5FD #f1f1f1;

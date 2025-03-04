@@ -27,10 +27,10 @@ const monadChain = {
 // Contract address for AllNads
 const ALLNADS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as string;
 
-// 本地存储键
+// Local storage key
 const STORAGE_KEY = 'allnads_chat_sessions';
 
-// 创建初始会话
+// Create initial session
 const createInitialSession = (): ChatSession => ({
   id: uuidv4(),
   title: 'New Chat',
@@ -38,18 +38,18 @@ const createInitialSession = (): ChatSession => ({
   lastActivity: new Date(),
 });
 
-// 更新会话标题的函数
+// Function to update session title
 const updateSessionTitle = (session: ChatSession, content: string): string => {
   const shouldUpdateTitle = session.messages.length === 0 || session.title === 'New Chat';
   if (shouldUpdateTitle) {
     const newTitle = content.length > 30 ? content.substring(0, 27) + '...' : content;
-    console.log(`更新会话标题: "${session.title}" -> "${newTitle}"`);
+    console.log(`Updating session title: "${session.title}" -> "${newTitle}"`);
     return newTitle;
   }
   return session.title;
 };
 
-// 添加接口定义
+// Add interface definition
 interface ChatBotProps {
   // Remove avatarImage and isLoadingAvatar props as we'll handle them internally
 }
@@ -59,9 +59,9 @@ export default function ChatBot({}: ChatBotProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isMediumScreen, setIsMediumScreen] = useState(false);
-  // 添加模态框状态
+  // Add modal state
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-  // 添加 ChatHistory 全屏状态
+  // Add ChatHistory fullscreen state
   const [isHistoryFullscreen, setIsHistoryFullscreen] = useState(false);
   
   // Privy authentication
@@ -74,9 +74,9 @@ export default function ChatBot({}: ChatBotProps) {
   // Avatar image state
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   
-  // 添加调试日志，记录 avatarImage 的变化
+  // Add debug log to record avatarImage changes
   useEffect(() => {
-    console.log('ChatBot: avatarImage 已更新:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
+    console.log('ChatBot: avatarImage updated:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
   }, [avatarImage]);
   
   // Chat service setup
@@ -85,15 +85,15 @@ export default function ChatBot({}: ChatBotProps) {
   // Initialize chat service
   useEffect(() => {
     if (!chatServiceRef.current) {
-      console.log('初始化聊天服务');
+      console.log('Initializing chat service');
       chatServiceRef.current = new ChatService();
       
-      // 设置获取令牌的函数
+      // Set token provider function
       chatServiceRef.current.setTokenProvider(getPrivyTokens);
     }
   }, []);
   
-  // 获取Privy访问令牌的函数
+  // Function to get Privy access tokens
   const getPrivyTokens = async (): Promise<{ accessToken: string | null; identityToken: string | null }> => {
     if (!isAuthenticated) {
       return { accessToken: null, identityToken: null };
@@ -103,12 +103,12 @@ export default function ChatBot({}: ChatBotProps) {
       const accessToken = await privy.getAccessToken();
       return { accessToken, identityToken };
     } catch (error) {
-      console.error('获取Privy访问令牌失败:', error);
+      console.error('Failed to get Privy access token:', error);
       return { accessToken: null, identityToken: null };
     }
   };
   
-  // 清除认证错误
+  // Clear authentication error
   useEffect(() => {
     if (isAuthenticated) {
       setAuthError(null);
@@ -148,69 +148,69 @@ export default function ChatBot({}: ChatBotProps) {
     isNftInfoSet 
   } = useChatWithNFT(chatServiceRef.current || new ChatService());
 
-  // 监听Privy认证状态变化
+  // Monitor Privy authentication status changes
   useEffect(() => {
     if (!isReady) return;
     
     const newAuthStatus = isAuthenticated ? 'authenticated' : 'anonymous';
     if (authStatus !== newAuthStatus) {
-      console.log(`Privy认证状态变化: ${authStatus} -> ${newAuthStatus}`);
+      console.log(`Privy authentication status change: ${authStatus} -> ${newAuthStatus}`);
       setAuthStatus(newAuthStatus);
       
-      // 当状态从已认证变为匿名时，断开WebSocket连接
+      // When status changes from authenticated to anonymous, disconnect WebSocket
       if (newAuthStatus === 'anonymous' && chatServiceRef.current) {
-        console.log('用户退出登录，断开WebSocket连接');
+        console.log('User logged out, disconnecting WebSocket');
         chatServiceRef.current.disconnect();
-        setAuthError('您已退出登录，请重新登录以继续聊天');
+        setAuthError('You have logged out. Please log in again to continue chatting');
         return;
       }
       
-      // 如果已经有活跃会话，且用户已认证，则连接WebSocket
+      // If there is an active session and user is authenticated, connect WebSocket
       if (newAuthStatus === 'authenticated' && activeSessionId && chatServiceRef.current) {
-        console.log('用户已认证，NFT信息将在加载后自动连接WebSocket...');
-        chatServiceRef.current.disconnect(); // 确保先断开任何现有连接
-        // 不再直接连接，而是等待NFT信息加载后自动连接
+        console.log('User authenticated, WebSocket will connect automatically after NFT info is loaded...');
+        chatServiceRef.current.disconnect(); // Ensure any existing connection is disconnected first
+        // No longer connect directly, but wait for NFT info to load before connecting
       }
     }
   }, [isReady, isAuthenticated, authStatus, activeSessionId]);
 
-  // 当activeSessionId变化时，更新ChatService的会话ID并重新连接
+  // When activeSessionId changes, update ChatService session ID and reconnect
   useEffect(() => {
     if (chatServiceRef.current && activeSessionId) {
-      console.log(`切换到会话 ID: ${activeSessionId}`);
+      console.log(`Switching to session ID: ${activeSessionId}`);
       
-      // 如果用户未认证，则不连接WebSocket
+      // If user is not authenticated, don't connect WebSocket
       if (authStatus === 'anonymous') {
-        console.log('用户未认证，不连接WebSocket');
-        setAuthError('请登录以使用聊天功能');
+        console.log('User not authenticated, not connecting WebSocket');
+        setAuthError('Please log in to use the chat feature');
         return;
       }
       
-      // 先设置会话ID
+      // First set the session ID
       chatServiceRef.current.setSessionId(activeSessionId);
       
-      // 如果WebSocket已连接，先断开
+      // If WebSocket is already connected, disconnect first
       chatServiceRef.current.disconnect();
       
-      // 检查NFT信息是否已设置
+      // Check if NFT info is set
       if (isNftInfoSet) {
-        // NFT信息已设置，直接连接WebSocket
-        console.log('NFT信息已设置，直接连接WebSocket...');
+        // NFT info is set, connect WebSocket directly
+        console.log('NFT info is set, connecting WebSocket directly...');
         chatServiceRef.current.connect()
           .then(() => {
-            console.log('WebSocket连接成功');
+            console.log('WebSocket connection successful');
           })
           .catch(error => {
-            console.error('WebSocket连接失败:', error);
+            console.error('WebSocket connection failed:', error);
           });
       } else {
-        // NFT信息未设置，等待NFT信息加载后自动连接
-        console.log('等待NFT信息加载后自动连接WebSocket...');
+        // NFT info not set, wait for NFT info to load before connecting
+        console.log('Waiting for NFT info to load before connecting WebSocket...');
       }
     }
   }, [activeSessionId, authStatus, isNftInfoSet]);
 
-  // 移动设备响应式设置
+  // Mobile device responsive setup
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
@@ -233,55 +233,55 @@ export default function ChatBot({}: ChatBotProps) {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // 使用 useCallback 优化会话切换逻辑
+  // Use useCallback to optimize session switching logic
   const handleSelectSession = useCallback((id: string) => {
     setActiveSessionId(id);
     if (isMobile || isMediumScreen) {
-      // 使用 setTimeout 延迟关闭侧边栏，避免布局突然变化
+      // Use setTimeout to delay closing sidebar, avoiding layout sudden change
       setTimeout(() => {
         setIsSidebarOpen(false);
       }, 50);
     }
   }, [isMobile, isMediumScreen]);
 
-  // 使用 useCallback 优化侧边栏切换逻辑
+  // Use useCallback to optimize sidebar switching logic
   const handleToggleSidebar = useCallback(() => {
     setIsSidebarOpen(prev => !prev);
   }, []);
 
-  // 处理发送消息
+  // Handle sending message
   const handleSendMessage = (content: string) => {
     if (!chatServiceRef.current) {
       console.error('Chat service not initialized');
       return;
     }
     
-    // 检查用户是否已认证
+    // Check if user is authenticated
     if (authStatus !== 'authenticated') {
-      console.log('用户未认证，不能发送消息');
-      setAuthError('请登录以发送消息');
-      // 不需要显示错误消息，因为UI已经显示了登录提示
+      console.log('User not authenticated, cannot send message');
+      setAuthError('Please log in to send message');
+      // No need to display error message as UI already displays login prompt
       return;
     }
 
-    // 使用ref获取最新的sessionId
+    // Use ref to get latest sessionId
     const currentSessionId = activeSessionIdRef.current;
-    console.log(`发送消息到会话 ID: ${currentSessionId}`, content.substring(0, 30));
+    console.log(`Sending message to session ID: ${currentSessionId}`, content.substring(0, 30));
 
-    // 创建并立即添加用户消息到UI
+    // Create and immediately add user message to UI
     const userMessage = chatServiceRef.current.createLocalMessage(content, 'user');
     
-    // 设置加载状态
+    // Set loading state
     // setIsLoading(true); // Now handled in the WebSocket hook
     
-    // 更新会话
+    // Update session
     setSessions((prevSessions: ChatSession[]) => {
-      console.log(`添加用户消息到会话: ${currentSessionId}`, content.substring(0, 30));
+      console.log(`Adding user message to session: ${currentSessionId}`, content.substring(0, 30));
       return prevSessions.map((session: ChatSession) => {
         if (session.id === currentSessionId) {
-          // 设置会话标题：
-          // 1. 如果这是新聊天（没有消息），直接用第一条消息作为标题
-          // 2. 或者如果当前标题仍然是"New Chat"默认标题，也用这条消息更新标题
+          // Set session title:
+          // 1. If this is a new chat (no messages), directly use the first message as title
+          // 2. Or if the current title is still "New Chat" default title, also use this message to update title
           const title = updateSessionTitle(session, content);
           
           return {
@@ -295,19 +295,19 @@ export default function ChatBot({}: ChatBotProps) {
       });
     });
 
-    // 获取ChatService当前使用的sessionId
+    // Get ChatService current used sessionId
     const currentServiceSessionId = chatServiceRef.current.getSessionId();
-    console.log(`ChatService当前会话ID: ${currentServiceSessionId}, 目标会话ID: ${currentSessionId}`);
+    console.log(`ChatService current session ID: ${currentServiceSessionId}, target session ID: ${currentSessionId}`);
 
-    // 发送消息到服务器，使用当前会话ID
+    // Send message to server, using current session ID
     try {
       chatServiceRef.current.sendMessage(content, {
-        sessionId: currentSessionId, // 使用当前活跃的会话ID
+        sessionId: currentSessionId, // Use current active session ID
         enableTools: true
       });
     } catch (error) {
       console.error('Error sending message:', error);
-      // 更新UI显示错误
+      // Update UI to display error
       const errorMessage = chatServiceRef.current.createLocalMessage(
         'Failed to send message. Please check your connection.', 
         'bot'
@@ -336,13 +336,13 @@ export default function ChatBot({}: ChatBotProps) {
         ></div>
       )}
       
-      {/* 聊天模态框 - 在小屏幕下显示 */}
+      {/* Chat modal - Displayed on small screens */}
       {isMobile && isChatModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center">
           <div className="fixed inset-0 bg-gray-50 z-[51] flex flex-col">
-            {/* 模态框头部 */}
+            {/* Modal header */}
             <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-              {/* 左侧：呼出 ChatHistory 的按钮 */}
+              {/* Left: Button to open ChatHistory */}
               <button 
                 onClick={() => {
                   setIsHistoryFullscreen(true);
@@ -366,7 +366,7 @@ export default function ChatBot({}: ChatBotProps) {
                 </svg>
               </button>
               
-              {/* 右侧：关闭按钮 */}
+              {/* Right: Close button */}
               <button 
                 onClick={() => setIsChatModalOpen(false)}
                 className="p-2 rounded-full hover:bg-gray-100"
@@ -388,7 +388,7 @@ export default function ChatBot({}: ChatBotProps) {
               </button>
             </div>
             
-            {/* 模态框内容 - ChatArea */}
+            {/* Modal content - ChatArea */}
             <div className="flex-1 overflow-hidden">
               <ChatArea
                 messages={activeSession.messages}
@@ -405,15 +405,15 @@ export default function ChatBot({}: ChatBotProps) {
         </div>
       )}
       
-      {/* ChatHistory 全屏模态框 - 在小屏幕下显示 */}
+      {/* ChatHistory fullscreen modal - Displayed on small screens */}
       {isMobile && isHistoryFullscreen && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center">
           <div className="fixed inset-0 bg-white z-[61] flex flex-col">
-            {/* 模态框头部 */}
+            {/* Modal header */}
             <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-              <h2 className="text-lg font-bold">聊天历史</h2>
+              <h2 className="text-lg font-bold">Chat History</h2>
               
-              {/* 右侧：关闭按钮 */}
+              {/* Right: Close button */}
               <button 
                 onClick={() => setIsHistoryFullscreen(false)}
                 className="p-2 rounded-full hover:bg-gray-100"
@@ -435,7 +435,7 @@ export default function ChatBot({}: ChatBotProps) {
               </button>
             </div>
             
-            {/* 模态框内容 - ChatHistory */}
+            {/* Modal content - ChatHistory */}
             <div className="flex-1 overflow-hidden">
               <ChatHistory
                 sessions={sessions}
@@ -507,15 +507,15 @@ export default function ChatBot({}: ChatBotProps) {
                     d="M12 15v2m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0z"
                   />
                 </svg>
-                <h2 className="text-xl font-semibold mb-2">需要登录</h2>
+                <h2 className="text-xl font-semibold mb-2">Need to log in</h2>
                 <p className="text-gray-600 mb-4">
-                  {authError || '请登录以使用聊天功能'}
+                  {authError || 'Please log in to use the chat feature'}
                 </p>
                 <button
                   onClick={() => privy.login()}
                   className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
-                  登录/注册
+                  Log in/Register
                 </button>
               </div>
             </div>
@@ -539,11 +539,11 @@ export default function ChatBot({}: ChatBotProps) {
             onSendMessage={handleSendMessage}
             isSmallScreen={isMobile}
             onSwitchToChat={() => {
-              // 在小屏幕下打开聊天模态框
+              // Open chat modal on small screens
               if (isMobile) {
                 setIsChatModalOpen(true);
               } else {
-                // 在大屏幕下滚动到聊天区域
+                // On large screens, scroll to chat area
                 // Close the sidebar if it's open on mobile
                 if (isMediumScreen && isSidebarOpen) {
                   setIsSidebarOpen(false);

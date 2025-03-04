@@ -23,7 +23,7 @@ const Notification: FC<NotificationProps> = ({ message, type, onClose }) => {
     info: 'bg-blue-100 border-blue-400 text-blue-700'
   }[type];
 
-  // 在组件内部处理截断逻辑
+  // Handle message truncation logic within the component
   const truncateMessage = (text: string, maxLength: number = 60) => {
     if (text.length <= maxLength) return text;
     return `${text.substring(0, maxLength)}...`;

@@ -11,8 +11,8 @@ interface ImageCardProps {
   onChangeComponent?: (templateId: bigint, templateDetails?: any) => void;
   nftAccount?: string; // Token bound account address of the AllNads NFT
   templateId?: bigint; // Current template ID displayed in the card
-  onSwitchToChat?: () => void; // 切换到聊天区域的回调函数
-  isSmallScreen?: boolean; // 是否为小屏幕
+  onSwitchToChat?: () => void; // Callback function to switch to chat area
+  isSmallScreen?: boolean; // Whether it's a small screen
 }
 
 export default function ImageCard({ 
@@ -29,9 +29,9 @@ export default function ImageCard({
   const [isOwned, setIsOwned] = useState(false);
   const [checkingOwnership, setCheckingOwnership] = useState(false);
   
-  // 添加调试日志，记录 imageUrl 的变化
+  // Add debug log to record imageUrl changes
   useEffect(() => {
-    console.log('ImageCard: imageUrl 已更新:', imageUrl ? imageUrl.substring(0, 50) + '...' : null);
+    console.log('ImageCard: imageUrl updated:', imageUrl ? imageUrl.substring(0, 50) + '...' : null);
   }, [imageUrl]);
 
   // Function to get the connected user's address
@@ -104,16 +104,16 @@ export default function ImageCard({
       onChangeComponent(templateId, templateDetails);
     }
     
-    // 在小屏幕下自动切换到聊天区域
+    // Automatically switch to chat area on small screens
     if (isSmallScreen && onSwitchToChat) {
-      // 短暂延迟，确保模态框已关闭
+      // Short delay to ensure modal is closed
       setTimeout(() => {
         onSwitchToChat();
       }, 100);
     }
   };
   
-  // 处理切换到聊天区域
+  // Handle switching to chat area
   const handleSwitchToChat = () => {
     if (onSwitchToChat) {
       onSwitchToChat();
@@ -139,9 +139,9 @@ export default function ImageCard({
           <h3 className="text-lg font-bold text-gray-700 mb-3">{title}</h3>
         )}
         
-        {/* 按钮区域 */}
+        {/* Button area */}
         <div className="grid grid-cols-1 gap-3">
-          {/* 在小屏幕上显示按钮组 */}
+          {/* Display button group on small screens */}
           {isSmallScreen && onSwitchToChat && (
             <div className="grid grid-cols-2 gap-3">
               <button 
@@ -150,7 +150,7 @@ export default function ImageCard({
                   bg-[#4CAF50] text-white border-4 border-[#388E3C] shadow-[4px_4px_0px_0px_#2E7D32] 
                   hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#2E7D32]"
               >
-                切换到聊天
+                Switch to Chat
               </button>
               
               <button 
@@ -159,12 +159,12 @@ export default function ImageCard({
                   bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
                   hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
               >
-                更换模板
+                Change Template
               </button>
             </div>
           )}
           
-          {/* 在非小屏幕上或没有聊天切换功能时只显示更换模板按钮 */}
+          {/* Only display change template button on non-small screens or when chat switch function is not available */}
           {(!isSmallScreen || !onSwitchToChat) && (
             <button 
               onClick={handleOpenModal}
@@ -172,7 +172,7 @@ export default function ImageCard({
                 bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
                 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
             >
-              更换模板
+              Change Template
             </button>
           )}
         </div>

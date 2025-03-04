@@ -44,14 +44,14 @@ export function NFTAvatarDisplay({
   // Update parent component when avatar image changes
   useEffect(() => {
     if (onAvatarImageChange) {
-      console.log('NFTAvatarDisplay: 通知父组件 avatarImage 已更新:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
+      console.log('NFTAvatarDisplay: Notifying parent component avatarImage updated:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
       onAvatarImageChange(avatarImage);
     }
   }, [avatarImage, onAvatarImageChange]);
 
   // Update local state when initialAvatarImage prop changes
   useEffect(() => {
-    console.log('NFTAvatarDisplay: initialAvatarImage 已更新:', initialAvatarImage ? initialAvatarImage.substring(0, 50) + '...' : null);
+    console.log('NFTAvatarDisplay: initialAvatarImage updated:', initialAvatarImage ? initialAvatarImage.substring(0, 50) + '...' : null);
     if (initialAvatarImage) {
       setAvatarImage(initialAvatarImage);
     }
@@ -92,29 +92,29 @@ export function NFTAvatarDisplay({
     // Send a message to the chat
     if (onSendMessage) {
       // Create a more detailed message with template information
-      let message = `我选择了一个新模板！`;
+      let message = `I've selected a new template!`;
       
       if (templateDetails) {
         const { name, componentTypeName, isOwned } = templateDetails;
         
         // Add template ID and name
-        message += `\n模板ID: #${templateId.toString()}`;
+        message += `\nTemplate ID: #${templateId.toString()}`;
         
         // Add template name if available
         if (name) {
-          message += `\n名称: ${name}`;
+          message += `\nName: ${name}`;
         }
         
         // Add component type if available
         if (componentTypeName) {
-          message += `\n类型: ${componentTypeName}`;
+          message += `\nType: ${componentTypeName}`;
         }
         
         // Add ownership status
-        message += `\n拥有状态: ${isOwned ? '已拥有 ✅' : '未拥有 ❌'}`;
+        message += `\nOwnership status: ${isOwned ? 'Owned ✅' : 'Not owned ❌'}`;
         
         // Add invitation
-        message += `\n\n请你换上这个模板吧！`;
+        message += `\n\nPlease try on this template!`;
       }
       
       onSendMessage(message);

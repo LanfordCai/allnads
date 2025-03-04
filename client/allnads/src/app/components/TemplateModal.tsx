@@ -238,7 +238,7 @@ export default function TemplateModal({
           <div className="p-4 border-b-4 border-[#8B5CF6] flex justify-between items-center">
             <div className="flex flex-col">
               <h2 className="text-xl font-bold text-gray-800">Select Component</h2>
-              <p className="text-sm text-gray-500 mt-1">选择模板后将在聊天中发送消息，让 AllNads 更换模板</p>
+              <p className="text-sm text-gray-500 mt-1">After selecting a template, a message will be sent in the chat to let AllNads change the template</p>
               {(loading || checkingOwnership) && (
                 <div className="ml-3 animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8B5CF6]"></div>
               )}
@@ -285,8 +285,8 @@ export default function TemplateModal({
                   >
                     {/* Owned badge */}
                     {userOwnsTemplate(template.id) && (
-                      <div className="absolute top-2 right-2 bg-[#4CAF50] text-white text-xs px-2 py-1 rounded-full z-10 border-2 border-[#388E3C]">
-                        已拥有
+                      <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                        Owned
                       </div>
                     )}
                     
