@@ -1,9 +1,23 @@
 "use client";
 
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
+import { useEffect, useState } from 'react';
 
 export default function AppHeader() {
   const { user, logout } = usePrivyAuth();
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // 检测屏幕尺寸
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768); // 小于768px视为小屏幕
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
   
   const email = user?.email?.address;
   const walletAddress = user?.wallet?.address;
@@ -19,9 +33,12 @@ export default function AppHeader() {
       </div>
       
       <div className="flex items-center">
-        <div className="mr-4 font-medium text-white">
-          {displayName}
-        </div>
+        {/* 在非移动设备上显示邮箱 */}
+        {!isMobile && (
+          <div className="mr-4 font-medium text-white">
+            {displayName}
+          </div>
+        )}
         <button
           onClick={logout}
           className="p-2 bg-[#8B5CF6] text-white font-bold rounded-xl border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6] transition-all"

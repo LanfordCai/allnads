@@ -103,6 +103,14 @@ export default function ImageCard({
     if (onChangeComponent) {
       onChangeComponent(templateId, templateDetails);
     }
+    
+    // 在小屏幕下自动切换到聊天区域
+    if (isSmallScreen && onSwitchToChat) {
+      // 短暂延迟，确保模态框已关闭
+      setTimeout(() => {
+        onSwitchToChat();
+      }, 100);
+    }
   };
   
   // 处理切换到聊天区域
@@ -131,29 +139,43 @@ export default function ImageCard({
           <h3 className="text-lg font-bold text-gray-700 mb-3">{title}</h3>
         )}
         
-        {/* 在小屏幕上显示聊天按钮 */}
-        {isSmallScreen && onSwitchToChat && (
-          <button 
-            onClick={handleSwitchToChat}
-            className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
-              bg-[#4CAF50] text-white border-4 border-[#388E3C] shadow-[4px_4px_0px_0px_#2E7D32] 
-              hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#2E7D32]"
-          >
-            切换到聊天
-          </button>
-        )}
-        
-        {/* 在非小屏幕上或没有聊天切换功能时显示更换模板按钮 */}
-        {(!isSmallScreen || !onSwitchToChat) && (
-          <button 
-            onClick={handleOpenModal}
-            className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
-              bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
-              hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
-          >
-            更换模板
-          </button>
-        )}
+        {/* 按钮区域 */}
+        <div className="grid grid-cols-1 gap-3">
+          {/* 在小屏幕上显示按钮组 */}
+          {isSmallScreen && onSwitchToChat && (
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={handleSwitchToChat}
+                className="py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                  bg-[#4CAF50] text-white border-4 border-[#388E3C] shadow-[4px_4px_0px_0px_#2E7D32] 
+                  hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#2E7D32]"
+              >
+                切换到聊天
+              </button>
+              
+              <button 
+                onClick={handleOpenModal}
+                className="py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                  bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+                  hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
+              >
+                更换模板
+              </button>
+            </div>
+          )}
+          
+          {/* 在非小屏幕上或没有聊天切换功能时只显示更换模板按钮 */}
+          {(!isSmallScreen || !onSwitchToChat) && (
+            <button 
+              onClick={handleOpenModal}
+              className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+                hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
+            >
+              更换模板
+            </button>
+          )}
+        </div>
       </div>
       
       {/* Template Selection Modal - Templates are preloaded in the background */}
