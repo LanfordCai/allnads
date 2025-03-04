@@ -3,11 +3,11 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { env } from '../config/env';
 
 /**
- * 创建一个基于 OpenRouter 的 LLM 客户端
- * OpenRouter 允许通过 OpenAI 兼容接口访问多种模型
+ * Create an OpenRouter-based LLM client
+ * OpenRouter allows access to multiple models through an OpenAI-compatible interface
  */
 export function createLLM(): BaseChatModel {
-  // 检查必要的环境变量
+  // Check required environment variables
   if (!env.OPENROUTER_API_KEY) {
     throw new Error('Missing OPENROUTER_API_KEY environment variable');
   }
@@ -16,7 +16,7 @@ export function createLLM(): BaseChatModel {
     throw new Error('Missing OPENROUTER_MODEL environment variable');
   }
 
-  // 配置 OpenRouter LLM
+  // Configure OpenRouter LLM
   return new ChatOpenAI({
     openAIApiKey: env.OPENROUTER_API_KEY,
     modelName: env.OPENROUTER_MODEL,
@@ -26,12 +26,11 @@ export function createLLM(): BaseChatModel {
     configuration: {
       baseURL: 'https://openrouter.ai/api/v1',
       defaultHeaders: {
-        'HTTP-Referer': 'https://wenads-agent',
-        'X-Title': 'WenAds Agent',
+        'X-Title': 'AllNads',
       },
     },
   });
 }
 
-// 导出单例实例
+// Export singleton instance
 export const llm = createLLM(); 

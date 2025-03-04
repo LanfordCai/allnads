@@ -6,16 +6,16 @@ import { eq, desc, and } from 'drizzle-orm';
 
 const sessionsCache = new Map<string, ChatSession>();
 /**
- * 会话管理服务
+ * Session Management Service
  */
 export class SessionService {
   /**
-   * 创建新的聊天会话
+   * Create a new chat session
    */
   static async createSession(sessionId: string, systemPrompt: string, privyUserId: string): Promise<ChatSession> {
     const now = new Date();
     
-    // 创建会话记录
+    // Create session record
     await db.insert(sessions).values({
       id: sessionId,
       privyUserId,
@@ -31,7 +31,7 @@ export class SessionService {
       messages: [],
     };
     
-    // 添加 systemMessage 为第一条消息
+    // Add systemMessage as the first message
     const systemMessage: ChatMessage = {
       role: ChatRole.SYSTEM,
       content: systemPrompt,
@@ -39,7 +39,7 @@ export class SessionService {
       sessionId: sessionId
     };
     
-    // 添加系统消息
+    // Add system message
     await db.insert(messages).values({
       sessionId,
       role: systemMessage.role,
@@ -55,12 +55,12 @@ export class SessionService {
   }
   
   /**
-   * 获取会话
+   * Get session
    */
   static async getSession(sessionId: string, systemPrompt?: string): Promise<ChatSession | undefined> {
-    // 从数据库获取
+    // Get from database
     try {
-      // 查询会话
+      // Query session
       const sessionResults = await db.select().from(sessions).where(eq(sessions.id, sessionId));
       
       if (sessionResults.length === 0) {
@@ -69,17 +69,17 @@ export class SessionService {
       
       const sessionData = sessionResults[0];
       
-      // 查询会话的所有消息
+      // Query all messages for the session
       const messageResults = await db.select().from(messages)
         .where(eq(messages.sessionId, sessionId))
         .orderBy(messages.timestamp);
 
-      // 检查是否有系统消息
+      // Check if there's a system message
       const hasSystemMessage = messageResults.some(msg => msg.role === ChatRole.SYSTEM);
       
-      // 如果没有系统消息，或者需要替换现有的系统消息
+      // If no system message, or need to replace existing system message
       if (!hasSystemMessage && systemPrompt) {
-        // 创建新的系统消息
+        // Create new system message
         const now = new Date();
         const systemMessage: ChatMessage = {
           role: ChatRole.SYSTEM,
@@ -88,7 +88,7 @@ export class SessionService {
           sessionId: sessionId
         };
         
-        // 添加系统消息到数据库
+        // Add system message to database
         await db.insert(messages).values({
           sessionId,
           role: systemMessage.role,
@@ -97,9 +97,9 @@ export class SessionService {
           createdAt: now,
         });
         
-        // 将系统消息添加到结果集的开头
+        // Add system message to the beginning of the result set
         messageResults.unshift({
-          id: 0, // 这个ID在返回结果中不会被使用
+          id: 0, // This ID won't be used in the return result
           sessionId,
           role: systemMessage.role,
           content: systemMessage.content,
@@ -107,12 +107,12 @@ export class SessionService {
           createdAt: now,
         });
       } else if (hasSystemMessage && systemPrompt) {
-        // 如果有系统消息且提供了新的系统提示，则替换现有的系统消息
+        // If there's a system message and a new system prompt is provided, replace the existing system message
         const systemMessageIndex = messageResults.findIndex(msg => msg.role === ChatRole.SYSTEM);
         if (systemMessageIndex !== -1) {
           const now = new Date();
           
-          // 更新数据库中的系统消息
+          // Update system message in database
           await db.update(messages)
             .set({ 
               content: systemPrompt,
@@ -124,12 +124,12 @@ export class SessionService {
               )
             );
           
-          // 更新结果集中的系统消息
+          // Update system message in result set
           messageResults[systemMessageIndex].content = systemPrompt;
         }
       }
       
-      // 构建会话对象
+      // Build session object
       const session: ChatSession = {
         id: sessionData.id,
         privyUserId: sessionData.privyUserId || undefined,
@@ -143,7 +143,7 @@ export class SessionService {
         })),
       };
 
-      // 添加到缓存
+      // Add to cache
       sessionsCache.set(sessionId, session);
       
       return session;
@@ -154,31 +154,31 @@ export class SessionService {
   }
   
   /**
-   * 添加消息到会话
+   * Add message to session
    */
   static async addMessage(sessionId: string, message: ChatMessage, systemPrompt?: string): Promise<ChatSession> {
-    // 获取会话
+    // Get session
     const session = await this.getSession(sessionId, systemPrompt);
     
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
     }
     
-    // 确保消息包含正确的会话ID
+    // Ensure message has correct session ID
     if (message.sessionId && message.sessionId !== sessionId) {
-      console.warn(`[警告] 消息的会话ID(${message.sessionId})与目标会话ID(${sessionId})不匹配，已自动修正`);
+      console.warn(`[Warning] Message session ID(${message.sessionId}) doesn't match target session ID(${sessionId}), automatically corrected`);
       message.sessionId = sessionId;
     } else if (!message.sessionId) {
       message.sessionId = sessionId;
     }
     
-    // 更新会话的最后修改时间
+    // Update session's last modified time
     const now = new Date();
     await db.update(sessions)
       .set({ updatedAt: now })
       .where(eq(sessions.id, sessionId));
     
-    // 添加新消息
+    // Add new message
     await db.insert(messages).values({
       sessionId,
       role: message.role,
@@ -187,7 +187,7 @@ export class SessionService {
       createdAt: now,
     });
     
-    // 更新缓存
+    // Update cache
     session.messages.push(message);
     session.updatedAt = now;
     sessionsCache.set(sessionId, session);
@@ -197,11 +197,11 @@ export class SessionService {
   }
   
   /**
-   * 获取会话历史消息
+   * Get session history messages
    */
   static async getHistory(sessionId: string): Promise<ChatMessage[]> {
     try {
-      // 检查会话存在
+      // Check session exists
       const sessionExists = await db.select({ id: sessions.id })
         .from(sessions)
         .where(eq(sessions.id, sessionId));
@@ -210,7 +210,7 @@ export class SessionService {
         throw new Error(`Session not found: ${sessionId}`);
       }
       
-      // 查询消息
+      // Query messages
       const messageResults = await db.select().from(messages)
         .where(eq(messages.sessionId, sessionId))
         .orderBy(messages.timestamp);
@@ -228,11 +228,11 @@ export class SessionService {
   }
   
   /**
-   * 删除会话
+   * Delete session
    */
   static async deleteSession(sessionId: string): Promise<boolean> {
     try {
-      // 会话表有级联删除约束，因此删除会话会自动删除所有关联消息
+      // Sessions table has cascade delete constraint, so deleting a session will automatically delete all associated messages
       const result = await db.delete(sessions)
         .where(eq(sessions.id, sessionId));
 
@@ -246,7 +246,7 @@ export class SessionService {
   }
   
   /**
-   * 获取所有会话 ID
+   * Get all session IDs
    */
   static async getAllSessionIds(): Promise<string[]> {
     try {
@@ -259,7 +259,7 @@ export class SessionService {
   }
   
   /**
-   * 获取用户的所有会话 ID
+   * Get user's all session IDs
    */
   static async getUserSessionIds(privyUserId: string): Promise<string[]> {
     try {
@@ -276,7 +276,7 @@ export class SessionService {
   }
   
   /**
-   * 验证用户是否拥有会话
+   * Validate user ownership of session
    */
   static async validateSessionOwnership(sessionId: string, privyUserId: string): Promise<boolean> {
     try {
@@ -295,7 +295,7 @@ export class SessionService {
   }
   
   /**
-   * 加载所有会话到缓存
+   * Load all sessions into cache
    */
   static async loadAllSessions(): Promise<void> {
     try {

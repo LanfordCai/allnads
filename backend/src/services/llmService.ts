@@ -14,7 +14,7 @@ interface StreamCallbacks {
 }
 
 /**
- * LLM 服务 - 负责与 LLM API 进行通信
+ * LLM Service - Responsible for communication with LLM API
  */
 export class LLMService extends EventEmitter {
   private apiKey: string;
@@ -34,10 +34,10 @@ export class LLMService extends EventEmitter {
   }
 
   /**
-   * 发送聊天请求
+   * Send chat request
    */
   async sendChatRequest(options: ChatOptions): Promise<ChatResponse> {
-    // 使用默认值
+    // Use default values
     const requestOptions: ChatOptions = {
       ...options,
       model: options.model || this.defaultModel,
@@ -45,9 +45,9 @@ export class LLMService extends EventEmitter {
     };
     
     try {
-      console.log(`[LLM请求] 发送请求到 ${this.baseUrl}/chat/completions`);
-      console.log(`[LLM请求] 使用模型: ${requestOptions.model}`);
-      console.log(`[LLM请求] 消息数量: ${requestOptions.messages.length}`);
+      console.log(`[LLM Request] Sending request to ${this.baseUrl}/chat/completions`);
+      console.log(`[LLM Request] Using model: ${requestOptions.model}`);
+      console.log(`[LLM Request] Message count: ${requestOptions.messages.length}`);
       
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -62,49 +62,49 @@ export class LLMService extends EventEmitter {
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: response.statusText }));
-        console.error(`[LLM错误] API请求失败: ${error.error || response.statusText}`);
+        console.error(`[LLM Error] API request failed: ${error.error || response.statusText}`);
         throw new Error(`API request failed: ${error.error || response.statusText}`);
       }
       
       const responseData: ChatResponse = await response.json();
       
-      // 详细记录API响应
-      console.log(`[LLM响应] 状态: ${response.status} ${response.statusText}`);
-      console.log(`[LLM响应] 模型: ${responseData.model}`);
-      console.log(`[LLM响应] Token使用: ${responseData.usage?.total_tokens || 'unknown'}`);
+      // Detailed API response logging
+      console.log(`[LLM Response] Status: ${response.status} ${response.statusText}`);
+      console.log(`[LLM Response] Model: ${responseData.model}`);
+      console.log(`[LLM Response] Token usage: ${responseData.usage?.total_tokens || 'unknown'}`);
       
       if (responseData.choices && responseData.choices.length > 0) {
         const message = responseData.choices[0].message;
-        console.log(`[LLM响应] 响应角色: ${message.role}`);
+        console.log(`[LLM Response] Response role: ${message.role}`);
         
         if (message.content === null) {
-          console.warn(`[LLM警告] 响应内容为null`);
+          console.warn(`[LLM Warning] Response content is null`);
         } else if (message.content === '...') {
-          console.warn(`[LLM警告] 响应内容为"..."`);
+          console.warn(`[LLM Warning] Response content is "..."`);
         } else if (message.content) {
-          console.log(`[LLM响应] 内容长度: ${message.content.length} 字符`);
-          console.log(`[LLM响应] 内容预览: ${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}`);
+          console.log(`[LLM Response] Content length: ${message.content.length} characters`);
+          console.log(`[LLM Response] Content preview: ${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}`);
         }
         
         if (message.tool_calls) {
-          console.log(`[LLM响应] 工具调用数量: ${message.tool_calls.length}`);
+          console.log(`[LLM Response] Tool call count: ${message.tool_calls.length}`);
         }
       }
       
       return responseData;
     } catch (error) {
-      console.error('[LLM错误] 发送聊天请求失败:', error);
+      console.error('[LLM Error] Failed to send chat request:', error);
       throw error;
     }
   }
 
   /**
-   * 流式发送聊天请求
+   * Stream chat request
    */
   async streamChatRequest(options: ChatOptions, callbacks: StreamCallbacks = {}): Promise<Message> {
     const { onMessage, onComplete, onError } = callbacks;
     
-    // 使用默认值
+    // Use default values
     const requestOptions: ChatOptions = {
       ...options,
       model: options.model || this.defaultModel,
@@ -128,7 +128,7 @@ export class LLMService extends EventEmitter {
         throw new Error(`API request failed: ${error.error || response.statusText}`);
       }
       
-      // 确保返回结果是可读流
+      // Ensure response body is a readable stream
       if (!response.body) {
         throw new Error('Response body is null');
       }
@@ -140,7 +140,7 @@ export class LLMService extends EventEmitter {
         content: ''
       };
       
-      // 读取流
+      // Read stream
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -163,7 +163,7 @@ export class LLMService extends EventEmitter {
             
             const { delta } = choices[0];
             
-            // 更新累积的消息
+            // Update accumulated message
             if (delta.role) {
               accumulatedMessage.role = delta.role;
             }
@@ -172,7 +172,7 @@ export class LLMService extends EventEmitter {
               accumulatedMessage.content = (accumulatedMessage.content || '') + delta.content;
             }
             
-            // 如果有工具调用
+            // If there are tool calls
             if (delta.tool_calls) {
               if (!accumulatedMessage.tool_calls) {
                 accumulatedMessage.tool_calls = [];
@@ -182,13 +182,13 @@ export class LLMService extends EventEmitter {
                 const existingToolCall = accumulatedMessage.tool_calls?.find(tc => tc.id === toolCall.id);
                 
                 if (existingToolCall) {
-                  // 更新现有的工具调用
+                  // Update existing tool call
                   if (toolCall.function?.name) {
                     existingToolCall.function.name = toolCall.function.name;
                   }
                   
                   if (toolCall.function?.arguments) {
-                    // 确保字符串类型处理
+                    // Ensure string type handling
                     const existingArgs = typeof existingToolCall.function.arguments === 'string' 
                       ? existingToolCall.function.arguments 
                       : JSON.stringify(existingToolCall.function.arguments);
@@ -200,7 +200,7 @@ export class LLMService extends EventEmitter {
                     existingToolCall.function.arguments = existingArgs + newArgs;
                   }
                 } else if (toolCall.id) {
-                  // 添加新的工具调用
+                  // Add new tool call
                   accumulatedMessage.tool_calls?.push({
                     id: toolCall.id,
                     type: toolCall.type || 'function',
@@ -213,7 +213,7 @@ export class LLMService extends EventEmitter {
               });
             }
             
-            // 触发消息事件
+            // Trigger message event
             if (onMessage) {
               onMessage(delta);
             }
@@ -225,7 +225,7 @@ export class LLMService extends EventEmitter {
         }
       }
       
-      // 触发完成事件
+      // Trigger completion event
       if (onComplete) {
         onComplete(accumulatedMessage);
       }

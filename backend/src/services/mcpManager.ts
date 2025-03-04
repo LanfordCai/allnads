@@ -2,27 +2,27 @@ import { MCPClient } from './mcpClient';
 import { MCPServerConfig, MCPTool, ToolCallRequest, ToolCallResult } from '../types/mcp';
 
 /**
- * 工具调用配置
+ * Tool Call Configuration
  */
 interface ToolCallConfig {
   /**
-   * 最大重试次数
+   * Maximum retry attempts
    */
   maxRetries?: number;
   
   /**
-   * 重试间隔 (毫秒)
+   * Retry interval (milliseconds)
    */
   retryInterval?: number;
   
   /**
-   * 超时时间 (毫秒)
+   * Timeout (milliseconds)
    */
   timeout?: number;
 }
 
 /**
- * MCP错误类型
+ * MCP Error Types
  */
 export enum MCPErrorType {
   CONNECTION = 'CONNECTION_ERROR',
@@ -34,7 +34,7 @@ export enum MCPErrorType {
 }
 
 /**
- * MCP错误
+ * MCP Error
  */
 export class MCPError extends Error {
   type: MCPErrorType;
@@ -56,7 +56,7 @@ export class MCPError extends Error {
 }
 
 /**
- * MCP 管理器 - 管理多个 MCP 服务器连接
+ * MCP Manager - Manages multiple MCP server connections
  */
 export class MCPManager {
   private clients: Map<string, MCPClient> = new Map();
@@ -74,7 +74,7 @@ export class MCPManager {
   }
 
   /**
-   * 添加 MCP 服务器
+   * Add MCP server
    */
   async addServer(config: MCPServerConfig): Promise<MCPTool[]> {
     if (this.clients.has(config.name)) {
@@ -86,18 +86,18 @@ export class MCPManager {
     }
     
     try {
-      // 创建客户端并初始化
+      // Create client and initialize
       const client = new MCPClient(config);
       const tools = await this.withTimeout(
         client.initialize(),
         this.defaultConfig.timeout || 30000,
-        `初始化服务器 '${config.name}' 超时`
+        `Server initialization '${config.name}' timed out`
       );
       
-      // 保存客户端
+      // Save client
       this.clients.set(config.name, client);
       
-      // 注册工具
+      // Register tools
       for (const tool of tools) {
         const toolKey = `${config.name}__${tool.name}`;
         this.toolsRegistry.set(toolKey, { 
@@ -121,7 +121,7 @@ export class MCPManager {
   }
 
   /**
-   * 移除 MCP 服务器
+   * Remove MCP server
    */
   removeServer(serverId: string): boolean {
     const client = this.clients.get(serverId);
@@ -129,13 +129,13 @@ export class MCPManager {
       return false;
     }
     
-    // 关闭连接
+    // Close connection
     client.close();
     
-    // 移除客户端
+    // Remove client
     this.clients.delete(serverId);
     
-    // 移除相关工具
+    // Remove related tools
     const toolKeysToRemove: string[] = [];
     this.toolsRegistry.forEach((value, key) => {
       if (value.serverId === serverId) {
@@ -151,14 +151,14 @@ export class MCPManager {
   }
 
   /**
-   * 获取所有 MCP 服务器
+   * Get all MCP servers
    */
   getServers(): string[] {
     return Array.from(this.clients.keys());
   }
 
   /**
-   * 获取特定服务器的工具
+   * Get tools for a specific server
    */
   getServerTools(serverId: string): MCPTool[] {
     const client = this.clients.get(serverId);
@@ -170,142 +170,146 @@ export class MCPManager {
   }
 
   /**
-   * 获取所有可用工具
+   * Get all available tools
    */
   getAllTools(): MCPTool[] {
     return Array.from(this.toolsRegistry.values()).map(item => item.tool);
   }
 
   /**
-   * 调用工具 - 格式: serverId__toolName
-   * 增加了更健壮的错误处理、超时控制和重试机制
+   * Call tool - Format: serverId__toolName
+   * Added more robust error handling, timeout control, and retry mechanism
    */
   async callTool(
     fullToolName: string, 
     args: Record<string, any>,
     config?: Partial<ToolCallConfig>
   ): Promise<ToolCallResult> {
-    // 合并配置
+    // Merge configuration
     const callConfig: ToolCallConfig = {
       ...this.defaultConfig,
       ...config
     };
     
-    // 解析工具名
+    // Parse tool name
     let serverId: string;
     let toolName: string;
     
     try {
       [serverId, toolName] = this.parseToolName(fullToolName);
     } catch (error) {
-      // 工具名解析错误
+      // Tool name parsing error
       return {
         content: [{
           type: 'text',
-          text: `错误: 无效的工具名格式 ${fullToolName}. 预期格式: serverId__toolName`
+          text: `Error: Invalid tool name format ${fullToolName}. Expected format: serverId__toolName`
         }],
         isError: true
       };
     }
     
-    // 检查服务器是否存在
+    // Check if server exists
     const client = this.clients.get(serverId);
     if (!client) {
       return {
         content: [{
           type: 'text',
-          text: `错误: MCP 服务器 '${serverId}' 不存在`
+          text: `Error: MCP server '${serverId}' does not exist`
         }],
         isError: true
       };
     }
     
-    // 重试逻辑
+    // Retry logic
     let lastError: Error | null = null;
     const maxRetries = callConfig.maxRetries || 0;
     let attempts = 0;
     
     while (attempts <= maxRetries) {
       try {
-        // 如果不是第一次尝试，则记录重试信息
+        // If not the first attempt, log retry information
         if (attempts > 0) {
-          console.log(`重试工具调用 ${fullToolName} (${attempts}/${maxRetries})...`);
+          console.log(`Retrying tool call ${fullToolName} (${attempts}/${maxRetries})...`);
         }
         
-        // 带超时的工具调用
+        // Tool call with timeout
         return await this.withTimeout(
           client.callTool({
             toolName,
             args
           }),
           callConfig.timeout || 30000,
-          `工具调用 ${fullToolName} 超时`
+          `Tool call ${fullToolName} timed out`
         );
       } catch (error) {
-        // 捕获错误以便进行重试
+        // Capture error for retry
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.error(`工具调用 ${fullToolName} 失败 (尝试 ${attempts + 1}/${maxRetries + 1}): ${lastError.message}`);
+        console.error(`Tool call ${fullToolName} failed (attempt ${attempts + 1}/${maxRetries + 1}): ${lastError.message}`);
         
-        // 增加尝试次数
+        // Increase attempt count
         attempts++;
         
-        // 如果还能重试，则等待指定时间
+        // If more retries available, wait before next attempt
         if (attempts <= maxRetries) {
           await this.delay(callConfig.retryInterval || 1000);
         }
       }
     }
     
-    // 达到最大重试次数，返回最后一个错误
-    const errorMessage = lastError ? lastError.message : '未知错误';
+    // If we get here, all retries failed
+    const errorMessage = lastError ? lastError.message : 'Unknown error';
     
     return {
       content: [{
         type: 'text',
-        text: `工具调用错误: ${errorMessage}`
+        text: `Error: Tool call failed after ${maxRetries + 1} attempts: ${errorMessage}`
       }],
       isError: true
     };
   }
 
   /**
-   * 关闭所有连接
+   * Close all connections
    */
   closeAll(): void {
     this.clients.forEach(client => {
-      client.close();
+      try {
+        client.close();
+      } catch (error) {
+        console.error('Error closing client:', error);
+      }
     });
     this.clients.clear();
     this.toolsRegistry.clear();
   }
 
   /**
-   * 解析完整工具名
+   * Parse tool name into [serverId, toolName]
    * @private
    */
   private parseToolName(fullToolName: string): [string, string] {
     const parts = fullToolName.split('__');
     if (parts.length !== 2) {
-      throw new MCPError(
-        `Invalid tool name format: ${fullToolName}. Expected format: serverId__toolName`,
-        MCPErrorType.TOOL_NOT_FOUND,
-        'unknown',
-        fullToolName
-      );
+      throw new Error(`Invalid tool name format: ${fullToolName}. Expected format: serverId__toolName`);
     }
     
-    return [parts[0], parts[1]];
+    const [serverId, toolName] = parts;
+    if (!serverId || !toolName) {
+      throw new Error(`Invalid tool name components in ${fullToolName}`);
+    }
+    
+    return [serverId, toolName];
   }
-  
+
   /**
-   * 带超时的Promise
+   * Add timeout to a promise
    * @private
    */
   private withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new MCPError(
-          `${message} (timeout after ${timeoutMs}ms)`,
+          message,
           MCPErrorType.TIMEOUT,
           'unknown'
         ));
@@ -322,9 +326,9 @@ export class MCPManager {
         });
     });
   }
-  
+
   /**
-   * 延迟函数
+   * Delay execution
    * @private
    */
   private delay(ms: number): Promise<void> {

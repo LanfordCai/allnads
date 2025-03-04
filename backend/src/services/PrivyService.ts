@@ -2,31 +2,31 @@ import { PrivyClient } from '@privy-io/server-auth';
 import * as dotenv from 'dotenv';
 import * as jwt from 'jsonwebtoken';
 
-// 加载环境变量
+// Load environment variables
 dotenv.config();
 
-// 获取环境变量
+// Get environment variables
 const PRIVY_APP_ID = process.env.PRIVY_APP_ID || '';
 const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET || '';
 
-// 定义Privy JWT令牌的类型
+// Define Privy JWT token type
 interface PrivyTokenClaims {
-  sub?: string;      // 主题（用户ID）
-  sid?: string;      // 会话ID
-  iat?: number;      // 发布时间
-  exp?: number;      // 过期时间
-  iss?: string;      // 发行者
-  aud?: string;      // 受众
-  [key: string]: any; // 其他可能的字段
+  sub?: string;      // Subject (user ID)
+  sid?: string;      // Session ID
+  iat?: number;      // Issued at time
+  exp?: number;      // Expiration time
+  iss?: string;      // Issuer
+  aud?: string;      // Audience
+  [key: string]: any; // Other possible fields
 }
 
 /**
- * 提供 Privy 用户管理和认证功能的服务
+ * Service providing Privy user management and authentication functionality
  */export class PrivyService {
   private client: PrivyClient;
 
   constructor() {
-    // 根据 Privy 文档，构造函数可能需要以下参数
+    // According to Privy documentation, constructor may need the following parameters
     this.client = new PrivyClient(
       PRIVY_APP_ID,
       PRIVY_APP_SECRET
@@ -34,9 +34,9 @@ interface PrivyTokenClaims {
   }
 
   /**
-   * 验证 Privy 认证令牌
-   * @param token - Privy 认证令牌
-   * @returns 用户信息
+   * Verify Privy authentication token
+   * @param token - Privy authentication token
+   * @returns User information
    */
   async verifyAuthToken(token: string) {
     try {
@@ -48,22 +48,22 @@ interface PrivyTokenClaims {
   }
 
   /**
-   * 验证 Privy 访问令牌
-   * @param token - Privy 访问令牌 (JWT 格式)
-   * @returns 用户信息，包含privyUserId
+   * Verify Privy access token
+   * @param token - Privy access token (JWT format)
+   * @returns User information, including privyUserId
    */
   async verifyAccessToken(token: string) {
     try {
-      console.log(`[Privy] 验证访问令牌: ${token.substring(0, 15)}...`);
+      console.log(`[Privy] Verifying access token: ${token.substring(0, 15)}...`);
       
-      // 尝试先使用verifyAuthToken方法
+      // Try using verifyAuthToken method first
       try {
         const claims = await this.verifyAuthToken(token);
-        // 将claims转换为PrivyTokenClaims类型
+        // Convert claims to PrivyTokenClaims type
         const privyClaims = claims as unknown as PrivyTokenClaims;
         
         if (privyClaims && privyClaims.sub) {
-          console.log(`[Privy] 令牌验证成功，用户ID: ${privyClaims.sub}`);
+          console.log(`[Privy] Token verification successful, user ID: ${privyClaims.sub}`);
           return {
             privyUserId: privyClaims.sub,
             sessionId: privyClaims.sid,
@@ -72,17 +72,17 @@ interface PrivyTokenClaims {
           };
         }
       } catch (err) {
-        console.log(`[Privy] 使用verifyAuthToken验证失败，尝试手动验证JWT`);
+        console.log(`[Privy] Verification with verifyAuthToken failed, trying manual JWT verification`);
       }
       
-      // 手动解析JWT，但不验证签名（仅用于开发/测试环境）
-      // 注意：生产环境应当使用完整的JWT验证
+      // Manually parse JWT, but don't verify signature (only for development/testing)
+      // Note: Production environment should use complete JWT verification
       try {
         const decodedToken = jwt.decode(token) as PrivyTokenClaims;
         
         if (decodedToken && decodedToken.sub) {
-          console.log(`[Privy] JWT解码成功，用户ID: ${decodedToken.sub}`);
-          console.warn(`[Privy] 警告：令牌仅被解码但未验证签名`);
+          console.log(`[Privy] JWT decoding successful, user ID: ${decodedToken.sub}`);
+          console.warn(`[Privy] Warning: Token was only decoded but signature not verified`);
           
           return {
             privyUserId: decodedToken.sub,
@@ -92,21 +92,21 @@ interface PrivyTokenClaims {
           };
         }
         
-        throw new Error('访问令牌格式无效或不包含用户ID');
+        throw new Error('Access token format invalid or does not contain user ID');
       } catch (jwtError) {
-        console.error(`[Privy] JWT解码失败:`, jwtError);
-        throw new Error(`JWT解码失败: ${jwtError instanceof Error ? jwtError.message : String(jwtError)}`);
+        console.error(`[Privy] JWT decoding failed:`, jwtError);
+        throw new Error(`JWT decoding failed: ${jwtError instanceof Error ? jwtError.message : String(jwtError)}`);
       }
     } catch (error: any) {
-      console.error(`[Privy] 访问令牌验证失败:`, error);
-      throw new Error(`访问令牌验证失败: ${error.message}`);
+      console.error(`[Privy] Access token verification failed:`, error);
+      throw new Error(`Access token verification failed: ${error.message}`);
     }
   }
 
   /**
-   * 从身份令牌获取用户信息（推荐方法）
-   * @param idToken - Privy 身份令牌
-   * @returns 用户信息
+   * Get user information from identity token (recommended method)
+   * @param idToken - Privy identity token
+   * @returns User information
    */
   async getUserFromIdToken(idToken: string) {
     try {
@@ -118,9 +118,9 @@ interface PrivyTokenClaims {
   }
 
   /**
-   * 根据用户ID获取用户信息（不推荐使用）
-   * @param userId - Privy 用户 ID
-   * @returns 用户信息
+   * Get user information by user ID (not recommended)
+   * @param userId - Privy user ID
+   * @returns User information
    */
   async getUserById(userId: string) {
     try {
@@ -132,10 +132,10 @@ interface PrivyTokenClaims {
   }
 
   /**
-   * 从请求中提取用户信息
-   * 假设 idToken 作为 cookie 被发送
-   * @param req - HTTP 请求对象
-   * @returns 用户信息
+   * Extract user information from request
+   * Assumes idToken is sent as a cookie
+   * @param req - HTTP request object
+   * @returns User information
    */
   async getUserFromRequest(req: any) {
     try {
@@ -151,8 +151,8 @@ interface PrivyTokenClaims {
   }
 
   /**
-   * 删除用户
-   * @param userId - Privy 用户 ID
+   * Delete user
+   * @param userId - Privy user ID
    */
   async deleteUser(userId: string) {
     try {

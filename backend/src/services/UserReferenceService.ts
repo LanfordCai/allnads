@@ -9,19 +9,19 @@ interface UserData {
 }
 
 /**
- * 用户引用服务 - 管理 Privy 用户与应用内数据的关联
+ * User Reference Service - Manages associations between Privy users and application data
  */
 export class UserReferenceService {
   /**
-   * 创建或更新用户引用
+   * Create or update user reference
    */
   static async createOrUpdateUser(privyUserId: string, userData: UserData): Promise<boolean> {
     try {
-      // 检查用户是否已存在
+      // Check if user already exists
       const existingUser = await this.getUserByPrivyId(privyUserId);
       
       if (existingUser) {
-        // 更新现有用户
+        // Update existing user
         await db.update(userReferences)
           .set({
             username: userData.username || existingUser.username,
@@ -31,7 +31,7 @@ export class UserReferenceService {
           })
           .where(eq(userReferences.privyUserId, privyUserId));
       } else {
-        // 创建新用户
+        // Create new user
         await db.insert(userReferences).values({
           privyUserId,
           username: userData.username,
@@ -50,7 +50,7 @@ export class UserReferenceService {
   }
 
   /**
-   * 获取用户引用
+   * Get user reference
    */
   static async getUserByPrivyId(privyUserId: string) {
     try {
@@ -65,7 +65,7 @@ export class UserReferenceService {
   }
 
   /**
-   * 删除用户引用
+   * Delete user reference
    */
   static async deleteUser(privyUserId: string): Promise<boolean> {
     try {
@@ -80,7 +80,7 @@ export class UserReferenceService {
   }
 
   /**
-   * 获取所有用户引用
+   * Get all user references
    */
   static async getAllUsers() {
     try {

@@ -11,15 +11,15 @@ import { z } from 'zod';
 import { isAddress } from 'viem';
 import { User } from '@privy-io/server-auth';
 /**
- * WebSocket聊天服务
+ * WebSocket Chat Service
  */
 export class ChatSocketService {
   private wss: WebSocket.Server;
   private static instance: ChatSocketService;
   
   /**
-   * 初始化WebSocket服务
-   * @param server HTTP服务器实例
+   * Initialize WebSocket service
+   * @param server HTTP server instance
    */
   constructor(server: http.Server) {
     this.wss = new WebSocket.Server({ 
@@ -31,9 +31,9 @@ export class ChatSocketService {
   }
 
   /**
-   * 从用户身份信息中提取电子邮件和以太坊钱包地址
-   * @param userIdentity Privy用户身份信息对象
-   * @returns 包含电子邮件和钱包地址的对象
+   * Extract email and Ethereum wallet address from user identity information
+   * @param userIdentity Privy user identity information object
+   * @returns Object containing email and wallet address
    */
   private extractUserInfo(user: User): { email: string; ethereumWallet: string; name: string } {
     const email = user.linkedAccounts?.find((account) => account.type === 'email')?.address;
@@ -43,35 +43,35 @@ export class ChatSocketService {
   }
   
   /**
-   * 初始化WebSocket连接处理
+   * Initialize WebSocket connection handling
    */
   private init(): void {
-    // 定义WebSocket连接参数验证模式
+    // Define WebSocket connection parameter validation schema
     const wsParamsSchema = z.object({
       sessionId: z.string()
-        .min(1, { message: "会话ID不能为空" })
-        .uuid({ message: "会话ID必须是有效的UUID格式" }),
+        .min(1, { message: "Session ID cannot be empty" })
+        .uuid({ message: "Session ID must be a valid UUID format" }),
       accessToken: z.string()
-        .min(1, { message: "认证令牌不能为空" })
+        .min(1, { message: "Authentication token cannot be empty" })
         .regex(
           /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*$/,
-          { message: "认证令牌必须是有效的JWT格式" }
+          { message: "Authentication token must be a valid JWT format" }
         ),
       idToken: z.string()
-        .min(1, { message: "ID令牌不能为空" })
+        .min(1, { message: "ID token cannot be empty" })
         .regex(
           /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*$/,
-          { message: "ID令牌必须是有效的JWT格式" }
+          { message: "ID token must be a valid JWT format" }
         ),
       nftTokenId: z.string()
-        .min(1, { message: "NFT令牌ID不能为空" }),
+        .min(1, { message: "NFT token ID cannot be empty" }),
       nftAccount: z.string()
-        .min(1, { message: "NFT账户地址不能为空" })
+        .min(1, { message: "NFT account address cannot be empty" })
         .refine((val) => isAddress(val), { 
-          message: "NFT账户地址必须是有效的以太坊地址" 
+          message: "NFT account address must be a valid Ethereum address" 
         }),
       nftMetadata: z.string()
-        .min(1, { message: "NFT元数据不能为空" })
+        .min(1, { message: "NFT metadata cannot be empty" })
         .refine((val) => {
           try {
             JSON.parse(val);
@@ -80,18 +80,18 @@ export class ChatSocketService {
             return false;
           }
         }, { 
-          message: "NFT元数据必须是有效的JSON格式" 
+          message: "NFT metadata must be a valid JSON format" 
         })
     });
 
     this.wss.on('connection', async (socket, request) => {
       try {
-        console.log('WebSocket连接请求已接收');
+        console.log('WebSocket connection request received');
         
-        // 解析查询参数
+        // Parse query parameters
         const queryParams = url.parse(request.url || '', true).query;
         
-        // 使用Zod验证参数
+        // Use Zod to validate parameters
         const paramsResult = wsParamsSchema.safeParse(queryParams);
         
         if (!paramsResult.success) {
@@ -99,52 +99,52 @@ export class ChatSocketService {
             `${err.path.join('.')}: ${err.message}`
           ).join(', ');
           
-          console.log(`WebSocket连接请求被拒绝：参数验证失败 - ${errorMessages}`);
+          console.log(`WebSocket connection request rejected: Parameter validation failed - ${errorMessages}`);
           socket.send(JSON.stringify({
             type: 'error',
-            content: `连接请求参数无效: ${errorMessages}`
+            content: `Invalid connection request parameters: ${errorMessages}`
           }));
-          socket.close(4003, '参数验证失败');
+          socket.close(4003, 'Parameter validation failed');
           return;
         }
         
-        // 从验证后的结果中提取参数
+        // Extract parameters from validated result
         const { sessionId, accessToken, idToken, nftTokenId, nftAccount, nftMetadata } = paramsResult.data;
         
-        console.log(`会话ID: ${sessionId}`);
+        console.log(`Session ID: ${sessionId}`);
         
-        // 鉴权逻辑：验证Privy令牌
+        // Authentication logic: Verify Privy token
         let privyUserId: string;
         let userPrivyWallet: string;
         let userName: string;
         try {
-          // 验证Privy访问令牌
+          // Verify Privy access token
           const userData = await privyService.verifyAccessToken(accessToken);
           privyUserId = userData.privyUserId;
-          console.log(`用户已认证，Privy用户ID: ${privyUserId}`);
+          console.log(`User authenticated, Privy user ID: ${privyUserId}`);
 
           const userIdentity = await privyService.getUserFromIdToken(idToken);
           const { ethereumWallet, name } = this.extractUserInfo(userIdentity);
           userPrivyWallet = ethereumWallet;
           userName = name;
           
-          // 向客户端发送认证成功消息
+          // Send authentication success message to client
           socket.send(JSON.stringify({
             type: 'auth_success',
             privyUserId
           }));
           
         } catch (authError) {
-          console.error('认证失败:', authError);
+          console.error('Authentication failed:', authError);
           socket.send(JSON.stringify({
             type: 'error',
-            content: '认证失败，请重新登录'
+            content: 'Authentication failed, please log in again'
           }));
-          socket.close(4001, '认证失败');
+          socket.close(4001, 'Authentication failed');
           return;
         }
 
-        // 获取或创建会话
+        // Get or create session
         let session;
         let finalSessionId = sessionId;
 
@@ -153,7 +153,7 @@ export class ChatSocketService {
         const allNadsTokenId = nftTokenId;
         const allNadsAccount = nftAccount;
         
-        // 获取系统提示词
+        // Get system prompt
         const systemPrompt = getSystemPrompt(
           allNadsName, 
           allNadsTokenId, 
@@ -163,39 +163,39 @@ export class ChatSocketService {
           userPrivyWallet
         );
 
-        // 尝试获取现有会话
+        // Try to get existing session
         session = await SessionService.getSession(sessionId, systemPrompt);
         
-        // 如果会话不存在，则创建一个新会话
+        // If session doesn't exist, create a new one
         if (!session) {
-          console.log(`会话不存在，创建新会话: ${sessionId}`);
+          console.log(`Session doesn't exist, creating new session: ${sessionId}`);
           session = await SessionService.createSession(sessionId, systemPrompt, privyUserId);
           finalSessionId = session.id;
         }
 
         const isOwner = await SessionService.validateSessionOwnership(sessionId, privyUserId);
         if (!isOwner) {
-          // 如果用户不是会话所有者，返回错误
-          console.warn(`用户 ${privyUserId} 尝试访问不属于他的会话 ${sessionId}`);
+          // If user is not the session owner, return error
+          console.warn(`User ${privyUserId} attempted to access a session that doesn't belong to them ${sessionId}`);
           socket.send(JSON.stringify({
             type: 'error',
-            content: '您无权访问此会话'
+            content: 'You do not have permission to access this session'
           }));
-          socket.close(4003, '会话访问被拒绝');
+          socket.close(4003, 'Session access denied');
           return;
         }
         
-        console.log(`最终会话ID: ${finalSessionId}`);
-        console.log('历史消息', session.messages);
-        console.log(`会话历史: ${session.messages.length} 条消息`);
+        console.log(`Final session ID: ${finalSessionId}`);
+        console.log('History messages', session.messages);
+        console.log(`Session history: ${session.messages.length} messages`);
         
-        // 判断会话历史是否为空(只有系统提示消息时也视为空)
+        // Determine if session history is empty (also considered empty if only system prompt message exists)
         const historyIsEmpty = session.messages.length <= 1;
         
 
-        // 只在会话历史为空时发送欢迎消息
+        // Only send welcome message when session history is empty
         if (historyIsEmpty) {
-          // 定义多条欢迎消息
+          // Define multiple welcome messages
           const welcomeMessages = [
             `Hey there ${userName}! I'm ${allNadsName}, your AllNads NFT assistant. What can I help you with today?`,
             `Welcome back ${userName}! Ready to explore the Monad blockchain together?`,
@@ -206,16 +206,16 @@ export class ChatSocketService {
             `Hey ${userName}! ${allNadsName} here. Let's make some magic happen on the blockchain!`
           ];
           
-          // 随机选择一条欢迎消息
+          // Randomly select a welcome message
           const randomWelcomeMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
           
-          // 发送随机选择的欢迎消息
+          // Send the randomly selected welcome message
           socket.send(JSON.stringify({
             type: 'assistant_message',
             content: randomWelcomeMessage
           }));
 
-          // 将欢迎消息保存到数据库
+          // Save welcome message to database
           const welcomeMessage: ChatMessage = {
             role: ChatRole.ASSISTANT,
             content: randomWelcomeMessage,
@@ -223,69 +223,69 @@ export class ChatSocketService {
             sessionId: finalSessionId
           };
           
-          // 添加欢迎消息到会话历史
+          // Add welcome message to session history
           await SessionService.addMessage(finalSessionId, welcomeMessage);
-          console.log(`欢迎消息已保存到数据库: ${randomWelcomeMessage}`);
+          console.log(`Welcome message saved to database: ${randomWelcomeMessage}`);
         }
 
-        // 处理消息
+        // Handle messages
         socket.on('message', async (data) => {
           try {
-            // 解析客户端消息
+            // Parse client message
             const message = JSON.parse(data.toString());
             
-            // 验证消息格式
+            // Validate message format
             if (!message.text) {
               socket.send(JSON.stringify({
                 type: 'error',
-                content: '无效的消息格式，缺少text字段'
+                content: 'Invalid message format, missing text field'
               }));
               return;
             }
             
-            // 构建聊天请求
+            // Build chat request
             const chatRequest: ChatRequest = {
               sessionId: finalSessionId,
               message: message.text,
-              enableTools: message.enableTools !== false // 默认启用工具
+              enableTools: message.enableTools !== false // Tools enabled by default
             };
             
-            // 处理聊天请求
+            // Process chat request
             const session = await SessionService.getSession(finalSessionId);
             await ChatService.streamChat(chatRequest, socket, session!);
             
           } catch (error) {
-            console.error('处理消息时出错:', error);
+            console.error('Error processing message:', error);
             socket.send(JSON.stringify({
               type: 'error',
-              content: '处理消息时出错'
+              content: 'Error processing message'
             }));
           }
         });
         
-        // 处理关闭连接
+        // Handle connection close
         socket.on('close', (code, reason) => {
-          console.log(`WebSocket连接已关闭: 代码=${code}, 原因=${reason || '未提供'}`);
+          console.log(`WebSocket connection closed: code=${code}, reason=${reason || 'Not provided'}`);
         });
         
-        // 处理错误
+        // Handle errors
         socket.on('error', (error) => {
-          console.error('WebSocket错误:', error);
+          console.error('WebSocket error:', error);
         });
         
       } catch (error) {
-        console.error('WebSocket连接处理出错:', error);
+        console.error('Error handling WebSocket connection:', error);
         socket.send(JSON.stringify({
           type: 'error',
-          content: '连接初始化失败'
+          content: 'Connection initialization failed'
         }));
-        socket.close(4000, '连接错误');
+        socket.close(4000, 'Connection error');
       }
     });
   }
   
   /**
-   * 关闭WebSocket服务器
+   * Close WebSocket server
    */
   public close(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -296,10 +296,10 @@ export class ChatSocketService {
       
       this.wss.close((err) => {
         if (err) {
-          console.error('关闭WebSocket服务器时出错:', err);
+          console.error('Error closing WebSocket server:', err);
           reject(err);
         } else {
-          console.log('WebSocket服务器已安全关闭');
+          console.log('WebSocket server safely closed');
           resolve();
         }
       });
@@ -307,7 +307,7 @@ export class ChatSocketService {
   }
   
   /**
-   * 获取服务实例
+   * Get service instance
    */
   public static getInstance(): ChatSocketService | undefined {
     return this.instance;
@@ -315,17 +315,17 @@ export class ChatSocketService {
 }
 
 /**
- * 初始化聊天WebSocket服务
- * @param server HTTP服务器实例
+ * Initialize chat WebSocket service
+ * @param server HTTP server instance
  */
 export function initializeChatWebSocket(server: http.Server): ChatSocketService {
   const service = new ChatSocketService(server);
-  console.log('聊天WebSocket服务已初始化');
+  console.log('Chat WebSocket service initialized');
   return service;
 }
 
 /**
- * 关闭聊天WebSocket服务
+ * Close chat WebSocket service
  */
 export async function closeChatWebSocket(): Promise<void> {
   const instance = ChatSocketService.getInstance();

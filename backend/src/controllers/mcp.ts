@@ -5,20 +5,20 @@ import { mcpConfig } from '../config/mcpConfig';
 import { Logger } from '../utils/logger';
 import { ResponseUtil } from '../utils/response';
 
-// MCP服务器添加请求验证模式
+// MCP server add request validation schema
 const addServerRequestSchema = z.object({
-  name: z.string().min(1, "服务器名称不能为空"),
-  url: z.string().url("必须是有效的URL"),
+  name: z.string().min(1, "Server name cannot be empty"),
+  url: z.string().url("Must be a valid URL"),
   description: z.string().optional()
 });
 
 /**
- * MCP控制器
- * 提供MCP服务器管理和监控功能
+ * MCP Controller
+ * Provides MCP server management and monitoring functionality
  */
 export class MCPController {
   /**
-   * 获取所有MCP服务器
+   * Get all MCP servers
    */
   static async getServers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -47,7 +47,7 @@ export class MCPController {
   }
   
   /**
-   * 获取所有可用工具
+   * Get all available tools
    */
   static async getTools(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -56,11 +56,11 @@ export class MCPController {
       
       let tools;
       
-      // 如果指定了服务器，则只返回该服务器的工具
+      // If a server is specified, only return tools for that server
       if (server && typeof server === 'string') {
         tools = getServerTools(server);
       } else {
-        // 否则返回所有工具
+        // Otherwise return all tools
         tools = getAllAvailableTools();
       }
       
@@ -87,18 +87,18 @@ export class MCPController {
   }
   
   /**
-   * 添加MCP服务器（运行时）
+   * Add MCP server (runtime)
    */
   static async addServer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // 验证请求数据
+      // Validate request data
       const result = addServerRequestSchema.safeParse(req.body);
       
       if (!result.success) {
         Logger.warn('MCPController', 'Invalid server configuration provided', result.error.format());
         return ResponseUtil.error(
           res,
-          '无效的服务器配置',
+          'Invalid server configuration',
           400,
           'VALIDATION_ERROR',
           result.error.format()
@@ -109,7 +109,7 @@ export class MCPController {
       Logger.debug('MCPController', `Adding new MCP server: ${name} at ${url}`);
       
       try {
-        // 添加服务器
+        // Add server
         const tools = await mcpManager.addServer({
           name,
           url,
@@ -132,11 +132,11 @@ export class MCPController {
           'MCP server added successfully'
         );
       } catch (error) {
-        // 处理服务器添加错误
+        // Handle server addition error
         Logger.error('MCPController', `Failed to add MCP server '${name}'`, error);
         return ResponseUtil.error(
           res,
-          `添加服务器失败: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to add server: ${error instanceof Error ? error.message : String(error)}`,
           500,
           'SERVER_CONNECTION_ERROR'
         );
@@ -154,7 +154,7 @@ export class MCPController {
   }
   
   /**
-   * 删除MCP服务器
+   * Remove MCP server
    */
   static async removeServer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -165,20 +165,20 @@ export class MCPController {
         Logger.warn('MCPController', 'Server ID is required but was not provided');
         return ResponseUtil.error(
           res,
-          '缺少服务器ID',
+          'Missing server ID',
           400,
           'MISSING_PARAM'
         );
       }
       
-      // 删除服务器
+      // Remove server
       const success = mcpManager.removeServer(id);
       
       if (!success) {
         Logger.warn('MCPController', `Server not found: ${id}`);
         return ResponseUtil.error(
           res,
-          `服务器不存在: ${id}`,
+          `Server does not exist: ${id}`,
           404,
           'SERVER_NOT_FOUND'
         );
@@ -188,7 +188,7 @@ export class MCPController {
       return ResponseUtil.success(
         res,
         null,
-        `服务器已删除: ${id}`
+        `Server removed: ${id}`
       );
     } catch (error) {
       Logger.error('MCPController', `Error removing MCP server: ${req.params.id}`, error);

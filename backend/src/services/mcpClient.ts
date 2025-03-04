@@ -6,16 +6,16 @@ import { MCPServerConfig, MCPTool, ToolCallRequest, ToolCallResult, TextContent,
 import { MCPError, MCPErrorType } from './mcpManager';
 
 /**
- * MCP客户端配置
+ * MCP Client Configuration
  */
 interface MCPClientConfig {
   /**
-   * 连接超时时间 (毫秒)
+   * Connection timeout (milliseconds)
    */
   connectionTimeout?: number;
   
   /**
-   * 调用超时时间 (毫秒)
+   * Call timeout (milliseconds)
    */
   callTimeout?: number;
 }
@@ -37,14 +37,14 @@ export class MCPClient {
       version: '1.0.0'
     });
     this.clientConfig = {
-      connectionTimeout: 30000,  // 默认30秒
-      callTimeout: 30000,        // 默认30秒
+      connectionTimeout: 30000,  // Default 30 seconds
+      callTimeout: 30000,        // Default 30 seconds
       ...clientConfig
     };
   }
 
   /**
-   * 带超时的Promise
+   * Promise with timeout
    * @private
    */
   private withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -70,30 +70,30 @@ export class MCPClient {
   }
 
   /**
-   * 初始化连接并获取可用工具
+   * Initialize connection and get available tools
    */
   async initialize(): Promise<MCPTool[]> {
     try {
       if (!this.isConnected) {
-        // 添加连接超时
+        // Add connection timeout
         await this.withTimeout(
           this.client.connect(this.transport),
           this.clientConfig.connectionTimeout || 30000,
-          `MCP 服务器 '${this.serverConfig.name}' 连接超时`
+          `MCP server '${this.serverConfig.name}' connection timeout`
         );
         this.isConnected = true;
       }
       
-      // 获取可用工具，添加超时
+      // Get available tools, add timeout
       const toolsResult = await this.withTimeout(
         this.client.listTools(),
         this.clientConfig.callTimeout || 30000,
-        `从服务器 '${this.serverConfig.name}' 获取工具列表超时`
+        `Timeout getting tool list from server '${this.serverConfig.name}'`
       );
       
       const tools = toolsResult.tools || [];
       
-      // 转换为我们的工具格式
+      // Convert to our tool format
       this.availableTools = tools.map((tool: any) => ({
         name: tool.name,
         description: tool.description || '',
@@ -102,7 +102,7 @@ export class MCPClient {
       
       return this.availableTools;
     } catch (error: unknown) {
-      // 分类错误类型
+      // Categorize error type
       let mcpError: MCPError;
       
       if (error instanceof MCPError) {
@@ -111,7 +111,7 @@ export class MCPClient {
         const errorMessage = error instanceof Error ? error.message : String(error);
         let errorType = MCPErrorType.UNKNOWN;
         
-        // 根据错误消息判断类型
+        // Determine error type based on message
         if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('timed out')) {
           errorType = MCPErrorType.TIMEOUT;
         } else if (errorMessage.toLowerCase().includes('connect') || errorMessage.toLowerCase().includes('connection')) {
@@ -121,7 +121,7 @@ export class MCPClient {
         }
         
         mcpError = new MCPError(
-          `MCP客户端初始化错误: ${errorMessage}`,
+          `MCP client initialization error: ${errorMessage}`,
           errorType,
           this.serverConfig.name
         );
@@ -133,14 +133,14 @@ export class MCPClient {
   }
 
   /**
-   * 获取所有可用工具
+   * Get all available tools
    */
   getAvailableTools(): MCPTool[] {
     return this.availableTools;
   }
 
   /**
-   * 调用工具并获取结果
+   * Call tool and get results
    */
   async callTool(request: ToolCallRequest): Promise<ToolCallResult> {
     try {
@@ -148,64 +148,64 @@ export class MCPClient {
         await this.initialize();
       }
       
-      // 检查工具是否可用
+      // Check if tool is available
       const tool = this.availableTools.find(t => t.name === request.toolName);
       if (!tool) {
         throw new MCPError(
-          `工具未找到: ${request.toolName}`,
+          `Tool not found: ${request.toolName}`,
           MCPErrorType.TOOL_NOT_FOUND,
           this.serverConfig.name,
           request.toolName
         );
       }
 
-      // 调用 MCP 工具，添加超时
+      // Call MCP tool, add timeout
       const result = await this.withTimeout(
         this.client.callTool({
           name: request.toolName,
           arguments: request.args
         }),
         this.clientConfig.callTimeout || 30000,
-        `调用工具 '${request.toolName}' 超时`
+        `Tool call '${request.toolName}' timed out`
       );
       
-      // 根据MCP规范格式化返回结果
+      // Format return result according to MCP specification
       const resultContent = result.result !== undefined ? result.result : result;
       
-      // 创建符合MCP规范的响应对象
+      // Create response object compliant with MCP specification
       let content: (TextContent | ImageContent)[] = [];
       
-      // 将结果转换为符合规范的内容对象
+      // Convert result to compliant content object
       if (typeof resultContent === 'string') {
-        // 文本内容
+        // Text content
         content = [{
           type: 'text',
           text: resultContent
         }];
       } else if (resultContent !== null && typeof resultContent === 'object') {
-        // 如果是对象，检查是否有图像数据
-        // 使用类型守卫检查是否为可能的图像内容
+        // If object, check if it has image data
+        // Use type guard to check if it might be image content
         const maybeImage = resultContent as Record<string, unknown>;
         if (
           maybeImage.type === 'image' && 
           typeof maybeImage.data === 'string' && 
           typeof maybeImage.mimeType === 'string'
         ) {
-          // 已经是符合规范的图像内容，使用类型断言
+          // Already compliant image content, use type assertion
           content = [{
             type: 'image',
             data: maybeImage.data,
             mimeType: maybeImage.mimeType
           }];
         } else {
-          // 普通对象，转换为JSON字符串作为文本内容
+          // Regular object, convert to JSON string as text content
           content = [{
             type: 'text',
             text: JSON.stringify(resultContent)
           }];
         }
       } else {
-        // 其他类型转换为字符串
+        // Convert other types to string
         content = [{
           type: 'text',
           text: String(resultContent)
@@ -217,7 +217,7 @@ export class MCPClient {
         isError: false
       };
     } catch (error: unknown) {
-      // 分类错误类型
+      // Categorize error type
       let mcpError: MCPError;
       
       if (error instanceof MCPError) {
@@ -226,7 +226,7 @@ export class MCPClient {
         const errorMessage = error instanceof Error ? error.message : String(error);
         let errorType = MCPErrorType.UNKNOWN;
         
-        // 根据错误消息判断类型
+        // Determine error type based on message
         if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('timed out')) {
           errorType = MCPErrorType.TIMEOUT;
         } else if (errorMessage.toLowerCase().includes('not found') || errorMessage.toLowerCase().includes('unknown tool')) {
@@ -238,7 +238,7 @@ export class MCPClient {
         }
         
         mcpError = new MCPError(
-          `调用工具错误: ${errorMessage}`,
+          `Tool call error: ${errorMessage}`,
           errorType,
           this.serverConfig.name,
           request.toolName
@@ -247,11 +247,11 @@ export class MCPClient {
       
       console.error(`Error calling tool ${request.toolName}: ${mcpError.message} (${mcpError.type})`);
       
-      // 返回错误结果
+      // Return error result
       return {
         content: [{
           type: 'text',
-          text: `错误 (${mcpError.type}): ${mcpError.message}`
+          text: `Error calling tool ${request.toolName}: ${mcpError.message}`
         }],
         isError: true
       };
@@ -259,16 +259,16 @@ export class MCPClient {
   }
 
   /**
-   * 关闭连接
+   * Close connection
    */
   close(): void {
     if (this.isConnected) {
       try {
-        // 使用 Client 的 close 方法关闭连接
+        // Use Client's close method to close the connection
         this.client.close();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`关闭客户端连接失败: ${errorMessage}`);
+        console.warn(`Failed to close client connection: ${errorMessage}`);
       }
       this.isConnected = false;
     }
