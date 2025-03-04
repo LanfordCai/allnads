@@ -31,28 +31,6 @@ class BlockchainService {
     
     // Initialize rate limiter with 10 requests per second
     this.rateLimiter = new RateLimiter(10);
-    
-    // Log rate limiter status periodically
-    this.startStatusLogging();
-  }
-
-  /**
-   * Start periodic logging of rate limiter status
-   */
-  private startStatusLogging(): void {
-    // Log status every 5 seconds if there's activity
-    setInterval(() => {
-      const status = this.rateLimiter.getStatus();
-      if (status.active > 0 || status.queued > 0) {
-        console.log(
-          `[BlockchainService] Status summary - ` +
-          `Active requests: ${status.active}, ` +
-          `Queued requests: ${status.queued}, ` +
-          `Available tokens: ${status.availableTokens.toFixed(2)}, ` +
-          `Total calls made: ${this.callCounter}`
-        );
-      }
-    }, 5000);
   }
 
   public static getInstance(): BlockchainService {
@@ -81,14 +59,11 @@ class BlockchainService {
   private wrapBlockchainCall<T extends (...args: any[]) => Promise<any>>(fn: T, methodName: string): T {
     const wrappedFn = async (...args: Parameters<T>): Promise<ReturnType<T>> => {
       const callId = ++this.callCounter;
-      console.log(`[BlockchainCall #${callId}] Starting ${methodName}`);
       
       try {
         const result = await fn(...args);
-        console.log(`[BlockchainCall #${callId}] Completed ${methodName} successfully`);
         return result;
       } catch (error) {
-        console.error(`[BlockchainCall #${callId}] Failed ${methodName}:`, error);
         throw error;
       }
     };
@@ -118,13 +93,11 @@ class BlockchainService {
       if (typeof window !== 'undefined' && window.ethereum) {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         if (accounts && accounts.length > 0) {
-          console.log("Got user wallet address:", accounts[0]);
           return accounts[0];
         }
       }
       return null;
     } catch (error) {
-      console.error('Error getting user address:', error);
       return null;
     }
   }
@@ -134,8 +107,6 @@ class BlockchainService {
    */
   public async getTemplatesByType(componentType: number): Promise<bigint[]> {
     const contractAddress = this.getContractAddress('allNadsComponent');
-    
-    console.log(`Fetching templates for component type ${componentType}...`);
     
     const getTemplatesWithRetry = this.wrapBlockchainCall(async () => {
       return await this.publicClient.readContract({
@@ -147,7 +118,6 @@ class BlockchainService {
     }, 'getTemplatesByType');
     
     const templateIds = await getTemplatesWithRetry();
-    console.log(`Found ${templateIds.length} templates for component type ${componentType}`);
     
     return templateIds;
   }
@@ -182,7 +152,6 @@ class BlockchainService {
         componentType: templateData.componentType || 0
       } as Template;
     } catch (error) {
-      console.error(`Error fetching template ${templateId}:`, error);
       throw error;
     }
   }
@@ -219,15 +188,12 @@ class BlockchainService {
   ): Promise<Record<string, bigint>> {
     if (!nftAccountAddress || templateIds.length === 0) return {};
     
-    console.log(`Checking template ownership for NFT account: ${nftAccountAddress}, ${templateIds.length} templates`);
-    
     // Process in smaller batches to avoid overwhelming the rate limiter
     const batchSize = 10; // Process 10 at a time
     const results: { templateId: bigint; tokenId: bigint }[] = [];
     
     for (let i = 0; i < templateIds.length; i += batchSize) {
       const batch = templateIds.slice(i, i + batchSize);
-      console.log(`Processing batch ${i / batchSize + 1}/${Math.ceil(templateIds.length / batchSize)}, size: ${batch.length}`);
       
       // Create batch of promises to check ownership for each template in this batch
       const batchPromises = batch.map(templateId => 
@@ -248,7 +214,6 @@ class BlockchainService {
       return acc;
     }, {} as Record<string, bigint>);
     
-    console.log(`Found ${Object.keys(ownedTemplatesMap).length} owned templates out of ${templateIds.length} checked`);
     return ownedTemplatesMap;
   }
 
@@ -282,11 +247,9 @@ class BlockchainService {
           image: json.image || null
         };
       } catch (parseError) {
-        console.error("Error parsing NFT metadata:", parseError);
         return { name: null, image: null };
       }
     } catch (error) {
-      console.error('Error fetching token image:', error);
       return { name: null, image: null };
     }
   }
@@ -428,7 +391,6 @@ class BlockchainService {
       }
       
       const responseData = await response.json();
-      console.log('API response:', responseData);
       
       // Check if the response has the expected structure
       if (!responseData.success) {
@@ -457,10 +419,8 @@ class BlockchainService {
         }
       });
       
-      console.log('Processed templates:', processedTemplates);
       return processedTemplates;
     } catch (error) {
-      console.error('Error fetching templates from API:', error);
       throw error;
     }
   }

@@ -50,7 +50,6 @@ export class RateLimiter {
     if (this.tokens >= 1) {
       this.tokens -= 1;
       this.activeRequests++;
-      this.logStatus();
       return true;
     }
     
@@ -83,7 +82,6 @@ export class RateLimiter {
     
     // If we can't consume immediately, we're queued
     this.queuedRequests++;
-    this.logStatus(`Request #${currentRequestId} queued`);
     
     try {
       // Get time until next token is available
@@ -110,13 +108,11 @@ export class RateLimiter {
       // If we still couldn't consume after multiple attempts, force consumption
       // This is a last resort to prevent deadlocks
       if (attempts >= maxAttempts) {
-        console.warn(`[RateLimiter] Force consuming token after ${attempts} attempts`);
         this.activeRequests++;
         this.tokens = Math.max(0, this.tokens - 1);
       }
       
       this.queuedRequests--;
-      this.logStatus(`Request #${currentRequestId} started after waiting ~${waitTime}ms`);
     } catch (error) {
       // If there's an error, make sure to decrement the queued count
       this.queuedRequests--;
@@ -130,7 +126,6 @@ export class RateLimiter {
   public completeRequest(): void {
     if (this.activeRequests > 0) {
       this.activeRequests--;
-      this.logStatus("Request completed");
     }
   }
 
@@ -144,19 +139,6 @@ export class RateLimiter {
       queued: this.queuedRequests,
       availableTokens: this.tokens
     };
-  }
-
-  /**
-   * Log the current status of the rate limiter
-   */
-  private logStatus(message?: string): void {
-    const status = this.getStatus();
-    console.log(
-      `[RateLimiter] ${message || 'Status update'}: ` +
-      `Active: ${status.active}, ` +
-      `Queued: ${status.queued}, ` +
-      `Available tokens: ${status.availableTokens.toFixed(2)}`
-    );
   }
 }
 
@@ -183,7 +165,6 @@ export async function retryWithBackoff<T>(
     } catch (error: any) {
       // Check if we've reached max retries
       if (retries >= maxRetries) {
-        console.log(`[Retry] Max retries (${maxRetries}) reached, giving up.`);
         throw error;
       }
       
@@ -208,13 +189,9 @@ export async function retryWithBackoff<T>(
       
       // Only retry HTTP errors, not contract execution errors
       if (!isHttpError || isContractError) {
-        console.log(`[Retry] Error not eligible for retry: ${error.message}`);
         throw error;
       }
 
-      // Log retry attempt
-      console.log(`[Retry] Attempt ${retries + 1}/${maxRetries} failed, retrying in ${delay}ms: ${error.message}`);
-      
       // Exponential backoff
       retries++;
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -243,12 +220,6 @@ export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>
       // Wait for rate limiter
       await rateLimiter.consume();
       
-      // Track how long we waited for the rate limiter
-      const waitTime = Date.now() - startTime;
-      if (waitTime > 100) { // Only log if wait was significant
-        console.log(`[RateLimit] Waited ${waitTime}ms for token`);
-      }
-      
       try {
         // Execute with retry
         const result = await retryWithBackoff(
@@ -259,12 +230,6 @@ export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>
         // Mark request as completed
         rateLimiter.completeRequest();
         
-        // Log execution time
-        const executionTime = Date.now() - startTime;
-        if (executionTime > 1000) { // Only log if execution was slow
-          console.log(`[Performance] Request took ${executionTime}ms to complete`);
-        }
-        
         return result;
       } catch (error) {
         // Mark request as completed even if it failed
@@ -273,11 +238,9 @@ export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>
       }
     } catch (error) {
       // This would be an error in the rate limiter itself
-      console.error('[RateLimit] Error in rate limiter:', error);
       
       // Try to execute the function directly as a fallback
       // This bypasses rate limiting but prevents complete failure
-      console.warn('[RateLimit] Bypassing rate limiter due to error');
       return await fn(...args);
     }
   }) as T;

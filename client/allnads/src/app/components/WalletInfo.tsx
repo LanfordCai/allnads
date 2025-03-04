@@ -21,8 +21,8 @@ interface WalletInfoProps {
 }
 
 export default function WalletInfo({ nftAccount }: WalletInfoProps) {
-  const { isAuthenticated, user } = usePrivyAuth();
-  const [showTokensModal, setShowTokensModal] = useState(false);
+  const { user } = usePrivyAuth();
+  const [, setShowTokensModal] = useState(false);
   const { balance, isLoading: isLoadingBalance } = useAccountBalance(nftAccount as Address);
   
   // Get user wallet address
@@ -34,7 +34,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
       {/* AllNads Account Section */}
       <div className="bg-white rounded-xl border-4 border-[#8B5CF6] shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden w-full max-w-[320px] relative">
         <div className="absolute top-3 left-3">
-          <span className="bg-[#8B5CF6] text-white text-xs font-medium px-3 py-1 rounded-full">
+          <span className="bg-[#6dbc70] text-white text-xs font-medium px-3 py-1 rounded-full">
             AllNads Account
           </span>
         </div>
@@ -134,7 +134,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
       {/* Privy Linked Wallet Section */}
       <div className="bg-white rounded-xl border-4 border-[#8B5CF6] shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden w-full max-w-[320px] relative">
         <div className="absolute top-3 left-3">
-          <span className="bg-[#8B5CF6] text-white text-xs font-medium px-3 py-1 rounded-full">
+          <span className="bg-[#6dbc70] text-white text-xs font-medium px-3 py-1 rounded-full">
             Privy Linked Wallet
           </span>
         </div>
