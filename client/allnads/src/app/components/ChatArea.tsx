@@ -368,123 +368,148 @@ export default function ChatArea({
         ::-webkit-scrollbar-thumb:hover {
           background: #A78BFA;
         }
+
+        /* 确保滚动条始终可见 */
+        .messages-container {
+          scrollbar-width: thin;
+          scrollbar-color: #C4B5FD #f1f1f1;
+        }
+        
+        .messages-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .messages-container::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        
+        .messages-container::-webkit-scrollbar-thumb {
+          background-color: #C4B5FD;
+          border-radius: 10px;
+        }
       `}</style>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-[#C4B5FD] scrollbar-track-gray-100 hover:scrollbar-thumb-[#A78BFA]">
-        {messages.map((message, index) => {
-          // Check if this is the first AI message in a sequence
-          const isFirstInSequence = () => {
-            // If it's not an AI message (bot, tool, error, thinking, transaction_to_sign), no need to check
-            if (!['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(message.role)) {
-              return false;
-            }
-            
-            // If it's the first message overall, it's the first in sequence
-            if (index === 0) {
-              return true;
-            }
-            
-            // Check if the previous message was from a different sender (not AI)
-            const prevMessage = messages[index - 1];
-            return !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(prevMessage.role);
-          };
-          
-          // Determine if we should show the avatar
-          const shouldShowAvatar = isFirstInSequence();
-          
-          return (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
-            >
-              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
-                <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
-                  <img 
-                    src={localAvatarImage || "https://picsum.photos/500/500"} 
-                    alt="AI Avatar"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback if image fails to load
-                      e.currentTarget.src = "https://picsum.photos/500/500";
-                    }}
-                  />
+      <div className="flex-1 overflow-hidden relative">
+        <div className="absolute inset-0 overflow-y-auto px-0 py-6 messages-container">
+          <div className="max-w-3xl mx-auto px-6 space-y-4">
+            {messages.map((message, index) => {
+              // Check if this is the first AI message in a sequence
+              const isFirstInSequence = () => {
+                // If it's not an AI message (bot, tool, error, thinking, transaction_to_sign), no need to check
+                if (!['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(message.role)) {
+                  return false;
+                }
+                
+                // If it's the first message overall, it's the first in sequence
+                if (index === 0) {
+                  return true;
+                }
+                
+                // Check if the previous message was from a different sender (not AI)
+                const prevMessage = messages[index - 1];
+                return !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(prevMessage.role);
+              };
+              
+              // Determine if we should show the avatar
+              const shouldShowAvatar = isFirstInSequence();
+              
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}
+                >
+                  {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
+                      <img 
+                        src={localAvatarImage || "https://picsum.photos/500/500"} 
+                        alt="AI Avatar"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback if image fails to load
+                          e.currentTarget.src = "https://picsum.photos/500/500";
+                        }}
+                      />
+                    </div>
+                  )}
+                  {/* Add empty space to maintain alignment when avatar is not shown */}
+                  {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && !shouldShowAvatar && (
+                    <div className="w-12 mr-2 flex-shrink-0"></div>
+                  )}
+                  <div className={getMessageClasses(message)}>
+                    <div className="break-words">{renderMessageContent(message)}</div>
+                    <div className={getTimestampClasses(message)}>
+                      {formatTime(message.timestamp)}
+                    </div>
+                  </div>
                 </div>
-              )}
-              {/* Add empty space to maintain alignment when avatar is not shown */}
-              {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && !shouldShowAvatar && (
-                <div className="w-12 mr-2 flex-shrink-0"></div>
-              )}
-              <div className={getMessageClasses(message)}>
-                <div className="break-words">{renderMessageContent(message)}</div>
-                <div className={getTimestampClasses(message)}>
-                  {formatTime(message.timestamp)}
+              );
+            })}
+            {isLoading && (
+              <div className="flex justify-start">
+                {/* Only show avatar if last message was not from AI */}
+                {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
+                  <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
+                    <img 
+                      src={localAvatarImage || "https://picsum.photos/500/500"} 
+                      alt="AI Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                {/* Add empty space to maintain alignment when avatar is not shown */}
+                {messages.length > 0 && ['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role) && (
+                  <div className="w-12 mr-2 flex-shrink-0"></div>
+                )}
+                <div className="max-w-[80%] rounded-xl p-3 bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700">
+                  <div className="flex space-x-2 items-center">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce"></div>
+                      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-        {isLoading && (
-          <div className="flex justify-start">
-            {/* Only show avatar if last message was not from AI */}
-            {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
-              <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
-                <img 
-                  src={localAvatarImage || "https://picsum.photos/500/500"} 
-                  alt="AI Avatar"
-                  className="w-full h-full object-cover"
-                />
               </div>
             )}
-            {/* Add empty space to maintain alignment when avatar is not shown */}
-            {messages.length > 0 && ['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role) && (
-              <div className="w-12 mr-2 flex-shrink-0"></div>
-            )}
-            <div className="max-w-[80%] rounded-xl p-3 bg-white dark:bg-gray-800 rounded-bl-none border-2 border-gray-200 dark:border-gray-700">
-              <div className="flex space-x-2 items-center">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce"></div>
-                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6] dark:bg-[#A78BFA] animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              </div>
-            </div>
+            <div ref={messagesEndRef} />
           </div>
-        )}
-        <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Message input */}
-      <div className="px-4">
-        <div className="bg-white dark:bg-gray-800 rounded-t-[2rem] overflow-hidden shadow-md border-2 border-[#C4B5FD]">
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="px-6 py-5">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                className="w-full focus:outline-none bg-transparent dark:text-white text-gray-800 text-lg"
-                disabled={isLoading}
-              />
-            </div>
-            
-            <div className="flex justify-end py-2 px-4 border-t border-[#C4B5FD]/30">
-              <button
-                type="submit"
-                className={`
-                  py-1 px-4 rounded-xl font-black text-center uppercase transition-all
-                  ${!newMessage.trim() || isLoading
-                    ? 'bg-purple-200 text-purple-400 border-4 border-purple-300 cursor-not-allowed'
-                    : 'bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
-                  }
-                `}
-                disabled={!newMessage.trim() || isLoading}
-              >
-                Send
-              </button>
-            </div>
-          </form>
+      <div className="px-4 pb-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-t-[2rem] overflow-hidden shadow-md border-2 border-[#C4B5FD]">
+            <form onSubmit={handleSubmit} className="relative">
+              <div className="px-6 py-5">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className="w-full focus:outline-none bg-transparent dark:text-white text-gray-800 text-lg"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div className="flex justify-end py-2 px-4 border-t border-[#C4B5FD]/30">
+                <button
+                  type="submit"
+                  className={`
+                    py-1 px-4 rounded-xl font-black text-center uppercase transition-all
+                    ${!newMessage.trim() || isLoading
+                      ? 'bg-purple-200 text-purple-400 border-4 border-purple-300 cursor-not-allowed'
+                      : 'bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
+                    }
+                  `}
+                  disabled={!newMessage.trim() || isLoading}
+                >
+                  Send
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

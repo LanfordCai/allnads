@@ -324,7 +324,7 @@ export default function ChatBot({}: ChatBotProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
         {/* Chat area */}
-        <div className="flex-1 h-full overflow-hidden flex flex-col max-w-4xl mx-auto w-full">
+        <div className="flex-1 h-full overflow-hidden flex flex-col  mx-auto w-full">
           {authStatus === 'authenticated' ? (
             <ChatArea
               messages={activeSession.messages}
