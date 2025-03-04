@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import { ChatService } from '../services/chat';
-import { ChatRequest } from '../types/chat';
+import { ChatMessage, ChatRequest, ChatRole } from '../types/chat';
 import http from 'http';
 import url from 'url';
 import { getSystemPrompt } from '../config/prompts';
@@ -192,14 +192,40 @@ export class ChatSocketService {
         // 判断会话历史是否为空(只有系统提示消息时也视为空)
         const historyIsEmpty = session.messages.length <= 1;
         
+
         // 只在会话历史为空时发送欢迎消息
         if (historyIsEmpty) {
-          console.log('sent welcome message');
+          // 定义多条欢迎消息
+          const welcomeMessages = [
+            `Hey there ${userName}! I'm ${allNadsName}, your AllNads NFT assistant. What can I help you with today?`,
+            `Welcome back ${userName}! Ready to explore the Monad blockchain together?`,
+            `Sup ${userName}! Your friendly NFT ${allNadsName} at your service. Let's make some moves!`,
+            `Hello ${userName}! I'm ${allNadsName}, your digital companion. How can I assist you today?`,
+            `Yo ${userName}! ${allNadsName} here, ready to help with your crypto adventures!`,
+            `Greetings ${userName}! This is ${allNadsName} reporting for duty. What's on your mind?`,
+            `Hey ${userName}! ${allNadsName} here. Let's make some magic happen on the blockchain!`
+          ];
+          
+          // 随机选择一条欢迎消息
+          const randomWelcomeMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+          
+          // 发送随机选择的欢迎消息
           socket.send(JSON.stringify({
-            type: 'connected',
-            sessionId: finalSessionId,
-            content: `👋 欢迎使用聊天服务！您已登录。您的会话ID是: ${finalSessionId}。现在可以开始聊天了，请在输入框中输入您的问题。服务器将使用区块链工具帮助您解答疑问。`
+            type: 'assistant_message',
+            content: randomWelcomeMessage
           }));
+
+          // 将欢迎消息保存到数据库
+          const welcomeMessage: ChatMessage = {
+            role: ChatRole.ASSISTANT,
+            content: randomWelcomeMessage,
+            timestamp: new Date(),
+            sessionId: finalSessionId
+          };
+          
+          // 添加欢迎消息到会话历史
+          await SessionService.addMessage(finalSessionId, welcomeMessage);
+          console.log(`欢迎消息已保存到数据库: ${randomWelcomeMessage}`);
         }
 
         // 处理消息
