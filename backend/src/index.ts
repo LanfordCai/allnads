@@ -16,6 +16,7 @@ import { closeDatabase } from './config/database';
 import { initializeChatWebSocket, closeChatWebSocket } from './routes/chatSocket';
 import { requestLogger } from './middleware/logger';
 import { Logger } from './utils/logger';
+import { blockchainService } from './services/blockchainService';
 
 // ES Modules 兼容性: 获取 __dirname 的等效值
 const __filename = fileURLToPath(import.meta.url);
@@ -95,6 +96,17 @@ async function initializeServer(): Promise<void> {
     const errorMessage = err instanceof Error ? err.message : String(err);
     Logger.error('Server', `MCP服务器连接失败: ${errorMessage}`, err);
     Logger.warn('Server', '系统将在无MCP支持的情况下运行，工具调用功能不可用');
+  }
+
+  // 初始化模板缓存
+  Logger.info('Server', '正在初始化NFT模板缓存...');
+  try {
+    await blockchainService.initializeTemplateCache();
+    Logger.info('Server', 'NFT模板缓存初始化成功');
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Logger.error('Server', `NFT模板缓存初始化失败: ${errorMessage}`, err);
+    Logger.warn('Server', '系统将在无模板缓存的情况下运行，模板查询可能较慢');
   }
 
   // 加载所有会话

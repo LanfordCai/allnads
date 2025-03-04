@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { blockchainService } from '../services/blockchainService';
+import { blockchainService, COMPONENT_TYPES } from '../services/blockchainService';
 import { Address, isAddress } from 'viem';
 import { Logger } from '../utils/logger';
 import { ResponseUtil } from '../utils/response';
+import { serializeTemplates } from '../utils/serialization';
 
 // 简化的验证模式，只需要地址和可选的名称
 const airdropSchema = z.object({
@@ -11,6 +12,14 @@ const airdropSchema = z.object({
     message: 'Invalid address'
   }),
   name: z.string().min(1).max(50).optional().default('AllNads Avatar')
+});
+
+// Template request validation schema
+const templateRequestSchema = z.object({
+  componentType: z.number().int().min(0).max(4).optional(),
+  address: z.string().refine(val => isAddress(val), {
+    message: 'Invalid address'
+  }).optional()
 });
 
 /**
@@ -123,6 +132,37 @@ export class NFTController {
         `Internal server error: ${error.message}`,
         500,
         'INTERNAL_ERROR'
+      );
+    }
+  }
+  
+  /**
+   * 获取所有模板信息
+   */
+  static async getAllTemplates(req: Request, res: Response): Promise<void> {
+    try {
+      Logger.debug('NFTController', 'Processing get all templates request');
+      
+      // 获取所有模板（使用缓存）
+      const templates = await blockchainService.getAllTemplates();
+      
+      // Serialize templates for JSON response
+      const serializedTemplates = serializeTemplates(templates);
+      
+      Logger.info('NFTController', 'Successfully retrieved all templates');
+      return ResponseUtil.success(
+        res,
+        { templates: serializedTemplates },
+        'Templates retrieved successfully'
+      );
+    } catch (error: any) {
+      Logger.error('NFTController', 'Error getting all templates', error);
+      return ResponseUtil.error(
+        res,
+        `Internal server error: ${error.message}`,
+        500,
+        'INTERNAL_ERROR',
+        { errorDetails: error.message }
       );
     }
   }
