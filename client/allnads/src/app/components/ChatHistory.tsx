@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatSession } from '../types/chat';
 
 interface ChatHistoryProps {
@@ -20,9 +20,22 @@ export default function ChatHistory({
   onDeleteSession,
   onClose,
 }: ChatHistoryProps) {
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(80); // 默认高度
+
+  // 测量标题栏高度
+  useEffect(() => {
+    if (headerRef.current) {
+      setHeaderHeight(headerRef.current.offsetHeight);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="flex items-center justify-between p-4 border-b-4 border-[#8B5CF6] bg-white">
+      <div 
+        ref={headerRef}
+        className="flex items-center justify-between p-4 border-b-4 border-[#8B5CF6] bg-white sticky top-0 z-[5]"
+      >
         <h2 className="text-xl font-bold text-[#5B21B6]">Chats</h2>
         <div className="flex space-x-2">
           <button
@@ -34,19 +47,13 @@ export default function ChatHistory({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[#F3F0FF] transition-colors border-2 border-[#C4B5FD] md:hidden"
-            aria-label="Close sidebar"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="#8B5CF6" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-[#C4B5FD] scrollbar-track-gray-100 hover:scrollbar-thumb-[#A78BFA]">
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-[#C4B5FD] scrollbar-track-gray-100 hover:scrollbar-thumb-[#A78BFA]"
+        style={{ maxHeight: `calc(100vh - ${headerHeight}px)` }}
+      >
         {sessions.length === 0 ? (
           <div className="text-center text-[#6D28D9] py-8 border-2 border-dashed border-[#C4B5FD] rounded-xl p-6">
             <p className="font-bold">No chats yet</p>

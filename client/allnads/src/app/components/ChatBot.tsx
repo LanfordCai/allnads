@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage, ChatSession } from '../types/chat';
 import ChatHistory from './ChatHistory';
 import ChatArea from './ChatArea';
@@ -58,6 +58,7 @@ export default function ChatBot({}: ChatBotProps) {
   // UI state management
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [isMediumScreen, setIsMediumScreen] = useState(false);
   
   // Privy authentication
   const { privy, isAuthenticated, isReady, user } = usePrivyAuth();
@@ -207,18 +208,41 @@ export default function ChatBot({}: ChatBotProps) {
 
   // 移动设备响应式设置
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsMediumScreen(width >= 768 && width < 1024);
+      
+      if (width < 768) {
+        setIsSidebarOpen(false);
+      } else if (width >= 768 && width < 1024) {
+        // On medium screens, sidebar is initially closed
         setIsSidebarOpen(false);
       } else {
+        // On large screens, sidebar is always open
         setIsSidebarOpen(true);
       }
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // 使用 useCallback 优化会话切换逻辑
+  const handleSelectSession = useCallback((id: string) => {
+    setActiveSessionId(id);
+    if (isMobile || isMediumScreen) {
+      // 使用 setTimeout 延迟关闭侧边栏，避免布局突然变化
+      setTimeout(() => {
+        setIsSidebarOpen(false);
+      }, 50);
+    }
+  }, [isMobile, isMediumScreen]);
+
+  // 使用 useCallback 优化侧边栏切换逻辑
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev);
   }, []);
 
   // 处理发送消息
@@ -300,22 +324,26 @@ export default function ChatBot({}: ChatBotProps) {
 
   return (
     <div className="flex h-full overflow-hidden">
+      {/* Overlay for mobile and medium screens when sidebar is open */}
+      {(isMobile || isMediumScreen) && isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[35]"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+      
       {/* Sidebar */}
       <div
         className={`${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 transition-transform duration-300 ease-in-out absolute md:relative z-10 md:z-auto h-full w-64 md:w-80 bg-white border-r border-gray-200 md:block`}
+        } transition-transform duration-300 ease-in-out fixed top-0 left-0 md:fixed lg:relative z-[40] h-screen w-64 md:w-80 bg-white border-r border-gray-200 shadow-lg overflow-hidden`}
+        style={{ height: '100%', maxHeight: '100vh' }}
       >
         <ChatHistory
           sessions={sessions}
           activeSessionId={activeSessionId}
-          onSelectSession={(id) => {
-            setActiveSessionId(id);
-            if (isMobile) {
-              setIsSidebarOpen(false);
-            }
-          }}
-          onCreateSession={() => createNewSession(isMobile, chatServiceRef.current, isNftInfoSet)}
+          onSelectSession={handleSelectSession}
+          onCreateSession={() => createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet)}
           onDeleteSession={deleteSession}
           onClose={() => setIsSidebarOpen(false)}
         />
@@ -324,14 +352,15 @@ export default function ChatBot({}: ChatBotProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
         {/* Chat area */}
-        <div className="flex-1 h-full overflow-hidden flex flex-col  mx-auto w-full">
+        <div className="flex-1 h-full overflow-hidden flex flex-col mx-auto w-full">
           {authStatus === 'authenticated' ? (
             <ChatArea
               messages={activeSession.messages}
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
-              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              onToggleSidebar={handleToggleSidebar}
               isMobile={isMobile}
+              isMediumScreen={isMediumScreen}
               isSidebarOpen={isSidebarOpen}
               avatarImage={avatarImage}
               onAvatarImageChange={setAvatarImage}

@@ -15,6 +15,7 @@ interface ChatAreaProps {
   isLoading?: boolean;
   onToggleSidebar?: () => void;
   isMobile?: boolean;
+  isMediumScreen?: boolean;
   isSidebarOpen?: boolean;
   avatarImage?: string | null;
   onAvatarImageChange?: (newAvatarImage: string | null) => void;
@@ -26,6 +27,7 @@ export default function ChatArea({
   isLoading = false,
   onToggleSidebar,
   isMobile = false,
+  isMediumScreen = false,
   isSidebarOpen = true,
   avatarImage = null,
   onAvatarImageChange
@@ -318,9 +320,9 @@ export default function ChatArea({
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      {/* 移除顶部标题栏 */}
-      {isMobile && (
-        <div className="p-2 border-b-4 border-[#8B5CF6] bg-white dark:bg-gray-800">
+      {/* Toggle sidebar button for mobile and medium screens */}
+      {(isMobile || isMediumScreen) && (
+        <div className="p-2 border-b-4 border-[#8B5CF6] bg-white dark:bg-gray-800 sticky top-0 z-[10]">
           <button 
             onClick={onToggleSidebar} 
             className="p-2 rounded-lg hover:bg-[#F3F0FF] dark:hover:bg-[#4C1D95] transition-colors focus:outline-none"
@@ -334,7 +336,7 @@ export default function ChatArea({
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`${isSidebarOpen ? 'transform rotate-90' : ''} text-[#8B5CF6]`}
+              className={`${isSidebarOpen ? 'transform rotate-90' : ''} text-[#8B5CF6] transition-transform duration-300`}
             >
               <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
