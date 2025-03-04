@@ -92,32 +92,34 @@ export default function AirdropPage() {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col h-screen bg-gray-50">
+      <div className="flex flex-col h-screen bg-gradient-to-b from-[#F9FAFB] to-[#F3F4F6]">
         <AppHeader />
         <main className="flex-1 overflow-auto p-6 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-8">
+          <div className="max-w-md w-full bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] p-8">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-black rounded-full mx-auto flex items-center justify-center mb-6">
+              <div className="w-20 h-20 bg-[#8B5CF6] rounded-xl mx-auto flex items-center justify-center mb-6 shadow-[4px_4px_0px_0px_#7C3AED]">
                 <div className="w-10 h-10 bg-white rotate-45"></div>
               </div>
-              <h1 className="text-3xl font-bold mb-2">AllNads NFT Airdrop</h1>
+              <h1 className="text-3xl font-bold mb-2 text-gray-800">AllNads NFT Airdrop</h1>
               <p className="text-gray-600">Get your free AllNads NFT to start chatting with our AI bot.</p>
             </div>
 
             {isCheckingNFT ? (
               <div className="text-center py-6">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
                 <p className="text-gray-600">Checking NFT status...</p>
               </div>
             ) : hasNFT ? (
               <div className="text-center py-6">
-                <div className="bg-green-100 text-green-800 p-4 rounded-lg mb-6">
+                <div className="bg-[#F3E8FF] text-[#7C3AED] p-4 rounded-xl border-2 border-[#D8B4FE] mb-6">
                   <p className="font-medium">You already have an AllNads NFT!</p>
                   <p className="text-sm mt-2">Redirecting to chat...</p>
                 </div>
                 <button
                   onClick={() => router.push('/app')}
-                  className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors"
+                  className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                  bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+                  hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
                 >
                   Go to Chat
                 </button>
@@ -125,13 +127,13 @@ export default function AirdropPage() {
             ) : (
               <div className="text-center py-6">
                 {airdropStatus === 'error' && (
-                  <div className="bg-red-100 text-red-800 p-4 rounded-lg mb-6">
+                  <div className="bg-[#FEE2E2] text-[#B91C1C] p-4 rounded-xl border-2 border-[#FCA5A5] mb-6">
                     <p>{errorMessage}</p>
                   </div>
                 )}
 
                 {airdropStatus === 'success' && (
-                  <div className="bg-green-100 text-green-800 p-4 rounded-lg mb-6">
+                  <div className="bg-[#F3E8FF] text-[#7C3AED] p-4 rounded-xl border-2 border-[#D8B4FE] mb-6">
                     <p className="font-medium">NFT airdrop requested successfully!</p>
                     <p className="text-sm mt-2">Redirecting to chat application...</p>
                   </div>
@@ -147,7 +149,7 @@ export default function AirdropPage() {
                     value={nftName}
                     onChange={(e) => setNftName(e.target.value)}
                     placeholder="Enter a name for your NFT"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
+                    className="w-full px-4 py-2 border-2 border-[#D8B4FE] rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-[#8B5CF6] focus:border-[#8B5CF6]"
                     maxLength={50}
                     disabled={isRequestingAirdrop}
                   />
@@ -159,10 +161,11 @@ export default function AirdropPage() {
                 <button
                   onClick={handleAirdropRequest}
                   disabled={isRequestingAirdrop || !nftName.trim()}
-                  className={`w-full py-3 text-white rounded-lg transition-colors ${
+                  className={`w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                    text-white border-4 ${
                     isRequestingAirdrop || !nftName.trim()
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-black hover:bg-gray-900'
+                      ? 'bg-gray-400 border-gray-500 shadow-[4px_4px_0px_0px_#9CA3AF] cursor-not-allowed' 
+                      : 'bg-[#8B5CF6] border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
                   }`}
                 >
                   {isRequestingAirdrop ? (

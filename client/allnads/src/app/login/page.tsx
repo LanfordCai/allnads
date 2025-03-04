@@ -52,39 +52,45 @@ export default function LoginPage() {
   }, [isAuthenticated, isLoading, user?.wallet?.address, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 px-4">
-      {/* Logo */}
-      <div className="w-24 h-24 bg-black rounded-md flex items-center justify-center mb-6">
-        <div className="w-12 h-12 bg-white rotate-45"></div>
-      </div>
-      
-      {/* Welcome Text */}
-      <h1 className="text-4xl font-bold mb-2 text-center">AllNads</h1>
-      <p className="text-xl text-gray-600 mb-12 text-center">Your Web3 Gateway</p>
-      
-      {/* Login Button or Loading */}
-      {isCheckingNFT ? (
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying NFT status...</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-[#F9FAFB] to-[#F3F4F6] px-4">
+      <div className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] w-full max-w-md p-8">
+        {/* Logo */}
+        <div className="w-24 h-24 bg-[#8B5CF6] rounded-xl flex items-center justify-center mb-6 mx-auto shadow-[4px_4px_0px_0px_#7C3AED]">
+          <div className="w-12 h-12 bg-white rotate-45"></div>
         </div>
-      ) : (
-        <button 
-          onClick={() => login()}
-          className="px-8 py-4 bg-black text-white text-lg font-medium rounded-full hover:bg-gray-900 transition-colors shadow-lg"
-        >
-          Start Now
-        </button>
-      )}
-      
-      {/* Terms */}
-      <div className="mt-12 text-sm text-center text-gray-500 max-w-md">
-        <p>
-          By continuing, you agree to the{' '}
-          <a href="#" className="underline">Terms of Service</a>
-          {' '}and{' '}
-          <a href="#" className="underline">Privacy Policy</a>
-        </p>
+        
+        {/* Welcome Text */}
+        <h1 className="text-3xl font-bold mb-2 text-center text-gray-800">AllNads</h1>
+        <p className="text-lg text-gray-600 mb-8 text-center">Your Web3 Gateway</p>
+        
+        {/* Login Button or Loading */}
+        <div className="grid grid-cols-1 gap-3">
+          {isCheckingNFT ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
+              <p className="text-gray-600">Verifying NFT status...</p>
+            </div>
+          ) : (
+            <button 
+              onClick={() => login()}
+              className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+                hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
+            >
+              Start Now
+            </button>
+          )}
+        </div>
+        
+        {/* Terms */}
+        <div className="mt-8 text-sm text-center text-gray-500">
+          <p>
+            By continuing, you agree to the{' '}
+            <a href="#" className="text-[#8B5CF6] hover:underline font-medium">Terms of Service</a>
+            {' '}and{' '}
+            <a href="#" className="text-[#8B5CF6] hover:underline font-medium">Privacy Policy</a>
+          </p>
+        </div>
       </div>
     </div>
   );

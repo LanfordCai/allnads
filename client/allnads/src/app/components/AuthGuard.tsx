@@ -24,17 +24,21 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   // 如果正在加载或未登录，不显示子组件
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 px-4">
-        {/* Logo */}
-        <div className="w-24 h-24 bg-black rounded-md flex items-center justify-center mb-6">
-          <div className="w-12 h-12 bg-white rotate-45"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-[#F9FAFB] to-[#F3F4F6] px-4">
+        <div className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] w-full max-w-md p-8">
+          {/* Logo */}
+          <div className="w-24 h-24 bg-[#8B5CF6] rounded-xl flex items-center justify-center mb-6 mx-auto shadow-[4px_4px_0px_0px_#7C3AED]">
+            <div className="w-12 h-12 bg-white rotate-45"></div>
+          </div>
+          
+          <h1 className="text-3xl font-bold mb-2 text-center text-gray-800">AllNads</h1>
+          <p className="text-lg text-gray-600 mb-8 text-center">Your Web3 Gateway</p>
+          
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mt-6"></div>
+            <p className="mt-4 text-gray-500">Verifying authentication...</p>
+          </div>
         </div>
-        
-        <h1 className="text-4xl font-bold mb-2 text-center">AllNads</h1>
-        <p className="text-xl text-gray-600 mb-8 text-center">Your Web3 Gateway</p>
-        
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mt-6"></div>
-        <p className="mt-4 text-gray-500">Verifying authentication...</p>
       </div>
     );
   }
