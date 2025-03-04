@@ -344,8 +344,34 @@ export default function ChatArea({
         </div>
       )}
 
+      {/* 添加全局滚动条样式 */}
+      <style jsx global>{`
+        /* 滚动条整体样式 */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        
+        /* 滚动条轨道 */
+        ::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        
+        /* 滚动条滑块 */
+        ::-webkit-scrollbar-thumb {
+          background: #C4B5FD;
+          border-radius: 10px;
+        }
+        
+        /* 鼠标悬停在滚动条上的滑块样式 */
+        ::-webkit-scrollbar-thumb:hover {
+          background: #A78BFA;
+        }
+      `}</style>
+
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-[#C4B5FD] scrollbar-track-gray-100 hover:scrollbar-thumb-[#A78BFA]">
         {messages.map((message, index) => {
           // Check if this is the first AI message in a sequence
           const isFirstInSequence = () => {
