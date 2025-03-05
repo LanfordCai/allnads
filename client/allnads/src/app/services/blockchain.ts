@@ -33,6 +33,20 @@ class BlockchainService {
   private publicClient: PublicClient;
   private rateLimiter: RateLimiter;
   private callCounter: number = 0;
+  private requestLog: Array<{
+    id: number;
+    method: string;
+    params: unknown;
+    timestamp: string;
+    result?: unknown;
+    error?: unknown;
+    duration?: number;
+  }> = [];
+  
+  // 添加模板缓存相关属性
+  private templatesCache: Record<string, Template[]> | null = null;
+  private templatesCacheTimestamp: number = 0;
+  private readonly CACHE_TTL_MS: number = 3600000; // 缓存有效期：1小时
 
   private constructor() {
     this.publicClient = createPublicClient({
@@ -63,17 +77,170 @@ class BlockchainService {
   }
 
   /**
-   * Wraps a blockchain call with rate limiting and retry logic
+   * Get the request log
+   */
+  public getRequestLog(): Array<{
+    id: number;
+    method: string;
+    params: unknown;
+    timestamp: string;
+    result?: unknown;
+    error?: unknown;
+    duration?: number;
+  }> {
+    return this.requestLog;
+  }
+
+  /**
+   * Display the request log in a user-friendly format
+   */
+  public displayRequestLog(): void {
+    console.group('Blockchain Request Log');
+    console.log(`Total requests: ${this.requestLog.length}`);
+    
+    if (this.requestLog.length === 0) {
+      console.log('No requests logged yet.');
+    } else {
+      this.requestLog.forEach(entry => {
+        console.group(`Request #${entry.id}: ${entry.method}`);
+        console.log(`Time: ${entry.timestamp}`);
+        console.log(`Parameters:`, entry.params);
+        
+        if (entry.result !== undefined) {
+          console.log(`Result:`, entry.result);
+        }
+        
+        if (entry.error !== undefined) {
+          console.log(`Error:`, entry.error);
+        }
+        
+        if (entry.duration !== undefined) {
+          console.log(`Duration: ${entry.duration.toFixed(2)}ms`);
+        }
+        
+        console.groupEnd();
+      });
+    }
+    
+    console.groupEnd();
+  }
+
+  /**
+   * Export the request log to a downloadable JSON file
+   */
+  public exportRequestLog(): void {
+    if (typeof window === 'undefined') {
+      console.error('Export function is only available in browser environment');
+      return;
+    }
+
+    try {
+      // Create a formatted log with readable timestamps and durations
+      const formattedLog = this.requestLog.map(entry => ({
+        ...entry,
+        duration: entry.duration ? `${entry.duration.toFixed(2)}ms` : undefined
+      }));
+
+      // Convert to JSON string with pretty formatting
+      const jsonString = JSON.stringify(formattedLog, null, 2);
+      
+      // Create a blob with the JSON data
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(blob);
+      
+      // Create a link element
+      const link = document.createElement('a');
+      
+      // Set link properties
+      link.href = url;
+      link.download = `blockchain-requests-${new Date().toISOString().replace(/:/g, '-')}.json`;
+      
+      // Append link to body
+      document.body.appendChild(link);
+      
+      // Click the link to trigger download
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('Request log exported successfully');
+    } catch (error) {
+      console.error('Failed to export request log', error);
+    }
+  }
+
+  /**
+   * Clear the request log
+   */
+  public clearRequestLog(): void {
+    this.requestLog = [];
+    console.log('Request log cleared');
+  }
+
+  /**
+   * Wraps a blockchain call with rate limiting, retry logic, and logging
    * @param fn Function to wrap
    * @returns Rate-limited and retry-enabled function
    */
   private wrapBlockchainCall<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, methodName: string): T {
-    console.log('wrapBlockchainCall', methodName);
     const wrappedFn = async (...args: unknown[]): Promise<unknown> => {
+      this.callCounter++;
+      const requestId = this.callCounter;
+      const startTime = performance.now();
+      const timestamp = new Date().toISOString();
+      
+      // Log the request
+      const requestInfo = {
+        id: requestId,
+        method: methodName,
+        params: args.length > 0 ? args : 'No parameters',
+        timestamp,
+      };
+      
+      this.requestLog.push(requestInfo);
+      console.log(`[Blockchain Request #${requestId}] ${methodName}`, {
+        params: args.length > 0 ? args : 'No parameters',
+        timestamp
+      });
+      
       try {
         const result = await fn(...args);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        // Update the log with the result
+        const logEntry = this.requestLog.find(entry => entry.id === requestId);
+        if (logEntry) {
+          logEntry.result = result;
+          logEntry.duration = duration;
+        }
+        
+        console.log(`[Blockchain Response #${requestId}] ${methodName}`, {
+          result,
+          duration: `${duration.toFixed(2)}ms`
+        });
+        
         return result;
       } catch (err) {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        // Update the log with the error
+        const logEntry = this.requestLog.find(entry => entry.id === requestId);
+        if (logEntry) {
+          logEntry.error = err;
+          logEntry.duration = duration;
+        }
+        
+        console.error(`[Blockchain Error #${requestId}] ${methodName}`, {
+          error: err,
+          duration: `${duration.toFixed(2)}ms`
+        });
+        
         throw err;
       }
     };
@@ -384,7 +551,14 @@ class BlockchainService {
    * Fetch all templates from the API
    */
   public async fetchAllTemplatesFromAPI(): Promise<Record<string, Template[]>> {
+    // 检查缓存是否有效
+    if (this.templatesCache && (Date.now() - this.templatesCacheTimestamp) < this.CACHE_TTL_MS) {
+      console.log('[Templates] Using cached templates data');
+      return this.templatesCache;
+    }
+
     try {
+      console.log('[Templates] Fetching templates from API');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/nft/templates`);
       
       if (!response.ok) {
@@ -420,9 +594,128 @@ class BlockchainService {
         }
       });
       
+      // 更新缓存
+      this.templatesCache = processedTemplates;
+      this.templatesCacheTimestamp = Date.now();
+      console.log(`[Templates] Templates cached at ${new Date(this.templatesCacheTimestamp).toLocaleTimeString()}`);
+      
       return processedTemplates;
     } catch (error) {
       throw error;
+    }
+  }
+
+  /**
+   * Clear the templates cache to force a fresh fetch on next request
+   */
+  public clearTemplatesCache(): void {
+    this.templatesCache = null;
+    this.templatesCacheTimestamp = 0;
+    console.log('[Templates] Templates cache cleared');
+  }
+
+  /**
+   * Get the template cache status
+   */
+  public getTemplatesCacheStatus(): { isCached: boolean, timestamp: number, age: number } {
+    const now = Date.now();
+    const age = now - this.templatesCacheTimestamp;
+    return {
+      isCached: this.templatesCache !== null,
+      timestamp: this.templatesCacheTimestamp,
+      age: age
+    };
+  }
+
+  /**
+   * Find a template by ID in the cache
+   * If not found in cache, falls back to blockchain call
+   */
+  public async findTemplateById(templateId: bigint): Promise<Template | null> {
+    // 尝试从缓存中查找
+    if (this.templatesCache) {
+      // 遍历所有类型的模板
+      for (const typeTemplates of Object.values(this.templatesCache)) {
+        // 在当前类型中查找匹配的模板
+        const template = typeTemplates.find(t => t.id === templateId);
+        if (template) {
+          console.log(`[Templates] Found template ${templateId.toString()} in cache`);
+          return template;
+        }
+      }
+      console.log(`[Templates] Template ${templateId.toString()} not found in cache, fetching from blockchain`);
+    } else {
+      console.log(`[Templates] Cache not initialized, fetching template ${templateId.toString()} from blockchain`);
+    }
+
+    // 如果缓存中没有找到，从区块链获取
+    try {
+      return await this.getTemplateById(templateId);
+    } catch (error) {
+      console.error(`Error fetching template ${templateId.toString()} from blockchain:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 获取用户所有组件的映射关系
+   * 返回一个映射：tokenId -> { templateId, templateType }
+   */
+  public async getUserComponentsMap(address: string): Promise<Map<string, { templateId: bigint, templateType: number }>> {
+    console.log(`[Templates] Getting components map for address ${address}`);
+    
+    try {
+      // 获取用户拥有的所有模板
+      const ownedTemplates = await this.getAllOwnedTemplates(address);
+      
+      // 创建映射：tokenId -> { templateId, templateType }
+      const componentsMap = new Map<string, { templateId: bigint, templateType: number }>();
+      
+      // 填充映射
+      for (let i = 0; i < ownedTemplates.tokenIds.length; i++) {
+        const tokenId = ownedTemplates.tokenIds[i].toString();
+        const templateId = ownedTemplates.templateIds[i];
+        const templateType = ownedTemplates.templateTypes[i];
+        
+        componentsMap.set(tokenId, { templateId, templateType });
+      }
+      
+      console.log(`[Templates] Found ${componentsMap.size} components for address ${address}`);
+      return componentsMap;
+    } catch (error) {
+      console.error(`Error getting components map for address ${address}:`, error);
+      return new Map();
+    }
+  }
+
+  /**
+   * 根据 tokenId 查找对应的模板信息
+   * 优先使用用户组件映射，如果没有则回退到区块链调用
+   */
+  public async getTemplateByTokenId(
+    tokenId: bigint, 
+    componentsMap?: Map<string, { templateId: bigint, templateType: number }>
+  ): Promise<Template | null> {
+    const tokenIdStr = tokenId.toString();
+    console.log(`[Templates] Getting template for token ID ${tokenIdStr}`);
+    
+    // 如果提供了组件映射，优先使用映射
+    if (componentsMap && componentsMap.has(tokenIdStr)) {
+      const { templateId } = componentsMap.get(tokenIdStr)!;
+      console.log(`[Templates] Found template ID ${templateId.toString()} for token ID ${tokenIdStr} in components map`);
+      
+      // 使用模板ID查找完整模板信息
+      return await this.findTemplateById(templateId);
+    }
+    
+    // 如果没有映射或映射中没有找到，回退到区块链调用
+    try {
+      console.log(`[Templates] Getting template ID for token ID ${tokenIdStr} from blockchain`);
+      const templateId = await this.getTokenTemplate(tokenId);
+      return await this.findTemplateById(templateId);
+    } catch (error) {
+      console.error(`Error getting template for token ID ${tokenIdStr}:`, error);
+      return null;
     }
   }
 }
