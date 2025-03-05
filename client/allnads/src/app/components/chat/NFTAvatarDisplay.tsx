@@ -5,6 +5,7 @@ import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.share
 import ImageCard from '../ImageCard';
 import { User } from '@privy-io/react-auth';
 import { blockchainService, Template } from '../../services/blockchain';
+import Image from 'next/image';
 
 // Define a type for template details that extends Template
 interface TemplateDetails extends Partial<Template> {
@@ -153,22 +154,32 @@ export function NFTAvatarDisplay({
     );
   }
   
-  // No avatar state (could be due to error or not loaded yet)
-  if (isAuthenticated && user?.wallet?.address) {
-    return (
-      <div className="mx-auto max-w-xs mt-4 mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-        <p className="text-sm text-yellow-700 text-center">
-          {error || nftError || "Unable to load your NFT avatar. Please refresh or check if your NFT exists."}
-        </p>
-        <button 
-          onClick={() => router.push('/airdrop')} 
-          className="mt-2 w-full py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
-        >
-          Get an NFT
-        </button>
+  // No avatar state - show placeholder image without title
+  return (
+    <div className="mx-auto max-w-[320px] mt-4 mb-6">
+      <div className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] mb-4">
+        <div className="w-full aspect-square relative">
+          <Image 
+            src="/placeholder.png" 
+            alt="Placeholder Avatar"
+            className="object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 gap-3">
+            <button 
+              onClick={() => router.push('/airdrop')}
+              className="w-full py-3 px-4 rounded-xl font-black text-center uppercase transition-all
+                bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] 
+                hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]"
+            >
+              Get an NFT
+            </button>
+          </div>
+        </div>
       </div>
-    );
-  }
-  
-  return null;
+    </div>
+  );
 } 

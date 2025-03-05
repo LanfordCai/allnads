@@ -714,12 +714,12 @@ export default function ChatArea({
                   {(message.role === 'bot' || message.role === 'tool' || message.role === 'error' || message.role === 'thinking' || message.role === 'transaction_to_sign') && shouldShowAvatar && (
                     <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
                       <img 
-                        src={localAvatarImage || "https://picsum.photos/500/500"} 
+                        src={localAvatarImage || "/placeholder.png"} 
                         alt="AI Avatar"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           // Fallback if image fails to load
-                          e.currentTarget.src = "https://picsum.photos/500/500";
+                          e.currentTarget.src = "/placeholder.png";
                         }}
                       />
                     </div>
@@ -744,7 +744,7 @@ export default function ChatArea({
                   {(messages.length === 0 || !['bot', 'tool', 'error', 'thinking', 'transaction_to_sign'].includes(messages[messages.length - 1].role)) && (
                     <div className="w-12 h-12 rounded-lg overflow-hidden mr-2 flex-shrink-0 border-2 border-[#8B5CF6]">
                       <img 
-                        src={localAvatarImage || "https://picsum.photos/500/500"} 
+                        src={localAvatarImage || "/placeholder.png"} 
                         alt="AI Avatar"
                         className="w-full h-full object-cover"
                       />
