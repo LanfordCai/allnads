@@ -17,7 +17,7 @@ export default function AirdropPage() {
   const [hasNFT, setHasNFT] = useState(false);
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState(false);
   const [airdropStatus, setAirdropStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [, setErrorMessage] = useState('');
   const [nftName, setNftName] = useState('Cool Cool Nads');
 
   // Check if user already has NFT on initial load

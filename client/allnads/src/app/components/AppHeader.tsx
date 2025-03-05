@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 export default function AppHeader() {
-  const { user, logout, displayName } = usePrivyAuth();
+  const { logout, displayName } = usePrivyAuth();
   const [isMobile, setIsMobile] = useState(false);
   
   // 检测屏幕尺寸
