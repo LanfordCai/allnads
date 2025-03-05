@@ -441,10 +441,12 @@ export default function ChatArea({
     }
   };
 
-  // Track message list reference for conversation switch detection
+  // 跟踪消息列表的引用，用于检测会话切换
   const messagesRef = useRef<ChatMessage[]>(messages);
-  // Track message count changes
+  // 跟踪消息数量的变化
   const prevMessagesLengthRef = useRef(messages.length);
+  // 跟踪是否是首次加载
+  const isFirstLoadRef = useRef(true);
   // Reference to the last message element for resize observation
   const lastMessageRef = useRef<HTMLDivElement | null>(null);
   // Reference to the loading indicator element
@@ -452,85 +454,140 @@ export default function ChatArea({
   // Reference to the messages container
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   
-  // Helper function to scroll to the bottom of the chat
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    // Use a small timeout to ensure DOM has been updated
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior });
-    }, 50);
+  // 直接设置滚动位置到底部，不使用滚动动画
+  const jumpToBottom = () => {
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
   };
   
-  // Scroll to bottom when conversation loads or new message is added
+  // 平滑滚动到底部
+  const smoothScrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  // 在会话加载或新消息添加时处理滚动
   useEffect(() => {
-    // Check if it's a conversation switch (completely different message IDs)
+    // 检测是否是会话切换（消息ID完全不同）
     const isSessionChange = messages.length > 0 && messagesRef.current.length > 0 && 
                            messages[0]?.id !== messagesRef.current[0]?.id;
     
-    // Check if there's a new message added (message count increases)
+    // 检测是否有新消息添加（消息数量增加）
     const hasNewMessages = messages.length > prevMessagesLengthRef.current;
     
-    if (isSessionChange) {
-      // Conversation switch, scroll immediately to bottom
-      scrollToBottom('auto');
+    // 首次加载或会话切换时，直接跳到底部，不使用滚动动画
+    if (isFirstLoadRef.current || isSessionChange) {
+      // 使用 setTimeout 确保 DOM 已更新
+      setTimeout(jumpToBottom, 0);
+      isFirstLoadRef.current = false;
     } else if (hasNewMessages) {
-      // New message added, smooth scroll to bottom
-      scrollToBottom('smooth');
+      // 新消息添加时，平滑滚动到底部
+      smoothScrollToBottom();
     }
     
-    // Update reference
+    // 更新引用
     messagesRef.current = messages;
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
-  // Use ResizeObserver to detect when message content changes size
+  // 使用 ResizeObserver 检测消息内容大小变化
   useEffect(() => {
-    // Only observe if there are messages
+    // 只在有消息时观察
     if (messages.length === 0 && !isLoading) return;
     
-    // Create a ResizeObserver to watch the last message and loading indicator
-    const resizeObserver = new ResizeObserver((entries) => {
-      // When the observed element resizes, scroll to ensure it's visible
-      scrollToBottom();
+    // 创建 ResizeObserver 来监视最后一条消息和加载指示器
+    const resizeObserver = new ResizeObserver(() => {
+      // 当观察到的元素大小变化时，确保它可见
+      if (isFirstLoadRef.current) {
+        jumpToBottom();
+      } else {
+        smoothScrollToBottom();
+      }
     });
     
-    // If we have a reference to the last message element, observe it
+    // 如果我们有最后一条消息元素的引用，观察它
     if (lastMessageRef.current) {
       resizeObserver.observe(lastMessageRef.current);
     }
     
-    // If we have a reference to the loading indicator and it's visible, observe it
+    // 如果我们有加载指示器的引用且它可见，观察它
     if (loadingIndicatorRef.current && isLoading) {
       resizeObserver.observe(loadingIndicatorRef.current);
     }
     
-    // Cleanup function to disconnect the observer when component unmounts
+    // 清理函数，在组件卸载时断开观察器
     return () => {
       resizeObserver.disconnect();
     };
-  }, [messages.length, isLoading]); // Re-run when message count or loading state changes
+  }, [messages.length, isLoading]);
 
-  // Use MutationObserver to detect when new content is added to the messages container
+  // 使用 MutationObserver 检测消息容器中添加的新内容
   useEffect(() => {
     if (!messagesContainerRef.current) return;
     
-    // Create a MutationObserver to watch for changes to the messages container
-    const mutationObserver = new MutationObserver((mutations) => {
-      // When new content is added, scroll to ensure it's visible
-      scrollToBottom();
+    // 创建 MutationObserver 来监视消息容器的变化
+    const mutationObserver = new MutationObserver(() => {
+      // 当添加新内容时，确保它可见
+      if (isFirstLoadRef.current) {
+        jumpToBottom();
+      } else {
+        smoothScrollToBottom();
+      }
     });
     
-    // Start observing the messages container for changes to its children
+    // 开始观察消息容器以检测其子元素的变化
     mutationObserver.observe(messagesContainerRef.current, {
       childList: true,
       subtree: true,
       characterData: true
     });
     
-    // Cleanup function to disconnect the observer when component unmounts
+    // 清理函数，在组件卸载时断开观察器
     return () => {
       mutationObserver.disconnect();
     };
-  }, []); // Only run once on mount
+  }, []);
+
+  // 组件挂载后立即跳转到底部
+  useEffect(() => {
+    // 确保在组件挂载后立即跳转到底部
+    if (messagesContainerRef.current && messages.length > 0) {
+      // 使用 requestAnimationFrame 确保在浏览器绘制后执行
+      requestAnimationFrame(() => {
+        jumpToBottom();
+      });
+    }
+  }, []);
+
+  // 强制在会话切换时立即跳转到底部
+  useEffect(() => {
+    // 如果有消息且容器已渲染
+    if (messages.length > 0 && messagesContainerRef.current) {
+      // 使用多个延迟的跳转，确保在所有可能的时间点都尝试跳转到底部
+      // 这是为了解决某些情况下 DOM 更新时机不确定的问题
+      const jumpMultipleTimes = () => {
+        // 立即跳转
+        jumpToBottom();
+        
+        // 在下一帧跳转
+        requestAnimationFrame(() => {
+          jumpToBottom();
+          
+          // 短暂延迟后再次跳转
+          setTimeout(() => {
+            jumpToBottom();
+            
+            // 稍长延迟后最后一次跳转
+            setTimeout(jumpToBottom, 100);
+          }, 50);
+        });
+      };
+      
+      // 执行多次跳转
+      jumpMultipleTimes();
+    }
+  }, [messages.length > 0 ? messages[0].id : null]); // 只在第一条消息ID变化时触发（会话切换）
 
   // Monitor message content changes to ensure proper scrolling
   useEffect(() => {
@@ -543,7 +600,7 @@ export default function ChatArea({
     // If the last message is from the bot or a tool, it might be updated with new content
     if (['bot', 'tool'].includes(lastMessage.role)) {
       // Scroll to ensure the message is visible
-      scrollToBottom();
+      smoothScrollToBottom();
     }
   }, [messages.map(m => m.content).join('')]); // Dependency on message content
 
@@ -622,8 +679,8 @@ export default function ChatArea({
 
       {/* Messages area */}
       <div className="flex-1 overflow-hidden relative">
-        <div className="absolute inset-0 overflow-y-auto px-0 py-6 messages-container">
-          <div className="max-w-3xl mx-auto px-6 space-y-4" ref={messagesContainerRef}>
+        <div className="absolute inset-0 overflow-y-auto px-0 py-6 messages-container" ref={messagesContainerRef}>
+          <div className="max-w-3xl mx-auto px-6 space-y-4">
             {messages.map((message, index) => {
               // Check if this is the first AI message in a sequence
               const isFirstInSequence = () => {
