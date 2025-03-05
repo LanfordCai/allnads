@@ -1,4 +1,4 @@
-import { pgTable, serial, uuid, timestamp, text, json, varchar, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, uuid, timestamp, text, json, varchar, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { ChatRole } from '../types/chat';
 
 // 定义会话表结构
@@ -41,4 +41,31 @@ export const userReferences = pgTable('user_references', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   lastLoginAt: timestamp('last_login_at'),
   metadata: jsonb('metadata'),
+});
+
+// 用户地址簿表 - 存储用户保存的地址
+export const addressBook = pgTable('address_book', {
+  id: serial('id').primaryKey(),
+  privyUserId: varchar('privy_user_id', { length: 255 }).notNull().references(() => userReferences.privyUserId, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  address: varchar('address', { length: 255 }).notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// 用户奖励领取记录表 - 记录用户NFT和MON代币的领取状态
+export const userClaims = pgTable('user_claims', {
+  id: serial('id').primaryKey(),
+  privyUserId: varchar('privy_user_id', { length: 255 }).notNull().references(() => userReferences.privyUserId, { onDelete: 'cascade' }),
+  address: varchar('address', { length: 255 }).notNull(),
+  hasClaimedNFT: boolean('has_claimed_nft').notNull().default(false),
+  nftClaimTxId: varchar('nft_claim_tx_id', { length: 255 }),
+  nftClaimDate: timestamp('nft_claim_date'),
+  hasClaimedMON: boolean('has_claimed_mon').notNull().default(false),
+  monClaimTxId: varchar('mon_claim_tx_id', { length: 255 }),
+  monClaimDate: timestamp('mon_claim_date'),
+  monClaimAmount: varchar('mon_claim_amount', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }); 

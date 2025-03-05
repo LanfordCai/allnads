@@ -482,15 +482,43 @@ export class BlockchainService {
   }
   
   /**
-   * Airdrop an AllNads NFT to an address
-   * @param to The address to receive the NFT
-   * @param name The name for the NFT
-   * @param backgroundId The background component ID
-   * @param hairstyleId The hairstyle component ID
-   * @param eyesId The eyes component ID
-   * @param mouthId The mouth component ID
-   * @param accessoryId The accessory component ID
-   * @returns The transaction hash
+   * 向指定地址发送原生货币（MON）
+   * @param to 接收地址
+   * @param amount 发送数量（字符串格式，例如 "1000000000000000000" 表示 1 MON）
+   * @returns 交易哈希
+   */
+  async sendMon(to: Address, raw_amount: string): Promise<string> {
+    try {
+      Logger.debug('BlockchainService', `Sending native currency (MON) to address: ${to}, amount: ${raw_amount}`);
+      
+      // 发送交易
+      const hash = await this.walletClient.sendTransaction({
+        to,
+        value: BigInt(raw_amount)
+      });
+      
+      // 等待交易确认
+      Logger.info('BlockchainService', `MON transaction sent, waiting for confirmation. txHash: ${hash}`);
+      const receipt = await this.publicClient.waitForTransactionReceipt({ 
+        hash,
+        confirmations: 1 // 等待至少1个确认
+      });
+      
+      // 检查交易是否成功
+      if (receipt.status !== 'success') {
+        throw new Error(`Transaction failed with status: ${receipt.status}`);
+      }
+      
+      Logger.info('BlockchainService', `MON sent successfully to ${to}, txHash: ${hash}, confirmed in block ${receipt.blockNumber}`);
+      return hash;
+    } catch (error: any) {
+      Logger.error('BlockchainService', `Error sending MON to ${to}`, error);
+      throw new Error(`Failed to send MON: ${error.message}`);
+    }
+  }
+  
+  /**
+   * 空投NFT到指定地址
    */
   async airdropNFT(
     to: Address,
@@ -509,8 +537,18 @@ export class BlockchainService {
         args: [to, name, backgroundId, hairstyleId, eyesId, mouthId, accessoryId],
       });
       
-      // Wait for transaction confirmation
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      // 等待交易确认
+      Logger.info('BlockchainService', `Airdrop transaction sent, waiting for confirmation. txHash: ${hash}`);
+      const receipt = await this.publicClient.waitForTransactionReceipt({ 
+        hash,
+        confirmations: 1 // 等待至少1个确认
+      });
+      
+      // 检查交易是否成功
+      if (receipt.status !== 'success') {
+        throw new Error(`NFT airdrop transaction failed with status: ${receipt.status}`);
+      }
+      
       Logger.info('BlockchainService', `Airdrop transaction confirmed in block ${receipt.blockNumber}`);
       
       return hash;
