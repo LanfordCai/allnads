@@ -123,7 +123,13 @@ export function useChatWithNFT(chatService: ChatService) {
             };
             
             // Add component information to corresponding field
-            enhancedMetadata[componentType as keyof EnhancedMetadata] = componentInfo as any;
+            if (componentType === 'background' || 
+                componentType === 'hairstyle' || 
+                componentType === 'eyes' || 
+                componentType === 'mouth' || 
+                componentType === 'accessory') {
+              enhancedMetadata[componentType] = componentInfo;
+            }
           }
         });
 

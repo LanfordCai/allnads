@@ -97,7 +97,6 @@ export default function ChatBot() {
     activeSession,
     createNewSession,
     deleteSession,
-    clearAllSessions
   } = useChatSessions(STORAGE_KEY, user?.wallet?.address || user?.id);
 
   const {

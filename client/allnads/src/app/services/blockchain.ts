@@ -66,7 +66,8 @@ class BlockchainService {
    * @param fn Function to wrap
    * @returns Rate-limited and retry-enabled function
    */
-  private wrapBlockchainCall<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, _methodName: string): T {
+  private wrapBlockchainCall<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, methodName: string): T {
+    console.log('wrapBlockchainCall', methodName);
     const wrappedFn = async (...args: unknown[]): Promise<unknown> => {
       try {
         const result = await fn(...args);
@@ -105,7 +106,8 @@ class BlockchainService {
         }
       }
       return null;
-    } catch (_error) {
+    } catch (error) {
+      console.debug('Error getting user address', error);
       return null;
     }
   }
@@ -190,7 +192,8 @@ class BlockchainService {
       }, `checkTemplateOwnership(${templateId})`);
       
       return await checkOwnershipWithRetry();
-    } catch (_error) {
+    } catch (error) {
+      console.debug('Error checking template ownership', error);
       // Silently handle the error as it's expected to fail for templates not owned
       return BigInt(0);
     }
@@ -263,10 +266,12 @@ class BlockchainService {
           name: json.name || null,
           image: json.image || null
         };
-      } catch (_parseError) {
+      } catch (parseError) {
+        console.debug('Error parsing tokenURI', parseError);
         return { name: null, image: null };
       }
-    } catch (_error) {
+    } catch (error) {
+      console.debug('Error fetching token image and name', error);
       return { name: null, image: null };
     }
   }

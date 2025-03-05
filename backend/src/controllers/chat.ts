@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { ChatService } from '../services/chat';
 import { SessionService } from '../services/session';
 import { z } from 'zod';
 import { mcpManager } from '../services/mcpService';

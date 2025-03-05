@@ -238,8 +238,9 @@ export function withRateLimitAndRetry<T extends (...args: unknown[]) => Promise<
         rateLimiter.completeRequest();
         throw error;
       }
-    } catch (_error) {
+    } catch (error) {
       // This would be an error in the rate limiter itself
+      console.debug('Error in withRateLimitAndRetry', error);
       
       // Try to execute the function directly as a fallback
       // This bypasses rate limiting but prevents complete failure

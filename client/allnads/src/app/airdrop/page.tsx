@@ -86,10 +86,19 @@ export default function AirdropPage() {
         setAirdropStatus('error');
         setErrorMessage(result.message || 'Failed to receive airdrop. Please try again.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error requesting airdrop:', error);
       setAirdropStatus('error');
-      setErrorMessage(error.message || 'Failed to request airdrop. Please try again later.');
+      
+      // Check for different error types
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        // Handle ApiResponse error format
+        setErrorMessage((error as { message: string }).message);
+      } else {
+        setErrorMessage('Failed to request airdrop. Please try again later.');
+      }
     } finally {
       setIsRequestingAirdrop(false);
     }
