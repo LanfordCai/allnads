@@ -32,16 +32,31 @@ export class ChatSocketService {
     ChatSocketService.instance = this;
   }
 
+  private getDisplayNameFromEmail = (email: string) => {
+    return email.split('@')[0];
+  };
+
   /**
    * Extract email and Ethereum wallet address from user identity information
    * @param userIdentity Privy user identity information object
    * @returns Object containing email and wallet address
    */
   private extractUserInfo(user: User): { email: string; ethereumWallet: string; name: string } {
-    const email = user.linkedAccounts?.find((account) => account.type === 'email')?.address;
+    const privyEmail = user.linkedAccounts?.find((account) => account.type === 'email');
+    const google = user.linkedAccounts?.find((account) => account.type === 'google_oauth');
+    const twitter = user.linkedAccounts?.find((account) => account.type === 'twitter_oauth');
+  
+    let displayName = '';
+    if (privyEmail) {
+      displayName = this.getDisplayNameFromEmail(privyEmail.address);
+    } else if (google) {
+      displayName = google.name || this.getDisplayNameFromEmail(google.email);
+    } else if (twitter) {
+      displayName = twitter.name || twitter.username || 'Anonymous';
+    }
+
     const ethereumWallet = user.linkedAccounts?.find((account) => account.type === 'wallet')?.address;
-    const name = email ? email.split('@')[0] : 'Anonymous';
-    return { email: email || 'Anonymous', ethereumWallet: ethereumWallet || 'Anonymous', name };
+    return { email: privyEmail?.address || 'Anonymous', ethereumWallet: ethereumWallet || 'Anonymous', name: displayName };
   }
   
   /**
