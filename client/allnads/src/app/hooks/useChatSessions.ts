@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChatSession } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
 
-// 创建初始会话
+// Create initial session
 const createInitialSession = (): ChatSession => ({
   id: uuidv4(),
   title: 'New Chat',
@@ -10,99 +10,107 @@ const createInitialSession = (): ChatSession => ({
   lastActivity: new Date(),
 });
 
-export function useChatSessions(storageKey: string) {
+export function useChatSessions(baseStorageKey: string, userId?: string | null) {
+  // Create a unique storage key using the user ID
+  const storageKey = userId ? `${baseStorageKey}_${userId}` : baseStorageKey;
+  // The active session ID storage key should also be user-specific
+  const activeSessionIdKey = userId ? `allnads_active_session_id_${userId}` : 'allnads_active_session_id';
+  
   // Session management
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   
-  // 使用ref追踪当前活跃的会话ID，解决闭包问题
+  // Use ref to track the current active session ID, solving closure issues
   const activeSessionIdRef = useRef<string>('');
   
-  // 添加一个引用来标记初始加载是否完成
+  // Add a reference to mark if initial loading is complete
   const initialLoadCompleted = useRef<boolean>(false);
 
-  // 从本地存储加载会话
+  // Load sessions from local storage
   useEffect(() => {
-    // 延迟加载，确保组件已完全挂载
+    // Reset initial load marker when user ID changes
+    initialLoadCompleted.current = false;
+    
+    // Delayed loading to ensure component is fully mounted
     const timer = setTimeout(() => {
-      console.log('开始延迟加载会话...');
+      console.log('Starting delayed session loading...');
       loadSessions();
     }, 100);
     
     const loadSessions = () => {
       try {
-        console.log('尝试从本地存储加载会话...');
+        console.log(`Attempting to load sessions from local storage, User ID: ${userId || 'Not logged in'}, Storage key: ${storageKey}`);
         const savedSessions = localStorage.getItem(storageKey);
-        console.log('从localStorage读取的原始数据:', savedSessions);
+        console.log('Raw data read from localStorage:', savedSessions);
         
-        // 先检查localStorage中是否已有sessionId和activeSessionId标记
-        const lastActiveId = localStorage.getItem('allnads_active_session_id');
+        // First check if sessionId and activeSessionId markers already exist in localStorage
+        const lastActiveId = localStorage.getItem(activeSessionIdKey);
         if (lastActiveId) {
-          console.log('找到上次活跃的会话ID:', lastActiveId);
+          console.log('Found last active session ID:', lastActiveId);
         }
         
-        if (savedSessions && savedSessions.length > 2) {  // 确保不只是"[]"
+        if (savedSessions && savedSessions.length > 2) {  // Ensure it's not just "[]"
           let parsedSessions;
           try {
             parsedSessions = JSON.parse(savedSessions) as ChatSession[];
             
-            // 验证解析的数据是否为数组
+            // Verify if the parsed data is an array
             if (!Array.isArray(parsedSessions)) {
-              console.error('解析的数据不是数组:', parsedSessions);
-              throw new Error('数据格式错误: 不是数组');
+              console.error('Parsed data is not an array:', parsedSessions);
+              throw new Error('Data format error: Not an array');
             }
             
-            console.log('解析后的会话数据:', parsedSessions);
+            console.log('Parsed session data:', parsedSessions);
           } catch (parseError) {
-            console.error('JSON解析错误:', parseError);
-            throw new Error('无法解析会话数据');
+            console.error('JSON parsing error:', parseError);
+            throw new Error('Unable to parse session data');
           }
           
-          // 如果保存的是空数组，则创建一个新会话
+          // If saved data is an empty array, create a new session
           if (parsedSessions.length === 0) {
-            console.log('保存的是空数组，创建新会话');
+            console.log('Saved data is an empty array, creating new session');
             const newSession = createInitialSession();
             
-            // 使用函数式更新确保状态立即更新
+            // Use functional update to ensure state is updated immediately
             setSessions(() => {
-              initialLoadCompleted.current = true; // 标记初始加载完成
+              initialLoadCompleted.current = true; // Mark initial loading as complete
               return [newSession];
             });
             
             setActiveSessionId(newSession.id);
             
-            // 保存当前活跃会话ID
-            localStorage.setItem('allnads_active_session_id', newSession.id);
+            // Save current active session ID
+            localStorage.setItem(activeSessionIdKey, newSession.id);
             return;
           }
           
-          // 验证每个会话对象的完整性
+          // Verify the integrity of each session object
           const validSessions = parsedSessions.filter(session => {
             if (!session || !session.id || !session.title || !Array.isArray(session.messages)) {
-              console.error('发现无效会话:', session);
+              console.error('Found invalid session:', session);
               return false;
             }
             return true;
           });
           
           if (validSessions.length === 0) {
-            console.log('没有有效的会话数据，创建新会话');
+            console.log('No valid session data, creating new session');
             const newSession = createInitialSession();
             
-            // 使用函数式更新确保状态立即更新
+            // Use functional update to ensure state is updated immediately
             setSessions(() => {
-              initialLoadCompleted.current = true; // 标记初始加载完成
+              initialLoadCompleted.current = true; // Mark initial loading as complete
               return [newSession];
             });
             
             setActiveSessionId(newSession.id);
             
-            // 保存当前活跃会话ID
-            localStorage.setItem('allnads_active_session_id', newSession.id);
+            // Save current active session ID
+            localStorage.setItem(activeSessionIdKey, newSession.id);
             return;
           }
           
-          // 确保日期对象正确恢复
+          // Ensure date objects are correctly restored
           const processedSessions = validSessions.map(session => ({
             ...session,
             lastActivity: new Date(session.lastActivity),
@@ -112,18 +120,18 @@ export function useChatSessions(storageKey: string) {
             }))
           }));
           
-          console.log('处理后的会话数据:', processedSessions);
+          console.log('Processed session data:', processedSessions);
           
-          // 使用函数式更新确保状态立即更新
+          // Use functional update to ensure state is updated immediately
           setSessions(() => {
-            console.log('设置会话状态, 会话数量:', processedSessions.length);
-            initialLoadCompleted.current = true; // 标记初始加载完成
+            console.log('Setting session state, session count:', processedSessions.length);
+            initialLoadCompleted.current = true; // Mark initial loading as complete
             return processedSessions;
           });
           
-          // 设置最近活跃的会话为当前会话
+          // Set the most recently active session as the current session
           if (processedSessions.length > 0) {
-            // 按最近活动时间排序
+            // Sort by most recent activity time
             const sortedSessions = [...processedSessions].sort(
               (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime()
             );
@@ -132,61 +140,61 @@ export function useChatSessions(storageKey: string) {
               : sortedSessions[0].id;
               
             setActiveSessionId(newActiveId);
-            console.log('设置活跃会话ID:', newActiveId);
+            console.log('Setting active session ID:', newActiveId);
             
-            // 保存当前活跃会话ID
-            localStorage.setItem('allnads_active_session_id', newActiveId);
+            // Save current active session ID
+            localStorage.setItem(activeSessionIdKey, newActiveId);
           }
         } else {
-          // 没有保存的会话或者只是空数组，创建一个新会话
-          console.log('localStorage中没有有效会话数据，创建新会话');
+          // No saved sessions or just an empty array, create a new session
+          console.log('No valid session data in localStorage, creating new session');
           const newSession = createInitialSession();
           
-          // 使用函数式更新确保状态立即更新
+          // Use functional update to ensure state is updated immediately
           setSessions(() => {
-            initialLoadCompleted.current = true; // 标记初始加载完成
+            initialLoadCompleted.current = true; // Mark initial loading as complete
             return [newSession];
           });
           
           setActiveSessionId(newSession.id);
           
-          // 保存当前活跃会话ID
-          localStorage.setItem('allnads_active_session_id', newSession.id);
+          // Save current active session ID
+          localStorage.setItem(activeSessionIdKey, newSession.id);
         }
       } catch (error) {
-        console.error('加载会话错误:', error);
-        // 出错时创建一个新会话
+        console.error('Error loading sessions:', error);
+        // Create a new session when an error occurs
         const newSession = createInitialSession();
         
-        // 使用函数式更新确保状态立即更新
+        // Use functional update to ensure state is updated immediately
         setSessions(() => {
-          initialLoadCompleted.current = true; // 错误处理也标记初始加载完成
+          initialLoadCompleted.current = true; // Mark initial loading as complete even for error handling
           return [newSession];
         });
         
         setActiveSessionId(newSession.id);
         
-        // 保存当前活跃会话ID
-        localStorage.setItem('allnads_active_session_id', newSession.id);
+        // Save current active session ID
+        localStorage.setItem(activeSessionIdKey, newSession.id);
       }
     };
 
-    // 清理定时器
+    // Clean up timer
     return () => clearTimeout(timer);
-  }, [storageKey]);
+  }, [storageKey, activeSessionIdKey, userId]);
 
-  // 保存会话到本地存储
+  // Save sessions to local storage
   useEffect(() => {
-    // 如果初始加载还没完成，不要保存
+    // If initial loading is not complete, don't save
     if (!initialLoadCompleted.current) {
-      console.log('初始加载未完成，跳过保存到localStorage');
+      console.log('Initial loading not completed, skipping save to localStorage');
       return;
     }
     
     try {
-      // 再次检查sessions长度
-      console.log('保存会话到本地存储, 当前会话数量:', sessions.length, '会话详情:', JSON.stringify(sessions, (key, value) => {
-        // 缩短消息内容以便于日志阅读
+      // Check sessions length again
+      console.log(`Saving sessions to local storage, User ID: ${userId || 'Not logged in'}, Current session count:`, sessions.length, 'Session details:', JSON.stringify(sessions, (key, value) => {
+        // Shorten message content for easier log reading
         if (key === 'content' && typeof value === 'string' && value.length > 30) {
           return value.substring(0, 30) + '...';
         }
@@ -194,80 +202,80 @@ export function useChatSessions(storageKey: string) {
       }, 2).substring(0, 300) + '...');
       
       if (sessions.length === 0) {
-        console.log('警告: 尝试保存空会话数组。这可能表示状态未正确更新。');
-        // 验证是否真的应该保存空数组，或者这是一个异步状态问题
+        console.log('Warning: Attempting to save empty session array. This may indicate state was not properly updated.');
+        // Verify if we should really save an empty array, or if this is an async state issue
         if (localStorage.getItem(storageKey) && localStorage.getItem(storageKey) !== '[]') {
-          console.log('localStorage中已有数据但当前状态为空，跳过保存以防止数据丢失');
+          console.log('Data already exists in localStorage but current state is empty, skipping save to prevent data loss');
           return;
         }
-        console.log('保存空会话数组到localStorage');
+        console.log('Saving empty session array to localStorage');
         localStorage.setItem(storageKey, '[]');
         return;
       }
       
-      // 无论是否有会话，都保存到本地存储
-      // 这样当用户删除所有会话时，空数组会被保存，防止旧数据在刷新后重新出现
+      // Always save to local storage regardless of whether there are sessions
+      // This way when the user deletes all sessions, an empty array is saved, preventing old data from reappearing after refresh
       const sessionsToSave = sessions.map(session => {
-        // 保存前验证会话结构完整性
+        // Verify session structure integrity before saving
         if (!session || !session.id) {
-          console.error('发现无效会话对象:', session);
+          console.error('Found invalid session object:', session);
           return null;
         }
         
         return {
           ...session,
-          // 保持lastActivity和message的timestamp为字符串，避免序列化问题
+          // Keep lastActivity and message timestamps as strings to avoid serialization issues
           lastActivity: session.lastActivity.toISOString(),
           messages: session.messages.map(msg => ({
             ...msg,
             timestamp: msg.timestamp.toISOString()
           }))
         };
-      }).filter(Boolean); // 过滤掉无效的会话
+      }).filter(Boolean); // Filter out invalid sessions
       
-      console.log('即将保存的会话数据:', sessionsToSave);
+      console.log('Sessions data about to be saved:', sessionsToSave);
       const jsonData = JSON.stringify(sessionsToSave);
-      console.log('保存的JSON数据长度:', jsonData.length);
-      console.log('保存的JSON数据:', jsonData.substring(0, 100) + (jsonData.length > 100 ? '...' : ''));
+      console.log('Length of JSON data being saved:', jsonData.length);
+      console.log('JSON data being saved:', jsonData.substring(0, 100) + (jsonData.length > 100 ? '...' : ''));
       
       localStorage.setItem(storageKey, jsonData);
       
-      // 验证保存
+      // Verify save
       const savedData = localStorage.getItem(storageKey);
-      console.log('验证保存是否成功:', !!savedData, '数据长度:', savedData?.length);
+      console.log('Verifying save success:', !!savedData, 'Data length:', savedData?.length);
     } catch (error) {
-      console.error('保存会话到本地存储失败:', error);
+      console.error('Failed to save sessions to local storage:', error);
     }
-  }, [sessions, storageKey]);
+  }, [sessions, storageKey, userId]);
 
-  // 获取当前活跃会话
+  // Get current active session
   const activeSession = sessions.find(session => session.id === activeSessionId) || 
     (sessions.length > 0 ? sessions[0] : createInitialSession());
 
-  // 当activeSessionId为空但sessions不为空时，自动设置activeSessionId为第一个会话
+  // When activeSessionId is empty but sessions is not, automatically set activeSessionId to the first session
   useEffect(() => {
     if (!activeSessionId && sessions.length > 0) {
-      console.log('自动设置activeSessionId为第一个会话:', sessions[0].id);
+      console.log('Automatically setting activeSessionId to first session:', sessions[0].id);
       setActiveSessionId(sessions[0].id);
     }
   }, [activeSessionId, sessions]);
 
-  // 当activeSessionId变化时更新ref
+  // Update ref when activeSessionId changes
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
-    console.log(`activeSessionId更新为: ${activeSessionId}, ref更新为: ${activeSessionIdRef.current}`);
+    console.log(`activeSessionId updated to: ${activeSessionId}, ref updated to: ${activeSessionIdRef.current}`);
     
-    // 当activeSessionId变化时也更新localStorage中的记录
+    // Also update the record in localStorage when activeSessionId changes
     if (activeSessionId) {
-      localStorage.setItem('allnads_active_session_id', activeSessionId);
-      console.log('更新localStorage中的活跃会话ID:', activeSessionId);
+      localStorage.setItem(activeSessionIdKey, activeSessionId);
+      console.log('Updated active session ID in localStorage:', activeSessionId);
     }
-  }, [activeSessionId]);
+  }, [activeSessionId, activeSessionIdKey]);
 
-  // 创建新会话
+  // Create new session
   const createNewSession = (isMobile: boolean = false, chatServiceRef: any = null, isNftInfoSet: boolean = false) => {
     const newSession = createInitialSession();
-    console.log(`创建新会话: ID=${newSession.id}, 初始标题="${newSession.title}"`);
+    console.log(`Creating new session: ID=${newSession.id}, Initial title="${newSession.title}"`);
     
     // Set the session ID in the chat service before updating state
     if (chatServiceRef) {
@@ -277,21 +285,21 @@ export function useChatSessions(storageKey: string) {
       activeSessionIdRef.current = newSession.id;
       
       // Update localStorage with the new active session ID
-      localStorage.setItem('allnads_active_session_id', newSession.id);
+      localStorage.setItem(activeSessionIdKey, newSession.id);
       
-      // 如果NFT信息已设置，直接连接WebSocket
+      // If NFT info is already set, connect to WebSocket directly
       if (isNftInfoSet) {
-        console.log('创建新会话时，NFT信息已设置，直接连接WebSocket...');
-        // 先断开现有连接
+        console.log('NFT info already set when creating new session, connecting WebSocket directly...');
+        // Disconnect existing connection first
         chatServiceRef.disconnect();
         
-        // 连接到新会话
+        // Connect to new session
         chatServiceRef.connect()
           .then(() => {
-            console.log('新会话WebSocket连接成功');
+            console.log('New session WebSocket connection successful');
           })
           .catch((error: Error) => {
-            console.error('新会话WebSocket连接失败:', error);
+            console.error('New session WebSocket connection failed:', error);
           });
       }
     }
@@ -300,39 +308,55 @@ export function useChatSessions(storageKey: string) {
     setActiveSessionId(newSession.id);
   };
 
-  // 删除会话
+  // Delete session
   const deleteSession = (id: string) => {
     const filteredSessions = sessions.filter(session => session.id !== id);
     
-    // 如果删除的是当前活跃会话
+    // If the deleted session is the current active session
     if (id === activeSessionId) {
       if (filteredSessions.length > 0) {
-        // 如果还有其他会话，选择第一个作为活跃会话
+        // If there are other sessions, select the first one as the active session
         const newActiveId = filteredSessions[0].id;
         setActiveSessionId(newActiveId);
         
-        // 更新localStorage中的活跃会话ID
-        localStorage.setItem('allnads_active_session_id', newActiveId);
-        console.log('删除会话后，更新活跃会话ID为:', newActiveId);
+        // Update active session ID in localStorage
+        localStorage.setItem(activeSessionIdKey, newActiveId);
+        console.log('After session deletion, updated active session ID to:', newActiveId);
       } else {
-        // 如果没有会话了，先清除activeSessionId，然后创建一个新会话
+        // If there are no more sessions, clear activeSessionId first, then create a new session
         setActiveSessionId('');
-        localStorage.removeItem('allnads_active_session_id');
+        localStorage.removeItem(activeSessionIdKey);
         
-        // 创建新会话
+        // Create new session
         const newSession = createInitialSession();
-        filteredSessions.push(newSession); // 添加到过滤后的数组中
+        filteredSessions.push(newSession); // Add to filtered array
         
-        // 设置为活跃会话（异步执行，在下一个渲染周期）
+        // Set as active session (executed asynchronously, in the next render cycle)
         setTimeout(() => {
           setActiveSessionId(newSession.id);
-          // 新会话ID会在activeSessionId的useEffect中被保存到localStorage
+          // New session ID will be saved to localStorage in the activeSessionId useEffect
         }, 0);
       }
     }
     
-    // 更新会话列表
+    // Update session list
     setSessions(filteredSessions);
+  };
+
+  // Clear all session data for the current user
+  const clearAllSessions = () => {
+    // Create a new initial session
+    const newSession = createInitialSession();
+    
+    // Reset session list to only include the new session
+    setSessions([newSession]);
+    setActiveSessionId(newSession.id);
+    
+    // Update localStorage
+    localStorage.setItem(storageKey, JSON.stringify([newSession]));
+    localStorage.setItem(activeSessionIdKey, newSession.id);
+    
+    console.log(`Cleared all session data for user ${userId || 'Not logged in'}`);
   };
 
   return {
@@ -343,6 +367,7 @@ export function useChatSessions(storageKey: string) {
     activeSessionIdRef,
     activeSession,
     createNewSession,
-    deleteSession
+    deleteSession,
+    clearAllSessions
   };
 } 

@@ -74,10 +74,8 @@ export default function ChatBot({}: ChatBotProps) {
   // Avatar image state
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   
-  // Add debug log to record avatarImage changes
-  useEffect(() => {
-    console.log('ChatBot: avatarImage updated:', avatarImage ? avatarImage.substring(0, 50) + '...' : null);
-  }, [avatarImage]);
+  // 用于跟踪组件是否已经完成初始渲染
+  const initialRenderRef = useRef<boolean>(false);
   
   // Chat service setup
   const chatServiceRef = useRef<ChatService | null>(null);
@@ -124,8 +122,9 @@ export default function ChatBot({}: ChatBotProps) {
     activeSessionIdRef,
     activeSession,
     createNewSession,
-    deleteSession
-  } = useChatSessions(STORAGE_KEY);
+    deleteSession,
+    clearAllSessions
+  } = useChatSessions(STORAGE_KEY, user?.wallet?.address || user?.id);
 
   const {
     isLoading,
@@ -325,6 +324,24 @@ export default function ChatBot({}: ChatBotProps) {
       }));
     }
   };
+
+  // 监听用户认证状态变化
+  useEffect(() => {
+    // 当用户登录时，检查是否有会话数据
+    if (isAuthenticated && !isLoading) {
+      console.log('用户已登录，检查会话数据');
+      // 如果没有会话数据，创建一个新会话
+      if (sessions.length === 0) {
+        console.log('没有会话数据，创建新会话');
+        createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet);
+      }
+    }
+    
+    // 标记初始渲染已完成
+    if (!initialRenderRef.current) {
+      initialRenderRef.current = true;
+    }
+  }, [isAuthenticated, isLoading, sessions.length, createNewSession, isMobile, isMediumScreen, isNftInfoSet]);
 
   return (
     <div className="flex h-full overflow-hidden">
