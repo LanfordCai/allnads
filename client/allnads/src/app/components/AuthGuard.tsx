@@ -39,7 +39,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
           </div>
           
           <h1 className="text-3xl font-bold mb-2 text-center text-gray-800">AllNads</h1>
-          <p className="text-lg text-gray-600 mb-8 text-center">Degen AI Buddy for Everyone</p>
+          <p className="text-lg text-gray-600 mb-8 text-center">Degen AI Buddy for All</p>
           
           <div className="flex flex-col items-center">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mt-6"></div>

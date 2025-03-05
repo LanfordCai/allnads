@@ -68,7 +68,7 @@ export default function LoginPage() {
         
         {/* Welcome Text */}
         <h1 className="text-3xl font-bold mb-2 text-center text-gray-800">AllNads</h1>
-        <p className="text-lg text-gray-600 mb-8 text-center">Degen AI Buddy for Everyone</p>
+        <p className="text-lg text-gray-600 mb-8 text-center">Degen AI Buddy for All</p>
         
         {/* Login Button or Loading */}
         <div className="grid grid-cols-1 gap-3">
