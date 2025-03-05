@@ -3,7 +3,7 @@
     {
       "name": "evm_tool",
       "url": "http://localhost:8080/sse",
-      "description": "EVM 区块链查询工具"
+      "description": "EVM Blockchain Query Tool"
     },
     {
       "name": "allnads_tool",

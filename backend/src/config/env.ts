@@ -37,6 +37,10 @@ const envSchema = z.object({
   MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS: z.string(),
   MONAD_AIRDROPPER_ADDRESS: z.string(),
   MONAD_AIRDROPPER_PRIVATE_KEY: z.string(),
+
+  // MCP
+  EMV_TOOL_URL: z.string(),
+  ALLNADS_TOOL_URL: z.string(),
 });
 
 // Parse and validate environment variables
