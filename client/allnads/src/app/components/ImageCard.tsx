@@ -2,13 +2,15 @@
 import { useState, useEffect } from 'react';
 import { blockchainService } from '../services/blockchain';
 import TemplateModal from './TemplateModal';
+import Image from 'next/image';
+import { TemplateDetails } from '../types/template';
 
 interface ImageCardProps {
   imageUrl?: string;
   alt?: string;
   title?: string;
   caption?: string;
-  onChangeComponent?: (templateId: bigint, templateDetails?: any) => void;
+  onChangeComponent?: (templateId: bigint, templateDetails?: TemplateDetails) => void;
   nftAccount?: string; // Token bound account address of the AllNads NFT
   templateId?: bigint; // Current template ID displayed in the card
   onSwitchToChat?: () => void; // Callback function to switch to chat area
@@ -99,7 +101,7 @@ export default function ImageCard({
   };
   
   // Function to handle template selection
-  const handleSelectTemplate = (templateId: bigint, templateDetails?: any) => {
+  const handleSelectTemplate = (templateId: bigint, templateDetails?: TemplateDetails) => {
     if (onChangeComponent) {
       onChangeComponent(templateId, templateDetails);
     }
@@ -123,10 +125,12 @@ export default function ImageCard({
   return (
     <div className="bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] mb-4">
       <div className="w-full aspect-square relative">
-        <img 
+        <Image 
           src={imageUrl} 
           alt={alt}
-          className="w-full h-full object-cover"
+          className="object-cover"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
           onError={(e) => {
             // If image fails to load, show a placeholder
             e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 300 300'%3E%3Crect fill='%23f0f0f0' width='300' height='300'/%3E%3Ctext fill='%23999999' font-family='Arial' font-size='14' x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'%3EImage%3C/text%3E%3C/svg%3E";

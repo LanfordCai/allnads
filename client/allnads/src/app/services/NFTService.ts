@@ -3,13 +3,13 @@
 /**
  * API response interface for standardized server responses
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
   data?: T;
   error?: {
     code?: string;
-    details?: any;
+    details?: unknown;
   };
 }
 
@@ -44,7 +44,7 @@ export class NFTService {
       const data = await response.json();
       console.log('NFT check response:', data);
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error checking NFT:', error);
       throw error;
     }
@@ -107,7 +107,7 @@ export class NFTService {
       const data = await response.json();
       console.log('Airdrop response data:', data);
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error requesting NFT airdrop:', error);
       throw error;
     }

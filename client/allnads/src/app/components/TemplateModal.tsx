@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { blockchainService, Template } from '../services/blockchain';
+import Image from 'next/image';
+import { TemplateDetails } from '../types/template';
 
 // Define component types matching the enum in the contract
 const COMPONENT_TYPES = {
@@ -17,7 +19,7 @@ const PNG_HEADER = "iVBORw0KGgoAAAANSUhEUgAA";
 interface TemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTemplate: (templateId: bigint, templateDetails?: any) => void;
+  onSelectTemplate: (templateId: bigint, templateDetails?: TemplateDetails) => void;
   nftAccount?: string; // Token bound account address of the AllNads NFT
 }
 
@@ -117,7 +119,7 @@ export default function TemplateModal({
     } else {
       console.log("nftAccount provided:", nftAccount);
     }
-  }, [nftAccount]);
+  }, [nftAccount, loadAllTemplates]);
   
   // Check template ownership when nftAccount or template IDs change
   useEffect(() => {
@@ -157,7 +159,7 @@ export default function TemplateModal({
     );
     
     // Create template details object
-    const templateDetails = {
+    const templateDetails: TemplateDetails = {
       ...selectedTemplate,
       componentTypeName,
       isOwned: userOwnsTemplate(templateId)
@@ -253,12 +255,14 @@ export default function TemplateModal({
                       #{template.id.toString()}
                     </div>
                     
-                    <div className="w-full aspect-square overflow-hidden bg-gray-100">
+                    <div className="w-full aspect-square overflow-hidden bg-gray-100 relative">
                       {template.imageData ? (
-                        <img 
+                        <Image 
                           src={`data:image/png;base64,${PNG_HEADER}${template.imageData}`}
-                          alt={template.name}
-                          className="w-full h-full object-cover"
+                          alt={template.name || 'Template image'}
+                          className="object-cover"
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
                           onError={(e) => {
                             e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 300 300'%3E%3Crect fill='%23f0f0f0' width='300' height='300'/%3E%3Ctext fill='%23999999' font-family='Arial' font-size='14' x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'%3EImage%3C/text%3E%3C/svg%3E";
                           }}

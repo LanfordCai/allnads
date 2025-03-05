@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import ImageCard from '../ImageCard';
 import { User } from '@privy-io/react-auth';
-import { blockchainService } from '../../services/blockchain';
+import { blockchainService, Template } from '../../services/blockchain';
+
+// Define a type for template details that extends Template
+interface TemplateDetails extends Partial<Template> {
+  componentTypeName?: string;
+  isOwned?: boolean;
+}
 
 interface NFTAvatarDisplayProps {
   isLoadingAvatar: boolean;
@@ -86,7 +92,7 @@ export function NFTAvatarDisplay({
   };
 
   // Handle component change and send a message to the chat
-  const handleChangeComponent = (templateId: bigint, templateDetails?: any) => {
+  const handleChangeComponent = (templateId: bigint, templateDetails?: TemplateDetails) => {
     console.log(`Selected template ID: ${templateId.toString()}`, templateDetails);
     
     // Send a message to the chat
