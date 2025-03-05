@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { blockchainService } from '../services/blockchain';
 import TemplateModal from './TemplateModal';
 import Image from 'next/image';
 import { TemplateDetails } from '../types/template';
@@ -28,67 +27,12 @@ export default function ImageCard({
   isSmallScreen = false
 }: ImageCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [, setIsOwned] = useState(false);
-  const [, setCheckingOwnership] = useState(false);
   
   // Add debug log to record imageUrl changes
   useEffect(() => {
     console.log('ImageCard: imageUrl updated:', imageUrl ? imageUrl.substring(0, 50) + '...' : null);
   }, [imageUrl]);
 
-  // Function to get the connected user's address
-  const getUserAddress = async () => {
-    return blockchainService.getUserAddress();
-  };
-
-  // Function to check if the NFT account owns this template
-  useEffect(() => {
-    console.log("ImageCard useEffect triggered with:", { 
-      nftAccount, 
-      templateId: templateId?.toString() 
-    });
-    
-    const checkOwnership = async () => {
-      // If templateId is missing, we can't check ownership
-      if (!templateId) {
-        console.log("Skipping ownership check - missing templateId");
-        return;
-      }
-      
-      // If nftAccount is missing, try to get the user's address
-      let accountToCheck = nftAccount;
-      if (!accountToCheck) {
-        console.log("No nftAccount provided, attempting to get user address");
-        const userAddress = await getUserAddress();
-        if (!userAddress) {
-          console.log("Could not get user address, skipping ownership check");
-          return;
-        }
-        accountToCheck = userAddress;
-        console.log("Using user wallet address for ownership check:", accountToCheck);
-      }
-      
-      console.log(`Starting ownership check for account: ${accountToCheck}, templateId: ${templateId}`);
-      setCheckingOwnership(true);
-      try {
-        // Check if the account owns this template
-        const tokenId = await blockchainService.checkTemplateOwnership(accountToCheck, templateId);
-        
-        // If tokenId is greater than 0, the account owns this template
-        const owned = tokenId > BigInt(0);
-        console.log(`Ownership check result: ${owned ? 'Owned' : 'Not owned'}, tokenId: ${tokenId}`);
-        setIsOwned(owned);
-      } catch (error) {
-        console.error('Error checking template ownership:', error);
-        setIsOwned(false);
-      } finally {
-        setCheckingOwnership(false);
-      }
-    };
-    
-    checkOwnership();
-  }, [nftAccount, templateId]);
-  
   // Function to open modal
   // Templates are preloaded in the background when the app starts
   const handleOpenModal = () => {

@@ -2,6 +2,7 @@ import { createPublicClient, http, PublicClient, Address, formatEther } from 'vi
 import { monadTestnet, contractAddresses } from '../config/chains';
 import AllNadsComponentABI from '../contracts/AllNadsComponent.json';
 import AllNadsABI from '../contracts/AllNads.json';
+import AllNadsComponentQueryABI from '../contracts/AllNadsComponentQuery.json';
 import { RateLimiter, withRateLimitAndRetry } from '../utils/rateLimit';
 
 // Define Template interface
@@ -176,65 +177,40 @@ class BlockchainService {
   }
 
   /**
-   * Check if an NFT account owns a specific template
+   * Get all owned templates for an address
    */
-  public async checkTemplateOwnership(nftAccountAddress: string, templateId: bigint): Promise<bigint> {
-    const contractAddress = this.getContractAddress('allNadsComponent');
+  public async getAllOwnedTemplates(address: string): Promise<{
+    templateIds: bigint[];
+    templateTypes: number[];
+    tokenIds: bigint[];
+  }> {
+    const queryContractAddress = this.getContractAddress('allNadsComponentQuery');
     
     try {
-      const checkOwnershipWithRetry = this.wrapBlockchainCall(async () => {
+      const getAllOwnedTemplatesWithRetry = this.wrapBlockchainCall(async () => {
         return await this.publicClient.readContract({
-          address: contractAddress,
-          abi: AllNadsComponentABI,
-          functionName: 'getAddressTemplateToken',
-          args: [nftAccountAddress as `0x${string}`, templateId],
-        }) as bigint;
-      }, `checkTemplateOwnership(${templateId})`);
+          address: queryContractAddress,
+          abi: AllNadsComponentQueryABI,
+          functionName: 'getAllOwnedTemplates',
+          args: [address as `0x${string}`],
+        }) as [bigint[], number[], bigint[]];
+      }, `getAllOwnedTemplates(${address})`);
       
-      return await checkOwnershipWithRetry();
+      const [ownedTemplateIds, templateTypes, tokenIds] = await getAllOwnedTemplatesWithRetry();
+      
+      return {
+        templateIds: ownedTemplateIds,
+        templateTypes: templateTypes,
+        tokenIds: tokenIds
+      };
     } catch (error) {
-      console.debug('Error checking template ownership', error);
-      // Silently handle the error as it's expected to fail for templates not owned
-      return BigInt(0);
+      console.debug('Error getting all owned templates', error);
+      return {
+        templateIds: [],
+        templateTypes: [],
+        tokenIds: []
+      };
     }
-  }
-
-  /**
-   * Check ownership for multiple templates at once
-   */
-  public async checkMultipleTemplateOwnership(
-    nftAccountAddress: string, 
-    templateIds: bigint[]
-  ): Promise<Record<string, bigint>> {
-    if (!nftAccountAddress || templateIds.length === 0) return {};
-    
-    // Process in smaller batches to avoid overwhelming the rate limiter
-    const batchSize = 10; // Process 10 at a time
-    const results: { templateId: bigint; tokenId: bigint }[] = [];
-    
-    for (let i = 0; i < templateIds.length; i += batchSize) {
-      const batch = templateIds.slice(i, i + batchSize);
-      
-      // Create batch of promises to check ownership for each template in this batch
-      const batchPromises = batch.map(templateId => 
-        this.checkTemplateOwnership(nftAccountAddress, templateId)
-          .then(tokenId => ({ templateId, tokenId }))
-      );
-      
-      // Wait for this batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
-    }
-    
-    // Create a map of template IDs to token IDs
-    const ownedTemplatesMap = results.reduce((acc, { templateId, tokenId }) => {
-      if (tokenId && tokenId > BigInt(0)) {
-        acc[templateId.toString()] = tokenId;
-      }
-      return acc;
-    }, {} as Record<string, bigint>);
-    
-    return ownedTemplatesMap;
   }
 
   /**

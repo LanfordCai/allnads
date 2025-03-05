@@ -17,6 +17,7 @@ export type SupportedChainId = typeof supportedChains[number]['id'];
 export const contractAddresses = {
   [monadTestnet.id]: {
     allNads: process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as `0x${string}`,
-    allNadsComponent: process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS as `0x${string}`
+    allNadsComponent: process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS as `0x${string}`,
+    allNadsComponentQuery: process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_COMPONENT_QUERY_CONTRACT_ADDRESS as `0x${string}`
   }
 } as const; 

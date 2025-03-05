@@ -33,21 +33,34 @@ export default function TemplateModal({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("BACKGROUND");
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
-  const [allTemplateIds, setAllTemplateIds] = useState<bigint[]>([]);
   const [ownedTemplates, setOwnedTemplates] = useState<Record<string, bigint>>({});
   const [checkingOwnership, setCheckingOwnership] = useState(false);
   
   // Function to check if NFT account owns templates
-  const checkTemplateOwnership = async (nftAccountAddress: string, templateIds: bigint[]) => {
-    if (!nftAccountAddress || templateIds.length === 0) return;
+  const checkTemplateOwnership = async (nftAccountAddress: string) => {
+    if (!nftAccountAddress) {
+      console.log('checkTemplateOwnership: nftAccountAddress is empty, skipping ownership check');
+      return;
+    }
     
+    console.log('checkTemplateOwnership: Starting ownership check for address:', nftAccountAddress);
     setCheckingOwnership(true);
     try {
-      const ownedTemplatesMap = await blockchainService.checkMultipleTemplateOwnership(
-        nftAccountAddress,
-        templateIds
-      );
+      console.log('checkTemplateOwnership: Calling blockchainService.getAllOwnedTemplates');
+      const ownedTemplatesData = await blockchainService.getAllOwnedTemplates(nftAccountAddress);
+      console.log('checkTemplateOwnership: Received data:', ownedTemplatesData);
       
+      // Create a map of template IDs to token IDs
+      const ownedTemplatesMap: Record<string, bigint> = {};
+      
+      // Process the results
+      for (let i = 0; i < ownedTemplatesData.templateIds.length; i++) {
+        const templateId = ownedTemplatesData.templateIds[i];
+        const tokenId = ownedTemplatesData.tokenIds[i];
+        ownedTemplatesMap[templateId.toString()] = tokenId;
+      }
+      
+      console.log('checkTemplateOwnership: Setting ownedTemplates state with map:', ownedTemplatesMap);
       setOwnedTemplates(ownedTemplatesMap);
       console.log('Owned templates by NFT account:', ownedTemplatesMap);
     } catch (error) {
@@ -79,16 +92,6 @@ export default function TemplateModal({
       // Update the templates state with the fetched data
       setTemplates(templatesByType);
       
-      // Collect all template IDs for ownership checking
-      const allIds: bigint[] = [];
-      Object.values(templatesByType).forEach(typeTemplates => {
-        typeTemplates.forEach(template => {
-          allIds.push(template.id);
-        });
-      });
-      
-      setAllTemplateIds(allIds);
-      
       console.log("All templates loaded successfully from API");
       setTemplatesLoaded(true);
     } catch (error) {
@@ -98,46 +101,41 @@ export default function TemplateModal({
     }
   };
   
-  // Load templates when component mounts
+  // Load templates and check ownership when component mounts or nftAccount changes
   useEffect(() => {
-    // Only load templates if nftAccount exists
-    if (nftAccount) {
-      loadAllTemplates();
-    } else {
-      console.log("Waiting for nftAccount before loading templates");
-    }
-    
-    // If nftAccount is not provided, try to get the user's address
-    if (!nftAccount) {
-      console.log("No nftAccount provided, attempting to get user address");
-      getUserAddress().then(address => {
+    const initializeData = async () => {
+      console.log('TemplateModal useEffect: initializeData called with nftAccount:', nftAccount);
+      
+      if (nftAccount) {
+        // Load templates
+        await loadAllTemplates();
+        
+        // Check template ownership
+        console.log("[blockchain] Checking template ownership for:", nftAccount);
+        await checkTemplateOwnership(nftAccount);
+      } else {
+        console.log("Waiting for nftAccount before loading templates");
+        
+        // If nftAccount is not provided, try to get the user's address
+        console.log("No nftAccount provided, attempting to get user address");
+        const address = await getUserAddress();
+        console.log("Got user address:", address);
+        
         if (address) {
           console.log("Using user wallet address as fallback:", address);
-          // Note: We're not setting any state here, just logging for debugging
+          // Load templates
+          await loadAllTemplates();
+          
+          // Check template ownership using user's wallet address
+          await checkTemplateOwnership(address);
+        } else {
+          console.log("No user address found, cannot check template ownership");
         }
-      });
-    } else {
-      console.log("nftAccount provided:", nftAccount);
-    }
-  }, [nftAccount, loadAllTemplates]);
-  
-  // Check template ownership when nftAccount or template IDs change
-  useEffect(() => {
-    console.log("TemplateModal useEffect triggered with:", { 
-      nftAccount, 
-      templateIdsCount: allTemplateIds.length 
-    });
+      }
+    };
     
-    if (nftAccount && allTemplateIds.length > 0) {
-      console.log("Conditions met, calling checkTemplateOwnership");
-      checkTemplateOwnership(nftAccount, allTemplateIds);
-    } else {
-      console.log("Conditions not met for checking ownership:", { 
-        hasNftAccount: !!nftAccount, 
-        templateIdsCount: allTemplateIds.length 
-      });
-    }
-  }, [nftAccount, allTemplateIds]);
+    initializeData();
+  }, [nftAccount]);
   
   // Function to handle template selection
   const handleSelectTemplate = (templateId: bigint) => {
@@ -153,19 +151,25 @@ export default function TemplateModal({
       }
     }
     
-    // Get the component type name
-    const componentTypeName = Object.keys(COMPONENT_TYPES).find(
-      key => COMPONENT_TYPES[key as keyof typeof COMPONENT_TYPES] === selectedTemplate?.componentType
-    );
-    
-    // Create template details object
-    const templateDetails: TemplateDetails = {
-      ...selectedTemplate,
-      componentTypeName,
-      isOwned: userOwnsTemplate(templateId)
-    };
-    
-    onSelectTemplate(templateId, templateDetails);
+    // Only proceed if we found a template
+    if (selectedTemplate) {
+      // Get the component type name
+      const componentTypeName = Object.keys(COMPONENT_TYPES).find(
+        key => COMPONENT_TYPES[key as keyof typeof COMPONENT_TYPES] === selectedTemplate.componentType
+      );
+      
+      // Create template details object
+      const templateDetails: TemplateDetails = {
+        ...selectedTemplate,
+        componentTypeName,
+        isOwned: userOwnsTemplate(templateId)
+      };
+      
+      onSelectTemplate(templateId, templateDetails);
+    } else {
+      // If no template found, just pass the ID
+      onSelectTemplate(templateId);
+    }
     onClose();
   };
   
@@ -177,7 +181,10 @@ export default function TemplateModal({
   
   // Check if NFT account owns a template
   const userOwnsTemplate = (templateId: bigint) => {
-    return !!ownedTemplates[templateId.toString()];
+    const templateIdStr = templateId.toString();
+    const isOwned = !!ownedTemplates[templateIdStr];
+    console.log(`userOwnsTemplate: Checking if template ${templateIdStr} is owned: ${isOwned}`);
+    return isOwned;
   };
   
   if (!isOpen) return null;
@@ -245,7 +252,7 @@ export default function TemplateModal({
                   >
                     {/* Owned badge */}
                     {userOwnsTemplate(template.id) && (
-                      <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                      <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-20">
                         Owned
                       </div>
                     )}
