@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { usePrivyAuth } from './hooks/usePrivyAuth';
 import { NFTService } from './services/NFTService';
 import Image from 'next/image';
+import Footer from './components/Footer';
 
 export default function Home() {
   const { isAuthenticated, isLoading, user } = usePrivyAuth();
@@ -74,6 +75,8 @@ export default function Home() {
             {isCheckingNFT ? 'Checking NFT status...' : 'Loading...'}
           </p>
         </div>
+        
+        <Footer className="mt-8" />
       </div>
     </div>
   );

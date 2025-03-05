@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 export default function AppHeader() {
-  const { user, logout } = usePrivyAuth();
+  const { user, logout, displayName } = usePrivyAuth();
   const [isMobile, setIsMobile] = useState(false);
   
   // 检测屏幕尺寸
@@ -19,10 +19,6 @@ export default function AppHeader() {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-  
-  const email = user?.email?.address;
-  const walletAddress = user?.wallet?.address;
-  const displayName = email || (walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'User');
   
   return (
     <header className="bg-[#8B5CF6] border-b-4 border-[#7C3AED] px-4 md:px-16 py-4 flex justify-between items-center shadow-md">
@@ -42,7 +38,7 @@ export default function AppHeader() {
       <div className="flex items-center">
         {/* 在非移动设备上显示邮箱 */}
         {!isMobile && (
-          <div className="mr-4 font-medium text-white">
+          <div className="mr-4 font-medium text-white text-lg">
             {displayName}
           </div>
         )}

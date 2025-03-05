@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import Image from 'next/image';
+import Footer from './Footer';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -45,6 +46,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mt-6"></div>
             <p className="mt-4 text-gray-500">Verifying authentication...</p>
           </div>
+          
+          <Footer className="mt-8" />
         </div>
       </div>
     );

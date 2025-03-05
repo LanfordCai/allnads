@@ -3,14 +3,14 @@
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 
 export default function LoginButton() {
-  const { isAuthenticated, login, logout, user } = usePrivyAuth();
+  const { isAuthenticated, login, logout, displayName } = usePrivyAuth();
 
   return (
     <div>
       {isAuthenticated ? (
         <div className="flex items-center gap-2">
           <div className="text-sm">
-            {user?.email?.address || user?.wallet?.address?.slice(0, 6) + '...' + user?.wallet?.address?.slice(-4)}
+            {displayName}
           </div>
           <button
             onClick={logout}

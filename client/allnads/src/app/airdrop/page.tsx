@@ -149,7 +149,7 @@ export default function AirdropPage() {
               <div className="text-center py-6">
                 {airdropStatus === 'error' && (
                   <div className="bg-[#FEE2E2] text-[#B91C1C] p-4 rounded-xl border-2 border-[#FCA5A5] mb-6">
-                    <p>{errorMessage}</p>
+                    <p>Claim failed. Please try again later.</p>
                   </div>
                 )}
 

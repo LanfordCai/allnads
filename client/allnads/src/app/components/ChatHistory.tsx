@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ChatSession } from '../types/chat';
+import Footer from './Footer';
 
 interface ChatHistoryProps {
   sessions: ChatSession[];
@@ -167,6 +168,8 @@ export default function ChatHistory({
           ))
         )}
       </div>
+      
+      <Footer className="p-3" />
     </div>
   );
 } 
