@@ -160,30 +160,37 @@ export async function retryWithBackoff<T>(
   while (true) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if we've reached max retries
       if (retries >= maxRetries) {
         throw error;
       }
       
+      // Type guard for error object
+      const errorObj = error as { 
+        message?: string; 
+        status?: number; 
+        code?: string;
+      };
+      
       // Determine if this is an HTTP/network error that should be retried
       const isHttpError = 
-        error?.message?.includes('HTTP') || 
-        error?.message?.includes('network') ||
-        error?.message?.includes('timeout') ||
-        error?.message?.includes('connection') ||
-        (error?.status >= 400 && error?.status < 500) ||
-        error?.code === 'NETWORK_ERROR' ||
-        error?.code === 'TIMEOUT';
+        errorObj?.message?.includes('HTTP') || 
+        errorObj?.message?.includes('network') ||
+        errorObj?.message?.includes('timeout') ||
+        errorObj?.message?.includes('connection') ||
+        (errorObj?.status && errorObj?.status >= 400 && errorObj?.status < 500) ||
+        errorObj?.code === 'NETWORK_ERROR' ||
+        errorObj?.code === 'TIMEOUT';
       
       // Determine if this is a contract execution error that should NOT be retried
       const isContractError = 
-        error?.message?.includes('contract') || 
-        error?.message?.includes('execution reverted') ||
-        error?.message?.includes('ContractFunctionExecutionError') ||
-        error?.message?.includes('invalid opcode') ||
-        error?.message?.includes('out of gas') ||
-        error?.code === 'CALL_EXCEPTION';
+        errorObj?.message?.includes('contract') || 
+        errorObj?.message?.includes('execution reverted') ||
+        errorObj?.message?.includes('ContractFunctionExecutionError') ||
+        errorObj?.message?.includes('invalid opcode') ||
+        errorObj?.message?.includes('out of gas') ||
+        errorObj?.code === 'CALL_EXCEPTION';
       
       // Only retry HTTP errors, not contract execution errors
       if (!isHttpError || isContractError) {
@@ -205,12 +212,12 @@ export async function retryWithBackoff<T>(
  * @param maxRetries Maximum number of retries
  * @returns Rate-limited and retry-enabled function
  */
-export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>>(
+export function withRateLimitAndRetry<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   rateLimiter: RateLimiter,
   maxRetries: number = 3
 ): T {
-  return (async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+  return (async (...args: unknown[]): Promise<unknown> => {
     try {
       // Wait for rate limiter
       await rateLimiter.consume();
@@ -231,7 +238,7 @@ export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>
         rateLimiter.completeRequest();
         throw error;
       }
-    } catch (error) {
+    } catch (_error) {
       // This would be an error in the rate limiter itself
       
       // Try to execute the function directly as a fallback
@@ -239,4 +246,4 @@ export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>
       return await fn(...args);
     }
   }) as T;
-} 
+}

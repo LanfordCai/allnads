@@ -17,6 +17,16 @@ export interface Template {
   componentType: number;
 }
 
+// Define AvatarData interface
+export interface AvatarData {
+  name: string;
+  backgroundId: bigint;
+  hairstyleId: bigint;
+  eyesId: bigint;
+  mouthId: bigint;
+  accessoryId: bigint;
+}
+
 class BlockchainService {
   private static instance: BlockchainService;
   private publicClient: PublicClient;
@@ -56,15 +66,13 @@ class BlockchainService {
    * @param fn Function to wrap
    * @returns Rate-limited and retry-enabled function
    */
-  private wrapBlockchainCall<T extends (...args: any[]) => Promise<any>>(fn: T, methodName: string): T {
-    const wrappedFn = async (...args: Parameters<T>): Promise<ReturnType<T>> => {
-      const callId = ++this.callCounter;
-      
+  private wrapBlockchainCall<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, _methodName: string): T {
+    const wrappedFn = async (...args: unknown[]): Promise<unknown> => {
       try {
         const result = await fn(...args);
         return result;
-      } catch (error) {
-        throw error;
+      } catch (err) {
+        throw err;
       }
     };
     
@@ -97,7 +105,7 @@ class BlockchainService {
         }
       }
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -135,7 +143,16 @@ class BlockchainService {
           abi: AllNadsComponentABI,
           functionName: 'getTemplate',
           args: [templateId],
-        }) as any;
+        }) as {
+          name: string;
+          creator: string;
+          maxSupply: bigint;
+          currentSupply: bigint;
+          price: bigint;
+          imageData: string;
+          isActive: boolean;
+          componentType: number;
+        };
       }, `getTemplateById(${templateId})`);
       
       const templateData = await getTemplateWithRetry();
@@ -151,8 +168,8 @@ class BlockchainService {
         isActive: templateData.isActive || false,
         componentType: templateData.componentType || 0
       } as Template;
-    } catch (error) {
-      throw error;
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -173,7 +190,7 @@ class BlockchainService {
       }, `checkTemplateOwnership(${templateId})`);
       
       return await checkOwnershipWithRetry();
-    } catch (error) {
+    } catch (_error) {
       // Silently handle the error as it's expected to fail for templates not owned
       return BigInt(0);
     }
@@ -246,10 +263,10 @@ class BlockchainService {
           name: json.name || null,
           image: json.image || null
         };
-      } catch (parseError) {
+      } catch (_parseError) {
         return { name: null, image: null };
       }
-    } catch (error) {
+    } catch (_error) {
       return { name: null, image: null };
     }
   }
@@ -274,19 +291,22 @@ class BlockchainService {
   /**
    * Get avatar data for a token
    */
-  public async getAvatarData(tokenId: string): Promise<any> {
+  public async getAvatarData(tokenId: string): Promise<AvatarData> {
     const contractAddress = this.getContractAddress('allNads');
     
     const getAvatarDataWithRetry = this.wrapBlockchainCall(async () => {
-      return await this.publicClient.readContract({
+      const result = await this.publicClient.readContract({
         address: contractAddress,
         abi: AllNadsABI,
         functionName: 'getAvatar',
         args: [BigInt(tokenId)],
       });
+      
+      // Convert the result to AvatarData
+      return result as AvatarData;
     }, `getAvatarData(${tokenId})`);
     
-    return await getAvatarDataWithRetry();
+    return await getAvatarDataWithRetry() as AvatarData;
   }
 
   /**

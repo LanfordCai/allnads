@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAllNads } from './useAllNads';
 import { ChatService } from '../services/ChatService';
-import { blockchainService } from '../services/blockchain';
+import { blockchainService, AvatarData } from '../services/blockchain';
 
 // Define the component template info for our metadata
 interface ComponentTemplateInfo {
@@ -49,7 +49,7 @@ export function useChatWithNFT(chatService: ChatService) {
 
       try {
         // Get avatar data
-        const avatar = await blockchainService.getAvatarData(tokenId);
+        const avatar: AvatarData = await blockchainService.getAvatarData(tokenId);
 
         // Define component types
         const componentTypes = [
@@ -104,7 +104,7 @@ export function useChatWithNFT(chatService: ChatService) {
         
         // Create new metadata structure
         const enhancedMetadata: Partial<EnhancedMetadata> = {
-          name: avatar.name
+          name: avatar.name || ''
         };
         
         // Add template information to metadata
