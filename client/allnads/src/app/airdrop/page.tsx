@@ -162,7 +162,7 @@ export default function AirdropPage() {
 
                 <div className="mb-6">
                   <label htmlFor="nft-name" className="block text-sm font-medium text-gray-700 text-left mb-1">
-                    NFT Name
+                    AllNads Name
                   </label>
                   <input
                     type="text"
