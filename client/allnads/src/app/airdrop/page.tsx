@@ -190,10 +190,7 @@ export default function AirdropPage() {
                   }`}
                 >
                   {isRequestingAirdrop ? (
-                    <>
-                      <span className="inline-block animate-spin mr-2">⟳</span>
-                      Requesting Airdrop...
-                    </>
+                    'Requesting Airdrop...'
                   ) : (
                     'Claim Your AllNads'
                   )}
