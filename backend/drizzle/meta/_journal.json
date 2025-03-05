@@ -8,6 +8,20 @@
       "when": 1740790847334,
       "tag": "0000_spooky_moira_mactaggert",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1741142064528,
+      "tag": "0001_curly_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1741142459460,
+      "tag": "0002_absent_enchantress",
+      "breakpoints": true
     }
   ]
 }

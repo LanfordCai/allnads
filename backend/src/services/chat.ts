@@ -319,6 +319,17 @@ export class ChatService {
               content: resultContent
             });
 
+            // Save tool message to database
+            const toolMessage: ChatMessage = {
+              role: ChatRole.TOOL,
+              content: resultContent,
+              timestamp: new Date(),
+              sessionId: session.id,
+              toolCallId: toolCall.id,
+              toolName: toolName
+            };
+            await SessionService.addMessage(session.id, toolMessage);
+
           } catch (error) {
             console.error(`[Tool Error] ${error}`);
             const errorMessage = `Tool call failed: ${error instanceof Error ? error.message : String(error)}`;
@@ -335,6 +346,17 @@ export class ChatService {
               tool_call_id: toolCall.id,
               content: errorMessage
             });
+
+            // Save error tool message to database
+            const errorToolMessage: ChatMessage = {
+              role: ChatRole.TOOL,
+              content: errorMessage,
+              timestamp: new Date(),
+              sessionId: session.id,
+              toolCallId: toolCall.id,
+              toolName: toolName
+            };
+            await SessionService.addMessage(session.id, errorToolMessage);
           }
         }
 

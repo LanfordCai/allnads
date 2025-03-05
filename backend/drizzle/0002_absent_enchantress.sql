@@ -1,0 +1,1 @@
+ALTER TABLE "messages" DROP CONSTRAINT "messages_tool_call_id_unique";

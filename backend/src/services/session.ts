@@ -46,6 +46,8 @@ export class SessionService {
       role: systemMessage.role,
       content: systemMessage.content,
       timestamp: systemMessage.timestamp,
+      toolCallId: null,
+      toolName: null,
       createdAt: now,
     });
     
@@ -95,6 +97,8 @@ export class SessionService {
           role: systemMessage.role,
           content: systemMessage.content,
           timestamp: systemMessage.timestamp,
+          toolCallId: null,
+          toolName: null,
           createdAt: now,
         });
         
@@ -105,6 +109,8 @@ export class SessionService {
           role: systemMessage.role,
           content: systemMessage.content,
           timestamp: systemMessage.timestamp,
+          toolCallId: null,
+          toolName: null,
           createdAt: now,
         });
       } else if (hasSystemMessage && systemPrompt) {
@@ -140,7 +146,9 @@ export class SessionService {
           role: msg.role,
           content: msg.content,
           timestamp: msg.timestamp,
-          sessionId: sessionId
+          sessionId: sessionId,
+          toolCallId: msg.toolCallId || undefined,
+          toolName: msg.toolName || undefined
         })),
       };
 
@@ -185,6 +193,8 @@ export class SessionService {
       role: message.role,
       content: message.content,
       timestamp: message.timestamp || now,
+      toolCallId: message.toolCallId,
+      toolName: message.toolName,
       createdAt: now,
     });
     
@@ -220,7 +230,9 @@ export class SessionService {
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp,
-        sessionId: sessionId
+        sessionId: sessionId,
+        toolCallId: msg.toolCallId || undefined,
+        toolName: msg.toolName || undefined
       }));
     } catch (error) {
       console.error(`Error fetching history for session ${sessionId}:`, error);
@@ -300,6 +312,8 @@ export class SessionService {
             role: ChatRole.SYSTEM,
             content: systemPrompt,
             timestamp: now,
+            toolCallId: null,
+            toolName: null,
             createdAt: now,
           });
         }

@@ -16,6 +16,8 @@ export const messages = pgTable('messages', {
   role: text('role').notNull().$type<ChatRole>(),
   content: text('content').notNull(),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
+  toolCallId: varchar('tool_call_id', { length: 255 }),
+  toolName: varchar('tool_name', { length: 255 }),
   // 添加索引以提高查询性能
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });

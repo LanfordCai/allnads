@@ -4,6 +4,7 @@ import { z } from 'zod';
 export enum ChatRole {
   USER = 'user',
   ASSISTANT = 'assistant',
+  TOOL = 'tool',
   SYSTEM = 'system',
 }
 
@@ -13,6 +14,8 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   sessionId?: string;
+  toolCallId?: string;  // 工具调用ID
+  toolName?: string;    // 工具名称
 }
 
 // 聊天会话
