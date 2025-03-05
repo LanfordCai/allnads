@@ -48,6 +48,11 @@ export default buildModule("AllNads", (m) => {
     renderer,
   ]);
 
+  // Deploy the AllNadsComponentQuery contract
+  const componentQuery = m.contract("AllNadsComponentQuery", [
+    componentContract, // Pass the AllNadsComponent contract address to the constructor
+  ]);
+
   // Step 8: Deploy the AllNadsAirdropper contract (depends on AllNads contract)
   const airdropper = m.contract("AllNadsAirdropper", [
     allNads, // Pass the AllNads contract address to the constructor
@@ -61,5 +66,6 @@ export default buildModule("AllNads", (m) => {
     renderer,
     allNads,
     airdropper, // Add the airdropper to the returned contracts
+    componentQuery, // Add the component query contract to the returned contracts
   };
 }); 
