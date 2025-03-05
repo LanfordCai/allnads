@@ -218,8 +218,8 @@ if (USE_HTTP) {
     }
   });
 
-  const PORT = process.env.PORT || 8080;
-  app.listen(PORT, () => {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+  app.listen(PORT, '::', () => {
     console.log(`EVM MCP Server started in HTTP mode on port ${PORT}`);
   }).on('error', (error) => {
     console.error('Error starting server:', error);
