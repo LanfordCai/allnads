@@ -30,8 +30,8 @@ export function useAccountBalance(address: Address | null | undefined) {
 
     fetchBalance();
 
-    // Set up polling every 30 seconds
-    const interval = setInterval(fetchBalance, 30000);
+    // Set up polling every 5 seconds
+    const interval = setInterval(fetchBalance, 5000);
     return () => clearInterval(interval);
   }, [address]);
 
