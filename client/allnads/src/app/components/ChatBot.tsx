@@ -570,8 +570,6 @@ export default function ChatBot() {
             nftError={nftHookError}
             nftName={null} // Will be fetched inside the component
             tokenId={tokenId}
-            isAuthenticated={isAuthenticated}
-            user={user}
             router={router}
             nftAccount={nftAccount}
             onAvatarImageChange={setAvatarImage}

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import ImageCard from '../ImageCard';
-import { User } from '@privy-io/react-auth';
 import { blockchainService, Template } from '../../services/blockchain';
 import Image from 'next/image';
 
@@ -19,8 +18,6 @@ interface NFTAvatarDisplayProps {
   nftError: string | null;
   nftName?: string | null;
   tokenId: string | null;
-  isAuthenticated: boolean;
-  user: User | null;
   router: AppRouterInstance;
   nftAccount: string | null;
   onAvatarImageChange?: (avatarImage: string | null) => void;
@@ -35,8 +32,6 @@ export function NFTAvatarDisplay({
   nftError,
   nftName: initialNftName,
   tokenId,
-  isAuthenticated,
-  user,
   router,
   nftAccount,
   onAvatarImageChange,
@@ -46,7 +41,7 @@ export function NFTAvatarDisplay({
 }: NFTAvatarDisplayProps) {
   const [avatarImage, setAvatarImage] = useState<string | null>(initialAvatarImage || null);
   const [nftName, setNftName] = useState<string | null>(initialNftName || null);
-  const [error, setError] = useState<string | null>(nftError);
+  const [, setError] = useState<string | null>(nftError);
 
   // Update parent component when avatar image changes
   useEffect(() => {
