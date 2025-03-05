@@ -13,6 +13,7 @@ import { useChatWithNFT } from '../hooks/useChatWithNFT';
 import { NFTAvatarDisplay } from './chat/NFTAvatarDisplay';
 import { useChatSessions } from '../hooks/useChatSessions';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
+import { useNotification } from '../contexts/NotificationContext';
 // Local storage key
 const STORAGE_KEY = 'allnads_chat_sessions';
 
@@ -236,6 +237,13 @@ export default function ChatBot() {
       return;
     }
 
+    // Check if user has an NFT
+    if (!nftAccount) {
+      console.log('User does not have an NFT, cannot send message');
+      showNotification('You need an NFT to send messages. Please get an NFT first.', 'error');
+      return;
+    }
+
     // Use ref to get latest sessionId
     const currentSessionId = activeSessionIdRef.current;
     console.log(`Sending message to session ID: ${currentSessionId}`, content.substring(0, 30));
@@ -316,6 +324,36 @@ export default function ChatBot() {
     }
   }, [isAuthenticated, isLoading, sessions.length, createNewSession, isMobile, isMediumScreen, isNftInfoSet]);
 
+  // Get the notification context
+  const { showNotification } = useNotification();
+
+  // Create a wrapper function for createNewSession that checks for NFT
+  const handleCreateNewSession = () => {
+    if (!nftAccount) {
+      showNotification('You need an NFT to create a new chat. Please get an NFT first.', 'error');
+      return;
+    }
+    createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet);
+  };
+
+  // Create a wrapper function for handleSelectSession that checks for NFT
+  const handleSelectSessionWithNFTCheck = (id: string) => {
+    if (!nftAccount) {
+      showNotification('You need an NFT to select a chat. Please get an NFT first.', 'error');
+      return;
+    }
+    handleSelectSession(id);
+  };
+
+  // Create a wrapper function for deleteSession that checks for NFT
+  const handleDeleteSession = (id: string) => {
+    if (!nftAccount) {
+      showNotification('You need an NFT to delete a chat. Please get an NFT first.', 'error');
+      return;
+    }
+    deleteSession(id);
+  };
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Overlay for mobile and medium screens when sidebar is open */}
@@ -335,9 +373,16 @@ export default function ChatBot() {
               {/* Left: Button to open ChatHistory */}
               <button 
                 onClick={() => {
+                  if (!nftAccount) {
+                    showNotification('You need an NFT to view chat history. Please get an NFT first.', 'error');
+                    return;
+                  }
                   setIsHistoryFullscreen(true);
                 }}
-                className="p-2 rounded-lg hover:bg-[#F3F0FF] transition-colors focus:outline-none"
+                className={`p-2 rounded-lg transition-colors focus:outline-none ${
+                  !nftAccount ? 'bg-purple-200 text-purple-400 cursor-not-allowed' : 'hover:bg-[#F3F0FF] text-[#8B5CF6]'
+                }`}
+                disabled={!nftAccount}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -389,6 +434,7 @@ export default function ChatBot() {
                 avatarImage={avatarImage}
                 onAvatarImageChange={setAvatarImage}
                 isInModal={true}
+                nftAccount={nftAccount}
               />
             </div>
           </div>
@@ -431,16 +477,17 @@ export default function ChatBot() {
                 sessions={sessions}
                 activeSessionId={activeSessionId}
                 onSelectSession={(sessionId) => {
-                  handleSelectSession(sessionId);
+                  handleSelectSessionWithNFTCheck(sessionId);
                   setIsHistoryFullscreen(false);
                 }}
                 onCreateSession={() => {
-                  createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet);
+                  handleCreateNewSession();
                   setIsHistoryFullscreen(false);
                 }}
-                onDeleteSession={deleteSession}
+                onDeleteSession={handleDeleteSession}
                 onClose={() => setIsHistoryFullscreen(false)}
                 isFullscreen={true}
+                nftAccount={nftAccount}
               />
             </div>
           </div>
@@ -457,10 +504,11 @@ export default function ChatBot() {
         <ChatHistory
           sessions={sessions}
           activeSessionId={activeSessionId}
-          onSelectSession={handleSelectSession}
-          onCreateSession={() => createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet)}
-          onDeleteSession={deleteSession}
+          onSelectSession={handleSelectSessionWithNFTCheck}
+          onCreateSession={handleCreateNewSession}
+          onDeleteSession={handleDeleteSession}
           onClose={() => setIsSidebarOpen(false)}
+          nftAccount={nftAccount}
         />
       </div>
 
@@ -479,6 +527,7 @@ export default function ChatBot() {
               isSidebarOpen={isSidebarOpen}
               avatarImage={avatarImage}
               onAvatarImageChange={setAvatarImage}
+              nftAccount={nftAccount}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-4">

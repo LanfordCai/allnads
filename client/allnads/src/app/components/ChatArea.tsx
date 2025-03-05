@@ -19,6 +19,7 @@ interface ChatAreaProps {
   avatarImage?: string | null;
   onAvatarImageChange?: (newAvatarImage: string | null) => void;
   isInModal?: boolean;
+  nftAccount?: string | null;
 }
 
 export default function ChatArea({ 
@@ -31,7 +32,8 @@ export default function ChatArea({
   isSidebarOpen = true,
   avatarImage = null,
   onAvatarImageChange,
-  isInModal = false
+  isInModal = false,
+  nftAccount = null
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -779,9 +781,9 @@ export default function ChatArea({
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder={nftAccount ? "Type a message..." : "You need an NFT to send messages. Get an NFT first."}
                   className="w-full focus:outline-none bg-transparent dark:text-white text-gray-800 text-lg"
-                  disabled={isLoading}
+                  disabled={isLoading || !nftAccount}
                 />
               </div>
               
@@ -790,12 +792,12 @@ export default function ChatArea({
                   type="submit"
                   className={`
                     py-1 px-4 rounded-xl font-black text-center uppercase transition-all
-                    ${!newMessage.trim() || isLoading
+                    ${!newMessage.trim() || isLoading || !nftAccount
                       ? 'bg-purple-200 text-purple-400 border-4 border-purple-300 cursor-not-allowed'
                       : 'bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
                     }
                   `}
-                  disabled={!newMessage.trim() || isLoading}
+                  disabled={!newMessage.trim() || isLoading || !nftAccount}
                 >
                   Send
                 </button>

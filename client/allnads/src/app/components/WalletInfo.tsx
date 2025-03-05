@@ -206,11 +206,11 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
                     </div>
                 }
                 <button
-                  className={`py-2 px-5 rounded-lg text-sm font-medium transition-all ${!walletAddress
+                  className={`py-2 px-5 rounded-lg text-sm font-medium transition-all ${!walletAddress || !nftAccount
                     ? 'bg-purple-100 text-purple-300 cursor-not-allowed'
                     : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
                     }`}
-                  disabled={!walletAddress}
+                  disabled={!walletAddress || !nftAccount}
                   onClick={() => topUpWallet(walletAddress as Address)}
                 >
                   Top Up
@@ -223,6 +223,9 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
             <p className="text-[#6D28D9]">
               <span className="font-medium">Note:</span> <span className="text-red-600">AllNads Account transaction fees are paid from this wallet.</span> This wallet is also the holder of your AllNads NFT.
             </p>
+            {!nftAccount && (
+              <p className="mt-2 text-red-600 font-medium">You need an NFT to use wallet features.</p>
+            )}
           </div>
         </div>
       </div>

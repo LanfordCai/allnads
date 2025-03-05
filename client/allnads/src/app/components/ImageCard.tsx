@@ -27,6 +27,7 @@ export default function ImageCard({
   isSmallScreen = false
 }: ImageCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  console.log('ImageCard: nftAccount:', nftAccount, 'templateId:', templateId);
   
   // Add debug log to record imageUrl changes
   useEffect(() => {

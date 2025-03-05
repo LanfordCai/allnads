@@ -11,6 +11,7 @@ interface ChatHistoryProps {
   onDeleteSession: (id: string) => void;
   onClose: () => void;
   isFullscreen?: boolean;
+  nftAccount?: string | null;
 }
 
 export default function ChatHistory({
@@ -21,6 +22,7 @@ export default function ChatHistory({
   onDeleteSession,
   onClose,
   isFullscreen = false,
+  nftAccount = null
 }: ChatHistoryProps) {
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(80); // 默认高度
@@ -68,8 +70,13 @@ export default function ChatHistory({
         <div className="flex space-x-2">
           <button
             onClick={onCreateSession}
-            className="py-2 px-4 bg-[#8B5CF6] text-white font-bold uppercase rounded-xl border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6] transition-all"
+            className={`py-2 px-4 font-bold uppercase rounded-xl border-4 transition-all ${
+              !nftAccount 
+                ? 'bg-purple-200 text-purple-400 border-purple-300 cursor-not-allowed' 
+                : 'bg-[#8B5CF6] text-white border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
+            }`}
             aria-label="New chat"
+            disabled={!nftAccount}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -98,16 +105,19 @@ export default function ChatHistory({
           <div className="text-center text-[#6D28D9] py-8 border-2 border-dashed border-[#C4B5FD] rounded-xl p-6">
             <p className="font-bold">No chats yet</p>
             <p className="mt-2">Create a new chat to get started</p>
+            {!nftAccount && (
+              <p className="mt-2 text-red-600">You need an NFT to create and use chats</p>
+            )}
           </div>
         ) : (
           sessions.map((session) => (
             <div
               key={session.id}
-              onClick={() => onSelectSession(session.id)}
-              className={`p-4 rounded-xl cursor-pointer border-2 transition-all ${
+              onClick={() => nftAccount ? onSelectSession(session.id) : null}
+              className={`p-4 rounded-xl ${nftAccount ? 'cursor-pointer' : 'cursor-not-allowed'} border-2 transition-all ${
                 session.id === activeSessionId
                   ? 'border-[#8B5CF6]'
-                  : 'hover:bg-[#F9F7FF] border-[#C4B5FD] hover:border-[#A78BFA]'
+                  : nftAccount ? 'hover:bg-[#F9F7FF] border-[#C4B5FD] hover:border-[#A78BFA]' : 'border-[#C4B5FD] opacity-70'
               }`}
             >
               <div className="flex justify-between items-center">
@@ -138,7 +148,7 @@ export default function ChatHistory({
                     </div>
                   </div>
                 </div>
-                {session.id === activeSessionId && (
+                {session.id === activeSessionId && nftAccount && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
