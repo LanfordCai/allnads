@@ -37,7 +37,7 @@ export function loadMCPConfig(): MCPConfig {
   return {
     servers: [
       {
-        name: 'default',
+        name: 'evm_tool',
         url: env.EMV_TOOL_URL,
         description: 'EVM Blockchain Query Tool'
       },
