@@ -7,6 +7,7 @@ import { useIdentityToken } from '@privy-io/react-auth';
 import { NFTService } from '../services/NFTService';
 import AuthGuard from '../components/AuthGuard';
 import AppHeader from '../components/AppHeader';
+import Image from 'next/image';
 
 export default function AirdropPage() {
   const { isAuthenticated, isLoading, user } = usePrivyAuth();
@@ -17,7 +18,7 @@ export default function AirdropPage() {
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState(false);
   const [airdropStatus, setAirdropStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [nftName, setNftName] = useState('AllNads Avatar');
+  const [nftName, setNftName] = useState('Cool Cool Nads');
 
   // Check if user already has NFT on initial load
   useEffect(() => {
@@ -111,22 +112,28 @@ export default function AirdropPage() {
         <main className="flex-1 overflow-auto p-6 flex items-center justify-center">
           <div className="max-w-md w-full bg-white rounded-xl shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden border-4 border-[#8B5CF6] p-8">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-[#8B5CF6] rounded-xl mx-auto flex items-center justify-center mb-6 shadow-[4px_4px_0px_0px_#7C3AED]">
-                <div className="w-10 h-10 bg-white rotate-45"></div>
+              <div className="w-20 h-20 bg-[#8B5CF6] rounded-xl mx-auto flex items-center justify-center mb-6 shadow-[4px_4px_0px_0px_#7C3AED] overflow-hidden border-4 border-[#7C3AED]">
+                <Image 
+                  src="/allnads.jpg" 
+                  alt="AllNads Logo" 
+                  width={80} 
+                  height={80}
+                  className="object-cover"
+                />
               </div>
-              <h1 className="text-3xl font-bold mb-2 text-gray-800">AllNads NFT Airdrop</h1>
-              <p className="text-gray-600">Get your free AllNads NFT to start chatting with our AI bot.</p>
+              <h1 className="text-3xl font-bold mb-2 text-gray-800">Hey, My Fren</h1>
+              <p className="text-gray-600">Get your free AllNads to start</p>
             </div>
 
             {isCheckingNFT ? (
               <div className="text-center py-6">
                 <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
-                <p className="text-gray-600">Checking NFT status...</p>
+                <p className="text-gray-600">Checking AllNads status...</p>
               </div>
             ) : hasNFT ? (
               <div className="text-center py-6">
                 <div className="bg-[#F3E8FF] text-[#7C3AED] p-4 rounded-xl border-2 border-[#D8B4FE] mb-6">
-                  <p className="font-medium">You already have an AllNads NFT!</p>
+                  <p className="font-medium">You already have an AllNads!</p>
                   <p className="text-sm mt-2">Redirecting to chat...</p>
                 </div>
                 <button
@@ -148,7 +155,7 @@ export default function AirdropPage() {
 
                 {airdropStatus === 'success' && (
                   <div className="bg-[#F3E8FF] text-[#7C3AED] p-4 rounded-xl border-2 border-[#D8B4FE] mb-6">
-                    <p className="font-medium">NFT airdrop requested successfully!</p>
+                    <p className="font-medium">AllNads airdrop requested successfully!</p>
                     <p className="text-sm mt-2">Redirecting to chat application...</p>
                   </div>
                 )}
@@ -188,7 +195,7 @@ export default function AirdropPage() {
                       Requesting Airdrop...
                     </>
                   ) : (
-                    'Claim Your NFT'
+                    'Claim Your AllNads'
                   )}
                 </button>
 

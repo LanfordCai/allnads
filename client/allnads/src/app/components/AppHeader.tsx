@@ -2,6 +2,7 @@
 
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 export default function AppHeader() {
   const { user, logout } = usePrivyAuth();
@@ -24,12 +25,18 @@ export default function AppHeader() {
   const displayName = email || (walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'User');
   
   return (
-    <header className="bg-[#8B5CF6] border-b-4 border-[#7C3AED] px-4 py-4 flex justify-between items-center shadow-md">
+    <header className="bg-[#8B5CF6] border-b-4 border-[#7C3AED] px-4 md:px-16 py-4 flex justify-between items-center shadow-md">
       <div className="flex items-center">
-        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border-2 border-white shadow-[2px_2px_0px_0px_#5B21B6]">
-          <div className="w-5 h-5 bg-[#8B5CF6] rotate-45"></div>
+        <div className="w-15 h-15 bg-white rounded-lg flex items-center justify-center border-2 border-[#7C3AED] shadow-[2px_2px_0px_0px_#5B21B6] overflow-hidden">
+          <Image 
+            src="/allnads.jpg" 
+            alt="AllNads Logo" 
+            width={60} 
+            height={60}
+            className="object-cover"
+          />
         </div>
-        <span className="ml-3 font-bold text-xl text-white">AllNads</span>
+        <span className="ml-3 font-bold text-3xl text-white">AllNads</span>
       </div>
       
       <div className="flex items-center">
