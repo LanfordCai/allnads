@@ -188,7 +188,12 @@ export class ChatSocketService {
         }
         
         console.log(`Final session ID: ${finalSessionId}`);
-        console.log('History messages', session.messages);
+        
+        // Only log history messages in development environment
+        if (process.env.NODE_ENV === 'development') {
+          console.log('History messages', session.messages);
+        }
+        
         console.log(`Session history: ${session.messages.length} messages`);
         
         // Check if there are any existing assistant messages in the session history

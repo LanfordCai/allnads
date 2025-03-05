@@ -97,7 +97,6 @@ export class ChatService {
 
     // Get session history messages
     const history = session.messages;
-    console.log('history', history);
 
     // Build LLM messages
     const llmMessages: Message[] = [];
@@ -113,7 +112,11 @@ export class ChatService {
 
     // Add history messages (excluding system message)
     const historyMessages = history.filter(msg => msg.role !== ChatRole.SYSTEM);
-    console.log('historyMessages', historyMessages);
+    
+    // Only log historyMessages in development environment
+    if (process.env.NODE_ENV === 'development') {
+      console.log('historyMessages', historyMessages);
+    }
 
     // Ensure all history messages have correct session ID
     for (const msg of historyMessages) {
@@ -171,12 +174,19 @@ export class ChatService {
         }
       }
 
+      // Record start time for LLM request
+      const requestStartTime = Date.now();
+      
       // Send initial request
       let response = await this.llmService.sendChatRequest(requestOptions);
+      
+      // Calculate and log time taken for LLM request
+      const requestEndTime = Date.now();
+      const requestDuration = requestEndTime - requestStartTime;
+      console.log(`[LLM Timing] Initial request completed in ${requestDuration}ms`);
 
       // Main message processing loop
       let currentMessages = [...llmMessages];
-      console.log('currentMessages', currentMessages);
       let continueProcessing = true;
       let toolCallRounds = 0;
       const MAX_TOOL_CALL_ROUNDS = 5;
@@ -186,6 +196,9 @@ export class ChatService {
         let currentResponse = toolCallRounds === 0 ? response : null;
 
         if (toolCallRounds > 0 || currentResponse === null) {
+          // Record start time for subsequent LLM request
+          const toolCallStartTime = Date.now();
+          
           currentResponse = await this.llmService.sendChatRequest({
             model: this.getModelName(),
             messages: currentMessages,
@@ -193,6 +206,11 @@ export class ChatService {
             tools: requestOptions.tools,
             tool_choice: 'auto'
           });
+          
+          // Calculate and log time taken for tool call LLM request
+          const toolCallEndTime = Date.now();
+          const toolCallDuration = toolCallEndTime - toolCallStartTime;
+          console.log(`[LLM Timing] Tool call round ${toolCallRounds} completed in ${toolCallDuration}ms`);
         }
 
         // Ensure currentResponse is not null

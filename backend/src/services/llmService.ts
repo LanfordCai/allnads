@@ -49,6 +49,9 @@ export class LLMService extends EventEmitter {
       console.log(`[LLM Request] Using model: ${requestOptions.model}`);
       console.log(`[LLM Request] Message count: ${requestOptions.messages.length}`);
       
+      // Record start time
+      const startTime = Date.now();
+      
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -67,6 +70,11 @@ export class LLMService extends EventEmitter {
       }
       
       const responseData: ChatResponse = await response.json();
+      
+      // Calculate and log time taken
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log(`[LLM Timing] Request completed in ${duration}ms`);
       
       // Detailed API response logging
       console.log(`[LLM Response] Status: ${response.status} ${response.statusText}`);
@@ -112,6 +120,9 @@ export class LLMService extends EventEmitter {
     };
     
     try {
+      // Record start time
+      const startTime = Date.now();
+      
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -230,9 +241,13 @@ export class LLMService extends EventEmitter {
         onComplete(accumulatedMessage);
       }
       
+      // Calculate and log time taken
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log(`[LLM Timing] Streaming request completed in ${duration}ms`);
+      
       this.emit('complete', accumulatedMessage);
       return accumulatedMessage;
-      
     } catch (error) {
       console.error('Error streaming chat request:', error);
       
