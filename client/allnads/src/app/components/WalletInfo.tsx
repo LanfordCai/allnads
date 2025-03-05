@@ -7,6 +7,7 @@ import { useAccountBalance } from '../hooks/useAccountBalance';
 import { Address } from 'viem';
 import { useNotification } from '../contexts/NotificationContext';
 import { useFundWallet } from '@privy-io/react-auth';
+import AddressBookModal from './AddressBookModal';
 
 // Define Monad Testnet chain
 const monadChain = {
@@ -24,7 +25,8 @@ interface WalletInfoProps {
 
 export default function WalletInfo({ nftAccount }: WalletInfoProps) {
   const { user } = usePrivyAuth();
-  const [, setShowTokensModal] = useState(false);
+  const [showTokensModal, setShowTokensModal] = useState(false);
+  const [showAddressBookModal, setShowAddressBookModal] = useState(false);
   const { showNotification } = useNotification();
   const { fundWallet } = useFundWallet();
   const { balance, isLoading: isLoadingBalance } = useAccountBalance(nftAccount as Address);
@@ -110,7 +112,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
           </div>
 
           {/* Action buttons */}
-          <div className="grid grid-cols-3 gap-3 mb-1">
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <button
               className={`p-2 rounded-lg text-sm font-medium transition-all ${!nftAccount
                 ? 'bg-purple-100 text-purple-300 cursor-not-allowed'
@@ -140,6 +142,19 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
               Top Up
             </button>
           </div>
+
+          {/* Address Book button - styled like the Change Component button in ImageCard */}
+          <button 
+            onClick={() => setShowAddressBookModal(true)}
+            className={`w-full py-2 px-4 rounded-lg font-bold text-sm mb-1 transition-all
+              ${!nftAccount
+                ? 'bg-purple-200 text-purple-400 cursor-not-allowed'
+                : 'bg-[#8B5CF6] text-white border-2 border-[#7C3AED] shadow-[2px_2px_0px_0px_#5B21B6] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#5B21B6]'
+              }`}
+            disabled={!nftAccount}
+          >
+            Address Book
+          </button>
         </div>
       </div>
 
@@ -212,6 +227,13 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
           </div>
         </div>
       </div>
+
+      {/* Address Book Modal */}
+      <AddressBookModal 
+        isOpen={showAddressBookModal}
+        onClose={() => setShowAddressBookModal(false)}
+        nftAccount={nftAccount}
+      />
 
       {/* Token Modal would be implemented here */}
     </div>

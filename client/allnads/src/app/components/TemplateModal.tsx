@@ -201,7 +201,7 @@ export default function TemplateModal({
           {/* Modal Header */}
           <div className="p-4 border-b-4 border-[#8B5CF6] flex justify-between items-center">
             <div className="flex flex-col">
-              <h2 className="text-xl font-bold text-gray-800">Select Component</h2>
+              <h2 className="text-xl font-bold text-[#6D28D9]">Select Component</h2>
               <p className="text-sm text-gray-500 mt-1">After selecting a template, a message will be sent in the chat to let AllNads change the template</p>
               {(loading || checkingOwnership) && (
                 <div className="ml-3 animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8B5CF6]"></div>
