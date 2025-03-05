@@ -527,7 +527,8 @@ export class BlockchainService {
     hairstyleId: bigint,
     eyesId: bigint,
     mouthId: bigint,
-    accessoryId: bigint
+    accessoryId: bigint,
+    counter: number = 0
   ): Promise<string> {
     try {
       const hash = await this.walletClient.writeContract({
@@ -554,6 +555,10 @@ export class BlockchainService {
       return hash;
     } catch (error) {
       Logger.error('BlockchainService', `Error airdropping NFT to ${to}:`, error);
+      if (counter < 3) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.airdropNFT(to, name, backgroundId, hairstyleId, eyesId, mouthId, accessoryId, counter + 1);
+      }
       throw error;
     }
   }
