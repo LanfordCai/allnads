@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNotification } from '../contexts/NotificationContext';
 
 interface AddressEntry {
@@ -16,8 +16,7 @@ interface AddressBookModalProps {
 
 export default function AddressBookModal({ 
   isOpen, 
-  onClose,
-  nftAccount
+  onClose
 }: AddressBookModalProps) {
   const { showNotification } = useNotification();
   const [showAddForm, setShowAddForm] = useState(false);

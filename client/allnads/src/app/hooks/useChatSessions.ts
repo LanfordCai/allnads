@@ -275,7 +275,7 @@ export function useChatSessions(baseStorageKey: string, userId?: string | null) 
   // Create new session
   const createNewSession = (isMobile: boolean = false, chatServiceRef: any = null, isNftInfoSet: boolean = false) => {
     const newSession = createInitialSession();
-    console.log(`Creating new session: ID=${newSession.id}, Initial title="${newSession.title}"`);
+    console.log(`Creating new session: ID=${newSession.id}, Initial title="${newSession.title}", isMobile=${isMobile}, isNftInfoSet=${isNftInfoSet}`);
     
     // Set the session ID in the chat service before updating state
     if (chatServiceRef) {

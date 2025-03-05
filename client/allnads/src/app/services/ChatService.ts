@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatMessage, ChatSession } from '../types/chat';
+import { ChatMessage } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
 
 // Message types from the server
@@ -9,6 +9,9 @@ export type MessageType = 'thinking' | 'assistant_message' | 'tool_calling' | 't
 // Event types including both message types and connection events
 export type EventType = MessageType | 'open' | 'close' | 'error' | 'auth_error';
 
+// Define a type for tool arguments
+export type ToolArgument = string | number | boolean | null | undefined | ToolArgument[] | { [key: string]: ToolArgument };
+
 // Server message interface
 export interface ServerMessage {
   type: MessageType;
@@ -16,14 +19,36 @@ export interface ServerMessage {
   content?: string;
   tool?: {
     name: string;
-    args: Record<string, any>;
+    args: Record<string, ToolArgument>;
   };
+}
+
+// Define a type for event data based on event type
+export type EventData = ServerMessage | CloseEvent | Event | Record<string, unknown>;
+
+// Type guard to check if the event data is a ServerMessage
+export function isServerMessage(data: EventData): data is ServerMessage {
+  return (
+    typeof data === 'object' && 
+    data !== null && 
+    'type' in data && 
+    typeof (data as ServerMessage).type === 'string'
+  );
 }
 
 // Event handlers map
 type EventHandlers = {
-  [key in EventType]?: (data: any) => void;
+  [key in EventType]?: (data: EventData) => void;
 };
+
+// Define a type for NFT metadata
+export interface NFTMetadata {
+  name?: string;
+  description?: string;
+  image?: string;
+  attributes?: Array<{ trait_type: string; value: string | number }>;
+  [key: string]: unknown;
+}
 
 export class ChatService {
   private socket: WebSocket | null = null;
@@ -39,7 +64,7 @@ export class ChatService {
   // NFT information
   private nftTokenId: string | null = null;
   private nftAccount: string | null = null;
-  private nftMetadata: any | null = null;
+  private nftMetadata: NFTMetadata | null = null;
 
   constructor(url: string = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3030/ws') {
     this.url = url;
@@ -60,7 +85,7 @@ export class ChatService {
    * @param nftAccount The NFT account address
    * @param metadata The NFT metadata
    */
-  public setNFTInfo(tokenId: string | null, nftAccount: string | null, metadata: any | null) {
+  public setNFTInfo(tokenId: string | null, nftAccount: string | null, metadata: NFTMetadata | null) {
     this.nftTokenId = tokenId;
     this.nftAccount = nftAccount;
     this.nftMetadata = metadata;
@@ -95,7 +120,7 @@ export class ChatService {
       
       if (this.nftMetadata) {
         // Use a custom replacer function to handle BigInt values
-        const replacer = (key: string, value: any) => {
+        const replacer = (key: string, value: unknown) => {
           // Convert BigInt to string
           if (typeof value === 'bigint') {
             return value.toString();
@@ -105,8 +130,10 @@ export class ChatService {
           if (value !== null && typeof value === 'object') {
             // Check if it's not an array and has a toString method that's not the default Object.toString
             if (!Array.isArray(value) && 
+                'toString' in value &&
                 value.toString !== Object.prototype.toString && 
                 typeof value.toString === 'function' && 
+                'constructor' in value && 
                 value.constructor && 
                 value.constructor.name === 'BigInt') {
               return value.toString();
@@ -309,7 +336,7 @@ export class ChatService {
     this.socket.send(JSON.stringify(chatRequest));
   }
 
-  public on(event: EventType, callback: (data: any) => void): this {
+  public on(event: EventType, callback: (data: EventData) => void): this {
     this.eventHandlers[event] = callback;
     return this;
   }

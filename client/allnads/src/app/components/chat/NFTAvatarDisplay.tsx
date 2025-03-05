@@ -121,13 +121,6 @@ export function NFTAvatarDisplay({
     }
   };
 
-  // Handle switch to chat area
-  const handleSwitchToChat = () => {
-    if (onSwitchToChat) {
-      onSwitchToChat();
-    }
-  };
-
   if (isLoadingAvatar) {
     return (
       <div className="mx-auto text-center mt-4 mb-6">

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
-import { useAllNads } from '../hooks/useAllNads';
 import { useAccountBalance } from '../hooks/useAccountBalance';
 import { Address } from 'viem';
 import { useNotification } from '../contexts/NotificationContext';
@@ -25,7 +24,7 @@ interface WalletInfoProps {
 
 export default function WalletInfo({ nftAccount }: WalletInfoProps) {
   const { user } = usePrivyAuth();
-  const [showTokensModal, setShowTokensModal] = useState(false);
+  const [, setShowTokensModal] = useState(false);
   const [showAddressBookModal, setShowAddressBookModal] = useState(false);
   const { showNotification } = useNotification();
   const { fundWallet } = useFundWallet();
@@ -33,7 +32,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
 
   // Get user wallet address
   const walletAddress = user?.wallet?.address;
-  const { balance: privyWalletBalance, isLoading: isLoadingPrivyBalance } = useAccountBalance(walletAddress as Address);
+  const { balance: privyWalletBalance } = useAccountBalance(walletAddress as Address);
 
   const topUpWallet = async (walletAddress: Address) => {
     await fundWallet(walletAddress, {

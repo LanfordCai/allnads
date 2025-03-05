@@ -1,5 +1,5 @@
 import { useState, useCallback, MutableRefObject } from 'react';
-import { ChatService } from '../services/ChatService';
+import { ChatService, isServerMessage } from '../services/ChatService';
 import { ChatSession } from '../types/chat';
 
 export function useChatWebSocket(
@@ -22,7 +22,7 @@ export function useChatWebSocket(
     chatService
       .on('connected', (message) => {
         // 连接成功消息
-        if (message.content) {
+        if (isServerMessage(message) && message.content) {
           const connectedMessage = chatService.createLocalMessage(message.content, 'system');
           
           setSessions(prevSessions => {
@@ -82,7 +82,7 @@ export function useChatWebSocket(
         setIsLoading(true);
          
         // 检查服务器是否返回了会话ID
-        if (message.sessionId) {
+        if (isServerMessage(message) && message.sessionId) {
           // 如果服务器返回了会话ID且与当前不同，则更新ChatService
           const currentSessionId = activeSessionIdRef.current;
           if (message.sessionId !== currentSessionId && chatServiceRef.current) {
@@ -106,7 +106,7 @@ export function useChatWebSocket(
           // 检查是否已有"thinking"消息
           const hasThinkingMessage = currentActiveSession.messages.some(msg => msg.role === 'thinking');
            
-          if (message.content) {
+          if (isServerMessage(message) && message.content) {
             if (hasThinkingMessage) {
               // 更新现有的thinking消息
               return prevSessions.map(session => {
@@ -150,7 +150,7 @@ export function useChatWebSocket(
         setIsLoading(false);
          
         // 检查服务器是否返回了会话ID
-        if (message.sessionId) {
+        if (isServerMessage(message) && message.sessionId) {
           // 如果服务器返回了会话ID且与当前不同，则更新ChatService
           const currentSessionId = activeSessionIdRef.current;
           if (message.sessionId !== currentSessionId && chatServiceRef.current) {
@@ -160,13 +160,13 @@ export function useChatWebSocket(
         }
          
         // 更新会话，将thinking消息替换为助手消息
-        if (message.content) {
+        if (isServerMessage(message) && message.content) {
           const botMessage = chatService.createLocalMessage(message.content, 'bot');
            
           setSessions(prevSessions => {
             // 使用ref获取最新的sessionId
             const currentSessionId = activeSessionIdRef.current;
-            console.log(`Assistant message received for session: ${currentSessionId}`, message.content.substring(0, 50));
+            console.log(`Assistant message received for session: ${currentSessionId}`, message.content?.substring(0, 50) || '');
             return prevSessions.map(session => {
               if (session.id === currentSessionId) {
                 return {
@@ -182,7 +182,7 @@ export function useChatWebSocket(
       })
       .on('tool_calling', (message) => {
         // 显示工具调用信息
-        if (message.content && message.tool) {
+        if (isServerMessage(message) && message.content && message.tool) {
           // 特殊处理交易签名工具
           if (message.tool.name === 'allnads_tool__transaction_sign') {
             const { to, data, value } = message.tool.args;
@@ -230,10 +230,12 @@ export function useChatWebSocket(
           }
         }
          
-        console.log('Tool being called:', message.tool);
+        if (isServerMessage(message)) {
+          console.log('Tool being called:', message.tool);
+        }
       })
       .on('tool_result', (message) => {
-        if (message.content) {
+        if (isServerMessage(message) && message.content) {
           // 添加工具结果消息
           const resultMessage = chatService.createLocalMessage(
             `工具结果: ${message.content}`, 
@@ -259,7 +261,7 @@ export function useChatWebSocket(
       })
       .on('tool_error', (message) => {
         setIsLoading(false);
-        if (message.content) {
+        if (isServerMessage(message) && message.content) {
           const errorMessage = chatService.createLocalMessage(
             `工具错误: ${message.content}`, 
             'error'
@@ -284,7 +286,7 @@ export function useChatWebSocket(
       })
       .on('error', (message) => {
         setIsLoading(false);
-        if (message.content) {
+        if (isServerMessage(message) && message.content) {
           const errorMessage = chatService.createLocalMessage(
             `错误: ${message.content}`, 
             'error'
@@ -310,7 +312,7 @@ export function useChatWebSocket(
       .on('complete', (message) => {
         setIsLoading(false);
         // 会话完成，可以选择性地显示一个完成消息
-        if (message.sessionId) {
+        if (isServerMessage(message) && message.sessionId) {
           // 如果服务器返回的sessionId与当前活跃的sessionId不同，需要更新
           const currentSessionId = activeSessionIdRef.current;
           console.log(`Chat session completed, ID: ${message.sessionId}, 当前会话ID: ${currentSessionId}`);

@@ -26,8 +26,8 @@ export default function ImageCard({
   isSmallScreen = false
 }: ImageCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isOwned, setIsOwned] = useState(false);
-  const [checkingOwnership, setCheckingOwnership] = useState(false);
+  const [, setIsOwned] = useState(false);
+  const [, setCheckingOwnership] = useState(false);
   
   // Add debug log to record imageUrl changes
   useEffect(() => {

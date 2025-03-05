@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types/chat';
-import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { parseEther, isAddress } from 'viem';
 import { useWallets } from '@privy-io/react-auth';
 import { useNotification } from '../contexts/NotificationContext';
@@ -36,7 +35,6 @@ export default function ChatArea({
 }: ChatAreaProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { privy } = usePrivyAuth();
   const { wallets } = useWallets();
   const [isSigningTransaction, setIsSigningTransaction] = useState(false);
   const { showNotification } = useNotification();
@@ -45,7 +43,7 @@ export default function ChatArea({
   const processedMessageIdsRef = useRef<Set<string>>(new Set());
 
   // Use the useAllNads hook to get NFT information
-  const { tokenId, nftAccount } = useAllNads();
+  const { tokenId } = useAllNads();
 
   // Update local avatar image when prop changes
   useEffect(() => {
@@ -182,7 +180,7 @@ export default function ChatArea({
       // Split the message content, extract tool information
       const parts = trimmedContent.split('\n\n');
       if (parts.length >= 2) {
-        const [description, ...details] = parts;
+        const [, ...details] = parts;
         
         // Check if it's an MCP tool call format (e.g., evm_tool__evm_transaction_info)
         const toolName = details[0]?.split(': ')[1]?.split('\n')[0];

@@ -73,8 +73,6 @@ export class RateLimiter {
    * @returns Promise that resolves when a token is consumed
    */
   public async consume(): Promise<void> {
-    const currentRequestId = ++this.requestId;
-    
     // First try to consume immediately
     if (this.tryConsume()) {
       return;
@@ -213,9 +211,6 @@ export function withRateLimitAndRetry<T extends (...args: any[]) => Promise<any>
   maxRetries: number = 3
 ): T {
   return (async (...args: Parameters<T>): Promise<ReturnType<T>> => {
-    // Get a timestamp for performance tracking
-    const startTime = Date.now();
-    
     try {
       // Wait for rate limiter
       await rateLimiter.consume();

@@ -2,29 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useAllNads } from './useAllNads';
 import { ChatService } from '../services/ChatService';
 import { blockchainService } from '../services/blockchain';
-import { Address } from 'viem';
-
-// Define the Avatar type based on the contract structure
-interface Avatar {
-  name: string;
-  backgroundId: bigint;
-  hairstyleId: bigint;
-  eyesId: bigint;
-  mouthId: bigint;
-  accessoryId: bigint;
-}
-
-// Define the Template type based on the contract structure
-interface Template {
-  name: string;
-  creator: Address;
-  maxSupply: bigint;
-  currentSupply: bigint;
-  price: bigint;
-  imageData: string;
-  isActive: boolean;
-  componentType: number;
-}
 
 // Define the component template info for our metadata
 interface ComponentTemplateInfo {
@@ -71,9 +48,6 @@ export function useChatWithNFT(chatService: ChatService) {
       }
 
       try {
-        // Get component contract address
-        const componentContractAddress = await blockchainService.getComponentContractAddress();
-
         // Get avatar data
         const avatar = await blockchainService.getAvatarData(tokenId);
 

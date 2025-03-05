@@ -173,12 +173,6 @@ export default function TemplateModal({
     return priceInEth.toFixed(4);
   };
   
-  // Format address for display
-  const formatAddress = (address: string) => {
-    if (!address || address.length < 42) return address;
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-  };
-  
   // Check if NFT account owns a template
   const userOwnsTemplate = (templateId: bigint) => {
     return !!ownedTemplates[templateId.toString()];

@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChatMessage, ChatSession } from '../types/chat';
+import { ChatSession } from '../types/chat';
 import ChatHistory from './ChatHistory';
 import ChatArea from './ChatArea';
 import WalletInfoComponent from './WalletInfo';
-import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/ChatService';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { useRouter } from 'next/navigation';
@@ -14,29 +13,8 @@ import { useChatWithNFT } from '../hooks/useChatWithNFT';
 import { NFTAvatarDisplay } from './chat/NFTAvatarDisplay';
 import { useChatSessions } from '../hooks/useChatSessions';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
-// Define Monad Testnet chain
-const monadChain = {
-  id: 10143,
-  name: 'Monad Testnet',
-  nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
-  rpcUrls: {
-    default: { http: [process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || 'https://rpc.testnet.monad.xyz/'] }
-  }
-};
-
-// Contract address for AllNads
-const ALLNADS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as string;
-
 // Local storage key
 const STORAGE_KEY = 'allnads_chat_sessions';
-
-// Create initial session
-const createInitialSession = (): ChatSession => ({
-  id: uuidv4(),
-  title: 'New Chat',
-  messages: [],
-  lastActivity: new Date(),
-});
 
 // Function to update session title
 const updateSessionTitle = (session: ChatSession, content: string): string => {
@@ -49,12 +27,8 @@ const updateSessionTitle = (session: ChatSession, content: string): string => {
   return session.title;
 };
 
-// Add interface definition
-interface ChatBotProps {
-  // Remove avatarImage and isLoadingAvatar props as we'll handle them internally
-}
 
-export default function ChatBot({}: ChatBotProps) {
+export default function ChatBot() {
   // UI state management
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
