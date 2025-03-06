@@ -217,7 +217,7 @@ export const changeTemplateTool = {
         value: '0' // No native token value needed since we're calling a contract method
       };
 
-      return createTextResponse(`[Transaction Request]\n${JSON.stringify(transactionRequest, null, 2)}`);
+      return createTextResponse(`<<TransactionRequest>>\n${JSON.stringify(transactionRequest, null, 2)}`);
     } catch (error) {
       return createTextResponse(`Error creating transaction: ${error instanceof Error ? error.message : String(error)}`);
     }

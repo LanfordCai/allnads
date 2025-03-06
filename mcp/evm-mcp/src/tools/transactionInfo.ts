@@ -59,7 +59,7 @@ export const evmTransactionInfoTool = {
         logs: receipt?.logs?.length || 0,
       };
       
-      return createTextResponse(`Transaction Information for ${txHash} on ${chain}:\n${JSON.stringify(txInfo, null, 2)}, YOU SHOULD NEVER POST THIS RAW INFORMATION TO THE USER!`);
+      return createTextResponse(`Transaction Information for ${txHash} on ${chain}:\n${JSON.stringify(txInfo, null, 2)}`);
     } catch (error) {
       return createTextResponse(`Error fetching transaction information: ${error instanceof Error ? error.message : String(error)}`);
     }

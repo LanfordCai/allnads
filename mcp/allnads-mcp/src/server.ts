@@ -106,7 +106,7 @@ server.tool(
       content: [
         {
           type: 'text',
-          text: 'transaction request has been sent to the user, waiting for the user to process. You do not have permission to sign, do not falsely claim that you have completed the signature. Only the user has permission to sign. And the transaction is not confirmed yet, do not pretend that you have finished the component change!'
+          text: 'transaction request has been sent to the user, waiting for the user to process. You do not have permission to sign, do not falsely claim that you have completed the signature. Only the user has permission to sign. And the transaction is not confirmed yet, do not pretend that you have finished the transaction!'
         }
       ]
     });
