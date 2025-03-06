@@ -606,7 +606,7 @@ export default function ChatBot() {
             }}
           />
           
-          <WalletInfoComponent nftAccount={nftAccount} />
+          <WalletInfoComponent nftAccount={nftAccount} onSendMessage={handleSendMessage} />
         </div>
       </div>
     </div>

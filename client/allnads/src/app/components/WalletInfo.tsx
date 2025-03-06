@@ -20,9 +20,10 @@ const monadChain = {
 
 interface WalletInfoProps {
   nftAccount?: string | null;
+  onSendMessage?: (message: string) => void;
 }
 
-export default function WalletInfo({ nftAccount }: WalletInfoProps) {
+export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProps) {
   const { user } = usePrivyAuth();
   const [, setShowTokensModal] = useState(false);
   const [showAddressBookModal, setShowAddressBookModal] = useState(false);
@@ -41,6 +42,21 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
       asset: "native-currency",
       defaultFundingMethod: "wallet",
     });
+  };
+
+  const handleTokensClick = () => {
+    // Send message to ChatArea
+    if (onSendMessage) {
+      onSendMessage("Show me the tokens you have.");
+    }
+    setShowTokensModal(true);
+  };
+
+  const handleSendClick = () => {
+    // Send message to ChatArea when Send button is clicked
+    if (onSendMessage) {
+      onSendMessage("I want to transfer some tokens");
+    }
   };
 
   return (
@@ -64,7 +80,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
                 onClick={() => {
                   navigator.clipboard.writeText(nftAccount);
                   // Could add a toast notification here
-                  showNotification("Address copied to clipboard", "success");
+                  showNotification("AllNads Account copied to clipboard", "success");
                 }}
                 aria-label="Copy address"
               >
@@ -93,7 +109,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
                     </div>
                 }
                 <button
-                  onClick={() => setShowTokensModal(true)}
+                  onClick={handleTokensClick}
                   className={`py-1.5 px-3 rounded-lg font-bold text-sm transition-all
                       ${!nftAccount
                       ? 'bg-purple-200 text-purple-400 cursor-not-allowed'
@@ -116,6 +132,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
                 : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
                 }`}
               disabled={!nftAccount}
+              onClick={handleSendClick}
             >
               Send
             </button>
@@ -173,7 +190,8 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
                 className="p-1.5 text-[#8B5CF6] hover:bg-[#F3F0FF] rounded-md transition-colors"
                 onClick={() => {
                   navigator.clipboard.writeText(walletAddress);
-                  // Could add a toast notification here
+                  // Show notification when address is copied
+                  showNotification("Privy Wallet Address copied to clipboard", "success");
                 }}
                 aria-label="Copy address"
               >
