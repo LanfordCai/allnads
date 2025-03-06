@@ -10,6 +10,25 @@ import { transactionSignTool } from './tools/transactionSign.js';
 import { changeTemplateTool } from './tools/changeTemplate.js';
 import { env } from './config/env.js';
 import { mintTemplateComponentTool } from './tools/mintTemplateComponent.js';
+import { TemplateCache } from './utils/templateCache.js';
+import { getOwnedComponentsTool } from './tools/getOwnedComponents.js';
+import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools.js';
+// Initialize template cache
+export const templateCache = new TemplateCache(env.ALLNADS_SERVER_API_URL);
+
+// Preload templates
+(async () => {
+  try {
+    console.log('Preloading templates...');
+    await templateCache.fetchAllTemplates();
+    console.log('Templates preloaded successfully');
+  } catch (error) {
+    console.error('Failed to preload templates:', error);
+    console.log('Server will continue to start. Templates will be retried automatically.');
+    // The TemplateCache will handle retries internally
+  }
+})();
+
 // Create a new MCP server instance
 const server = new McpServer({
   name: 'allnads_account_tool',
@@ -92,7 +111,6 @@ server.tool(
   }
 );
 
-
 server.tool(
   transactionSignTool.name,
   transactionSignTool.description,
@@ -112,6 +130,54 @@ server.tool(
     });
   }
 );
+
+server.tool(
+  getOwnedComponentsTool.name,
+  getOwnedComponentsTool.description,
+  {
+    allnadsAccount: z.string().describe('The allnads account of the sender'),
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${getOwnedComponentsTool.name}...`);
+    const result = await getOwnedComponentsTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(getOwnedComponentsTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+server.tool(
+  transferErc20TokenTool.name,  
+  transferErc20TokenTool.description,
+  {
+    allnadsAccount: z.string().describe('The allnads account of the sender'),
+    token: z.string().describe('The token to transfer'),
+    to: z.string().describe('The address to transfer the token to'),
+    amount: z.string().describe('The amount of tokens to transfer')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${transferErc20TokenTool.name}...`);
+    const result = await transferErc20TokenTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(transferErc20TokenTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+server.tool(
+  getErc20TokensTool.name,
+  getErc20TokensTool.description,
+  {
+    address: z.string().describe('The address to get the erc20 tokens for'),
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${getErc20TokensTool.name}...`);
+    const result = await getErc20TokensTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(getErc20TokensTool.name, args, result);
+    return adaptedResponse;
+  }
+)
 
 // Check if we should run in HTTP server mode
 const USE_HTTP = process.env.USE_HTTP === 'true';
