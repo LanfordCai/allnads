@@ -120,8 +120,8 @@ async function initializeServer(): Promise<void> {
   }
 
   // Start server (使用http.Server而不是app)
-  const PORT = env.PORT;
-  server.listen(PORT, () => {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3030;
+  server.listen(PORT, '::', () => {
     Logger.info('Server', `服务器已启动，运行在端口 ${PORT}，模式：${env.NODE_ENV}`);
     Logger.info('Server', `健康检查: http://localhost:${PORT}/api/health`);
     Logger.info('Server', `聊天 API: http://localhost:${PORT}/api/chat`);
