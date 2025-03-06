@@ -45,6 +45,21 @@ export default function ChatArea({
   const [isRefreshingNFT, setIsRefreshingNFT] = useState(false);
   const processedMessageIdsRef = useRef<Set<string>>(new Set());
 
+  // Function to handle angry button click
+  const handleAngryButtonClick = () => {
+    const warningMessages = [
+      "DID YOU ACTUALLY PERFORM THIS ACTION? IF NOT, GO BACK AND DO IT PROPERLY NOW.",
+      "PLEASE CONFIRM YOU REALLY COMPLETED THIS ACTION. IF NOT, YOU NEED TO DO IT CORRECTLY.",
+      "VERIFY: DID YOU TRULY EXECUTE THIS ACTION? IF YOU'RE FAKING IT, GO BACK AND DO IT RIGHT.",
+      "DID YOU ACTUALLY DO THIS? DON'T DECEIVE THE SYSTEM - IF NOT, COMPLETE THE ACTION PROPERLY.",
+      "SYSTEM CHECK: DID YOU REALLY PERFORM THIS ACTION? IF NOT, PLEASE GO BACK AND DO IT NOW.",
+      "BE HONEST: DID YOU COMPLETE THIS TASK? IF NOT, RETURN AND FINISH IT PROPERLY.",
+      "WARNING: IF YOU HAVEN'T ACTUALLY EXECUTED THIS ACTION, GO BACK AND DO IT CORRECTLY NOW."
+    ];
+    const randomIndex = Math.floor(Math.random() * warningMessages.length);
+    onSendMessage(warningMessages[randomIndex]);
+  };
+
   // Use the useAllNads hook to get NFT information
   const { tokenId } = useAllNads();
 
@@ -817,6 +832,18 @@ export default function ChatArea({
       <div className="px-4 pb-4">
         <div className="max-w-3xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-t-[2rem] overflow-hidden shadow-md border-2 border-[#C4B5FD]">
+            {/* Angry emoji button */}
+            <div className="flex justify-end pr-4 pt-2">
+              <button
+                type="button"
+                onClick={handleAngryButtonClick}
+                className="w-12 h-12 flex items-center justify-center text-2xl bg-red-100 hover:bg-red-200 rounded-full border-2 border-red-300 transition-all hover:scale-105 shadow-md"
+                disabled={isLoading || !nftAccount}
+                title="Send warning message"
+              >
+                😡
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="relative">
               <div className="px-6 py-5">
                 <input
