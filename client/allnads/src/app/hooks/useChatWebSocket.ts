@@ -15,22 +15,22 @@ export function useChatWebSocket(
     
     const chatService = chatServiceRef.current;
     
-    // 清除所有现有的事件处理程序，防止重复
-    console.log('清除现有的事件处理程序，重新设置...');
+    // Clear all existing event handlers to prevent duplication
+    console.log('Clearing existing event handlers, setting up again...');
     
-    // 重新设置事件处理程序
+    // Reset event handlers
     chatService
       .on('connected', (message) => {
-        // 连接成功消息
+        // Connection success message
         if (isServerMessage(message) && message.content) {
           const connectedMessage = chatService.createLocalMessage(message.content, 'system');
           
           setSessions(prevSessions => {
-            // 使用ref获取最新的sessionId
+            // Use ref to get the latest sessionId
             const currentSessionId = activeSessionIdRef.current;
             console.log(`Connected message received, updating session: ${currentSessionId}`);
             
-            // 检查会话是否已经包含相同内容的消息，防止重复
+            // Check if the session already contains a message with the same content to prevent duplication
             const sessionToUpdate = prevSessions.find(s => s.id === currentSessionId);
             if (sessionToUpdate) {
               const hasDuplicateMessage = sessionToUpdate.messages.some(
@@ -38,7 +38,7 @@ export function useChatWebSocket(
               );
               
               if (hasDuplicateMessage) {
-                console.log('跳过重复的连接消息');
+                console.log('Skipping duplicate connection message');
                 return prevSessions;
               }
             }
@@ -56,11 +56,11 @@ export function useChatWebSocket(
           });
         }
       })
-      // 添加认证错误处理
+      // Add authentication error handling
       .on('auth_error', (error) => {
-        console.error('WebSocket认证错误:', error);
+        console.error('WebSocket authentication error:', error);
         const errorMessage = chatService.createLocalMessage(
-          '认证失败，请重新登录。如果问题持续存在，请刷新页面。', 
+          'Authentication failed. Please log in again. If the problem persists, please refresh the page.', 
           'error'
         );
         
@@ -81,21 +81,21 @@ export function useChatWebSocket(
       .on('thinking', (message) => {
         setIsLoading(true);
          
-        // 检查服务器是否返回了会话ID
+        // Check if the server returned a session ID
         if (isServerMessage(message) && message.sessionId) {
-          // 如果服务器返回了会话ID且与当前不同，则更新ChatService
+          // If the server returned a session ID that's different from the current one, update ChatService
           const currentSessionId = activeSessionIdRef.current;
           if (message.sessionId !== currentSessionId && chatServiceRef.current) {
-            console.log(`服务器在thinking消息中返回了新的sessionId: ${message.sessionId}`);
+            console.log(`Server returned a new sessionId in thinking message: ${message.sessionId}`);
             chatServiceRef.current.setSessionId(message.sessionId);
           }
         }
          
-        // 不依赖于闭包中的activeSession，而是在setSessions内获取当前会话
+        // Don't rely on activeSession in the closure, but get the current session in setSessions
         setSessions(prevSessions => {
-          // 使用ref获取最新的sessionId
+          // Use ref to get the latest sessionId
           const currentSessionId = activeSessionIdRef.current;
-          // 在这里获取最新的活跃会话
+          // Get the latest active session here
           const currentActiveSession = prevSessions.find(s => s.id === currentSessionId);
           if (!currentActiveSession) {
             console.error(`No active session found with id: ${currentSessionId}`);
@@ -103,19 +103,19 @@ export function useChatWebSocket(
           }
 
           console.log(`Thinking message received for session: ${currentSessionId}`);
-          // 检查是否已有"thinking"消息
+          // Check if there's already a "thinking" message
           const hasThinkingMessage = currentActiveSession.messages.some(msg => msg.role === 'thinking');
            
           if (isServerMessage(message) && message.content) {
             if (hasThinkingMessage) {
-              // 更新现有的thinking消息
+              // Update existing thinking message
               return prevSessions.map(session => {
                 if (session.id === currentSessionId) {
                   return {
                     ...session,
                     messages: session.messages.map(msg => 
                       msg.role === 'thinking' 
-                        ? { ...msg, content: message.content || '正在思考...' }
+                        ? { ...msg, content: message.content || 'Thinking...' }
                         : msg
                     ),
                     lastActivity: new Date()
@@ -124,7 +124,7 @@ export function useChatWebSocket(
                 return session;
               });
             } else {
-              // 添加新的thinking消息
+              // Add new thinking message
               const thinkingMessage = chatService.createLocalMessage(
                 message.content, 
                 'thinking'
@@ -149,22 +149,22 @@ export function useChatWebSocket(
       .on('assistant_message', (message) => {
         setIsLoading(false);
          
-        // 检查服务器是否返回了会话ID
+        // Check if the server returned a session ID
         if (isServerMessage(message) && message.sessionId) {
-          // 如果服务器返回了会话ID且与当前不同，则更新ChatService
+          // If the server returned a session ID that's different from the current one, update ChatService
           const currentSessionId = activeSessionIdRef.current;
           if (message.sessionId !== currentSessionId && chatServiceRef.current) {
-            console.log(`服务器在assistant_message消息中返回了新的sessionId: ${message.sessionId}`);
+            console.log(`Server returned a new sessionId in assistant_message: ${message.sessionId}`);
             chatServiceRef.current.setSessionId(message.sessionId);
           }
         }
          
-        // 更新会话，将thinking消息替换为助手消息
+        // Update session, replace thinking message with assistant message
         if (isServerMessage(message) && message.content) {
           const botMessage = chatService.createLocalMessage(message.content, 'bot');
            
           setSessions(prevSessions => {
-            // 使用ref获取最新的sessionId
+            // Use ref to get the latest sessionId
             const currentSessionId = activeSessionIdRef.current;
             console.log(`Assistant message received for session: ${currentSessionId}`, message.content?.substring(0, 50) || '');
             return prevSessions.map(session => {
@@ -181,24 +181,24 @@ export function useChatWebSocket(
         }
       })
       .on('tool_calling', (message) => {
-        // 显示工具调用信息
+        // Display tool call information
         if (isServerMessage(message) && message.content && message.tool) {
-          // 特殊处理交易签名工具
+          // Special handling for transaction signing tool
           if (message.tool.name === 'allnads_tool__transaction_sign') {
             const { to, data, value } = message.tool.args;
-            // 格式化交易签名消息，使其更清晰
+            // Format transaction signing message to make it clearer
             const transactionContent = `${message.content}\n\nTransaction Request:\nTo: ${to}\nData: ${data}\nValue: ${value || '0'} ETH`;
             const transactionMessage = chatService.createLocalMessage(transactionContent, 'transaction_to_sign');
              
             setSessions(prevSessions => {
-              // 使用ref获取最新的sessionId
+              // Use ref to get the latest sessionId
               const currentSessionId = activeSessionIdRef.current;
               console.log(`Transaction sign request received for session: ${currentSessionId}`);
               return prevSessions.map(session => {
                 if (session.id === currentSessionId) {
                   return {
                     ...session,
-                    // 移除thinking消息，添加交易签名消息
+                    // Remove thinking message, add transaction signing message
                     messages: [...session.messages.filter(msg => msg.role !== 'thinking'), transactionMessage],
                     lastActivity: new Date()
                   };
@@ -207,19 +207,19 @@ export function useChatWebSocket(
               });
             });
           } else {
-            // 处理其他工具调用
-            const toolContent = `${message.content}\n\n工具: ${message.tool.name}\n参数: ${JSON.stringify(message.tool.args, null, 2)}`;
+            // Handle other tool calls
+            const toolContent = `${message.content}\n\nTool: ${message.tool.name}\nParameters: ${JSON.stringify(message.tool.args, null, 2)}`;
             const toolMessage = chatService.createLocalMessage(toolContent, 'tool');
              
             setSessions(prevSessions => {
-              // 使用ref获取最新的sessionId
+              // Use ref to get the latest sessionId
               const currentSessionId = activeSessionIdRef.current;
               console.log(`Tool calling message received for session: ${currentSessionId}`);
               return prevSessions.map(session => {
                 if (session.id === currentSessionId) {
                   return {
                     ...session,
-                    // 移除thinking消息，添加工具调用消息
+                    // Remove thinking message, add tool call message
                     messages: [...session.messages.filter(msg => msg.role !== 'thinking'), toolMessage],
                     lastActivity: new Date()
                   };
@@ -236,14 +236,14 @@ export function useChatWebSocket(
       })
       .on('tool_result', (message) => {
         if (isServerMessage(message) && message.content) {
-          // 添加工具结果消息
+          // Add tool result message
           const resultMessage = chatService.createLocalMessage(
-            `工具结果: ${message.content}`, 
+            `Tool result: ${message.content}`, 
             'system'
           );
            
           setSessions(prevSessions => {
-            // 使用ref获取最新的sessionId
+            // Use ref to get the latest sessionId
             const currentSessionId = activeSessionIdRef.current;
             console.log(`Tool result message received for session: ${currentSessionId}`);
             return prevSessions.map(session => {
@@ -263,12 +263,12 @@ export function useChatWebSocket(
         setIsLoading(false);
         if (isServerMessage(message) && message.content) {
           const errorMessage = chatService.createLocalMessage(
-            `工具错误: ${message.content}`, 
+            `Tool error: ${message.content}`, 
             'error'
           );
            
           setSessions(prevSessions => {
-            // 使用ref获取最新的sessionId
+            // Use ref to get the latest sessionId
             const currentSessionId = activeSessionIdRef.current;
             console.log(`Tool error message received for session: ${currentSessionId}`);
             return prevSessions.map(session => {
@@ -288,12 +288,12 @@ export function useChatWebSocket(
         setIsLoading(false);
         if (isServerMessage(message) && message.content) {
           const errorMessage = chatService.createLocalMessage(
-            `错误: ${message.content}`, 
+            `Error: ${message.content}`, 
             'error'
           );
            
           setSessions(prevSessions => {
-            // 使用ref获取最新的sessionId
+            // Use ref to get the latest sessionId
             const currentSessionId = activeSessionIdRef.current;
             console.log(`Error message received for session: ${currentSessionId}`);
             return prevSessions.map(session => {
@@ -311,18 +311,18 @@ export function useChatWebSocket(
       })
       .on('complete', (message) => {
         setIsLoading(false);
-        // 会话完成，可以选择性地显示一个完成消息
+        // Session complete, can optionally display a completion message
         if (isServerMessage(message) && message.sessionId) {
-          // 如果服务器返回的sessionId与当前活跃的sessionId不同，需要更新
+          // If the server returned sessionId is different from the current active sessionId, it needs to be updated
           const currentSessionId = activeSessionIdRef.current;
-          console.log(`Chat session completed, ID: ${message.sessionId}, 当前会话ID: ${currentSessionId}`);
+          console.log(`Chat session completed, ID: ${message.sessionId}, Current session ID: ${currentSessionId}`);
            
-          // 从现在开始，我们发送本地生成的会话ID，服务器应该使用这个ID，而不是生成新的
-          // 如果服务器仍然返回不同的ID，我们仍然更新ChatService，但不显示消息
+          // From now on, we send locally generated session IDs, the server should use this ID instead of generating a new one
+          // If the server still returns a different ID, we still update ChatService, but don't display a message
           if (message.sessionId !== currentSessionId && chatServiceRef.current) {
-            console.log(`服务器返回的sessionId (${message.sessionId}) 与当前活跃会话ID (${currentSessionId}) 不匹配，将更新ChatService的会话ID`);
+            console.log(`Server returned sessionId (${message.sessionId}) doesn't match current active session ID (${currentSessionId}), will update ChatService's session ID`);
              
-            // 保存服务器分配的会话ID到ChatService
+            // Save server-assigned session ID to ChatService
             chatServiceRef.current.setSessionId(message.sessionId);
           }
         }
