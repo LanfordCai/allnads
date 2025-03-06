@@ -28,7 +28,7 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
   const [showAddressBookModal, setShowAddressBookModal] = useState(false);
   const { showNotification } = useNotification();
   const { fundWallet } = useFundWallet();
-  const { balance, isLoading: isLoadingBalance } = useAccountBalance(nftAccount as Address);
+  const { balance } = useAccountBalance(nftAccount as Address);
 
   // Get user wallet address
   const walletAddress = user?.wallet?.address;
@@ -87,8 +87,6 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
             <div className="flex items-end justify-between">
               <>
                 {
-                  isLoadingBalance ?
-                    <div className="h-8 w-32 bg-[#EDE9FE] rounded"></div> :
                     <div className="flex items-end">
                       <span className="text-2xl font-bold text-[#5B21B6]">{Number(balance).toFixed(4)}</span>
                       <span className="text-[#8B5CF6] text-base ml-2">MON</span>
@@ -198,8 +196,6 @@ export default function WalletInfo({ nftAccount }: WalletInfoProps) {
             <div className="flex items-end justify-between">
               <>
                 {
-                  isLoadingBalance ?
-                    <div className="h-8 w-32 bg-[#EDE9FE] rounded"></div> :
                     <div className="flex items-end">
                       <span className="text-2xl font-bold text-[#5B21B6]">{Number(privyWalletBalance).toFixed(4)}</span>
                       <span className="text-[#8B5CF6] text-base ml-2">MON</span>
