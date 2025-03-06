@@ -16,6 +16,8 @@
     "simple-view-svg": "ts-node scripts/simpleSvgViewer.ts",
     "mint-token": "ts-node scripts/mintNadsToken.ts",
     "add-admin": "ts-node scripts/addAdminToAirdropper.ts",
-    "list-templates": "ts-node scripts/listTemplatesByType.ts"
+    "list-templates": "ts-node scripts/listTemplatesByType.ts",
+    "deploy-airdropper-v2": "ts-node scripts/deployAirdropperV2.ts",
+    "add-admin-v2": "ts-node scripts/addAdminToAirdropperV2.ts"
   }
 }

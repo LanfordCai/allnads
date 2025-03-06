@@ -247,8 +247,67 @@ describe("AllNadsAirdropper", function () {
     });
   });
 
-  describe("Airdrop Functionality", function () {
-    it("Should allow owner to airdrop NFT to recipient", async function () {
+  describe("MON Airdrop Amount Management", function () {
+    it("Should have default MON airdrop amount of 1 ether", async function () {
+      const { airdropper } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      expect(monAirdropAmount).to.equal(parseEther("1"));
+    });
+    
+    it("Should allow owner to update MON airdrop amount", async function () {
+      const { airdropper, owner, publicClient } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      const newAmount = parseEther("2");
+      const tx = await ownerClient.write.setMonAirdropAmount([newAmount]);
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      const updatedAmount = await airdropper.read.monAirdropAmount();
+      expect(updatedAmount).to.equal(newAmount);
+    });
+    
+    it("Should emit MonAirdropAmountUpdated event when amount is updated", async function () {
+      const { airdropper, owner, publicClient } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      const newAmount = parseEther("2");
+      const tx = await ownerClient.write.setMonAirdropAmount([newAmount]);
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      const events = await airdropper.getEvents.MonAirdropAmountUpdated();
+      expect(events.length).to.equal(1);
+      expect(events[0].args.newAmount).to.equal(newAmount);
+    });
+    
+    it("Should not allow non-owner to update MON airdrop amount", async function () {
+      const { airdropper, buyer } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: buyer } }
+      );
+      
+      const newAmount = parseEther("2");
+      await expect(
+        buyerClient.write.setMonAirdropAmount([newAmount])
+      ).to.be.rejected;
+    });
+  });
+
+  describe("MintTo Functionality", function () {
+    it("Should allow owner to mint NFT to recipient", async function () {
       const { airdropper, allNads, owner, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
       
       const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
@@ -262,30 +321,30 @@ describe("AllNadsAirdropper", function () {
       const recipientAddress = recipient.account.address;
       const nftName = "Airdropped NFT";
       
-      // 执行铸造并空投给接收者
+      // Execute mint to recipient
       const tx = await ownerClient.write.mintTo([
         recipientAddress,
         nftName,
-        templateIds[0], // 背景
-        templateIds[1], // 发型
-        templateIds[2], // 眼睛
-        templateIds[3], // 嘴巴
-        templateIds[4]  // 配饰
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
       ], { value: totalPrice });
       
       await publicClient.waitForTransactionReceipt({ hash: tx });
       
-      // 确认NFT已被铸造并转移给接收者
-      const tokenId = 1n; // 第一个铸造的NFT
+      // Confirm NFT was minted and transferred to recipient
+      const tokenId = 1n; // First minted NFT
       const tokenOwner = await allNads.read.ownerOf([tokenId]);
       expect(tokenOwner).to.equal(getAddress(recipientAddress));
       
-      // 验证NFT名称
+      // Verify NFT name
       const avatar = await allNads.read.getAvatar([tokenId]);
       expect(avatar.name).to.equal(nftName);
     });
     
-    it("Should allow an admin to airdrop NFT to recipient", async function () {
+    it("Should allow an admin to mint NFT to recipient", async function () {
       const { airdropper, allNads, owner, creator, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
       
       const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
@@ -296,7 +355,7 @@ describe("AllNadsAirdropper", function () {
         { client: { wallet: owner } }
       );
       
-      // 添加创建者作为管理员
+      // Add creator as admin
       let tx = await ownerClient.write.addAdmin([creator.account.address]);
       await publicClient.waitForTransactionReceipt({ hash: tx });
       
@@ -309,26 +368,26 @@ describe("AllNadsAirdropper", function () {
       const recipientAddress = recipient.account.address;
       const nftName = "Admin Airdropped NFT";
       
-      // 管理员执行铸造并空投给接收者
+      // Admin executes mint to recipient
       tx = await creatorClient.write.mintTo([
         recipientAddress,
         nftName,
-        templateIds[0], // 背景
-        templateIds[1], // 发型
-        templateIds[2], // 眼睛
-        templateIds[3], // 嘴巴
-        templateIds[4]  // 配饰
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
       ], { value: totalPrice });
       
       await publicClient.waitForTransactionReceipt({ hash: tx });
       
-      // 确认NFT已被铸造并转移给接收者
-      const tokenId = 1n; // 第一个铸造的NFT
+      // Confirm NFT was minted and transferred to recipient
+      const tokenId = 1n; // First minted NFT
       const tokenOwner = await allNads.read.ownerOf([tokenId]);
       expect(tokenOwner).to.equal(getAddress(recipientAddress));
     });
     
-    it("Should not allow non-admin to airdrop NFT", async function () {
+    it("Should not allow non-admin to mint NFT", async function () {
       const { airdropper, allNads, owner, buyer, recipient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
       
       const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
@@ -342,16 +401,16 @@ describe("AllNadsAirdropper", function () {
       const recipientAddress = recipient.account.address;
       const nftName = "Unauthorized Airdropped NFT";
       
-      // 非管理员尝试执行铸造并空投，应该被拒绝
+      // Non-admin attempts to execute mint, should be rejected
       await expect(
         buyerClient.write.mintTo([
           recipientAddress,
           nftName,
-          templateIds[0], // 背景
-          templateIds[1], // 发型
-          templateIds[2], // 眼睛
-          templateIds[3], // 嘴巴
-          templateIds[4]  // 配饰
+          templateIds[0], // background
+          templateIds[1], // hairstyle
+          templateIds[2], // eyes
+          templateIds[3], // mouth
+          templateIds[4]  // accessory
         ], { value: totalPrice })
       ).to.be.rejected;
     });
@@ -359,7 +418,7 @@ describe("AllNadsAirdropper", function () {
     it("Should reject mintTo if payment is insufficient", async function () {
       const { airdropper, allNads, owner, recipient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
       
-      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner, parseEther("0.01")); // 设置0.01 ETH的mint费用
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner, parseEther("0.01")); // Set 0.01 ETH mint fee
       
       const ownerClient = await hre.viem.getContractAt(
         "AllNadsAirdropper",
@@ -370,24 +429,24 @@ describe("AllNadsAirdropper", function () {
       const recipientAddress = recipient.account.address;
       const nftName = "Insufficient Payment NFT";
       
-      // 尝试以低于所需的金额执行铸造，应该被拒绝
+      // Try to execute mint with insufficient amount
       const insufficientAmount = totalPrice - parseEther("0.01");
       await expect(
         ownerClient.write.mintTo([
           recipientAddress,
           nftName,
-          templateIds[0], // 背景
-          templateIds[1], // 发型
-          templateIds[2], // 眼睛
-          templateIds[3], // 嘴巴
-          templateIds[4]  // 配饰
+          templateIds[0], // background
+          templateIds[1], // hairstyle
+          templateIds[2], // eyes
+          templateIds[3], // mouth
+          templateIds[4]  // accessory
         ], { value: insufficientAmount })
       ).to.be.rejected;
     });
   });
 
-  describe("Refund Mechanism", function () {
-    it("Should refund excess ETH when overpaying", async function () {
+  describe("MintTo Refund Mechanism", function () {
+    it("Should refund excess ETH when overpaying for mintTo", async function () {
       const { airdropper, allNads, owner, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
       
       const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
@@ -401,40 +460,40 @@ describe("AllNadsAirdropper", function () {
       const recipientAddress = recipient.account.address;
       const nftName = "Overpaid NFT";
       
-      // 发送额外的ETH
-      const overpayAmount = parseEther("0.1"); // 多付0.1 ETH
+      // Send extra ETH
+      const overpayAmount = parseEther("0.1"); // Overpay by 0.1 ETH
       const paymentAmount = totalPrice + overpayAmount;
       
-      // 记录owner初始余额
+      // Record owner initial balance
       const initialOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
       
-      // 执行铸造并支付超额费用
+      // Execute mint with overpayment
       const tx = await ownerClient.write.mintTo([
         recipientAddress,
         nftName,
-        templateIds[0], // 背景
-        templateIds[1], // 发型
-        templateIds[2], // 眼睛
-        templateIds[3], // 嘴巴
-        templateIds[4]  // 配饰
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
       ], { value: paymentAmount });
       
       const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
       
-      // 获取gas费用
+      // Get gas cost
       const gasUsed = receipt.gasUsed * receipt.effectiveGasPrice;
       
-      // 获取owner最终余额
+      // Get owner final balance
       const finalOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
       
-      // 验证余额变化 - 应该只减少了totalPrice + gas费用，多余的ETH应该被退还
+      // Verify balance change - should only have spent totalPrice + gas fees
       const expectedBalance = initialOwnerBalance - totalPrice - gasUsed;
       
-      // 由于gas估算的复杂性，我们允许有小额误差
+      // Allow for small margin of error due to gas estimation complexity
       expect(Number(finalOwnerBalance)).to.be.closeTo(Number(expectedBalance), Number(parseEther("0.01")));
     });
     
-    it("Should emit RefundSent event on refund", async function () {
+    it("Should emit RefundSent event on refund for mintTo", async function () {
       const { airdropper, allNads, owner, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
       
       const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
@@ -448,29 +507,315 @@ describe("AllNadsAirdropper", function () {
       const recipientAddress = recipient.account.address;
       const nftName = "Refund Event NFT";
       
-      // 发送额外的ETH
-      const overpayAmount = parseEther("0.1"); // 多付0.1 ETH
+      // Send extra ETH
+      const overpayAmount = parseEther("0.1"); // Overpay by 0.1 ETH
       const paymentAmount = totalPrice + overpayAmount;
       
-      // 执行铸造并支付超额费用
+      // Execute mint with overpayment
       const tx = await ownerClient.write.mintTo([
         recipientAddress,
         nftName,
-        templateIds[0], // 背景
-        templateIds[1], // 发型
-        templateIds[2], // 眼睛
-        templateIds[3], // 嘴巴
-        templateIds[4]  // 配饰
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
       ], { value: paymentAmount });
       
       await publicClient.waitForTransactionReceipt({ hash: tx });
       
-      // 检查是否发出退款事件
+      // Check if RefundSent event was emitted
       const refundEvents = await airdropper.getEvents.RefundSent();
       
       expect(refundEvents.length).to.equal(1);
       expect(refundEvents[0].args.to).to.equal(getAddress(owner.account.address));
       expect(refundEvents[0].args.amount).to.equal(overpayAmount);
+    });
+  });
+
+  describe("NFT and MON Airdrop Functionality", function () {
+    it("Should allow owner to airdrop NFT and MON to recipient", async function () {
+      const { airdropper, allNads, owner, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // Get the MON airdrop amount
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      
+      // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+      const requiredValue = totalPrice + (2n * monAirdropAmount);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      const recipientAddress = recipient.account.address;
+      const nftName = "MON Airdropped NFT";
+      
+      // Record initial balances
+      const initialRecipientBalance = await publicClient.getBalance({ address: recipientAddress });
+      
+      // Execute the airdrop
+      const tx = await ownerClient.write.airdrop([
+        recipientAddress,
+        nftName,
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
+      ], { value: requiredValue });
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Confirm NFT was minted and transferred to recipient
+      const tokenId = 1n; // First minted NFT
+      const tokenOwner = await allNads.read.ownerOf([tokenId]);
+      expect(tokenOwner).to.equal(getAddress(recipientAddress));
+      
+      // Get the NFT account address
+      const nftAccount = await allNads.read.accountForToken([tokenId]);
+      
+      // Verify NFT account has received MON
+      const nftAccountBalance = await publicClient.getBalance({ address: nftAccount });
+      expect(nftAccountBalance).to.equal(monAirdropAmount);
+      
+      // Verify recipient has received MON
+      const finalRecipientBalance = await publicClient.getBalance({ address: recipientAddress });
+      expect(finalRecipientBalance).to.equal(initialRecipientBalance + monAirdropAmount);
+    });
+    
+    it("Should allow admin to airdrop NFT and MON to recipient", async function () {
+      const { airdropper, allNads, owner, creator, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // Get the MON airdrop amount
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      
+      // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+      const requiredValue = totalPrice + (2n * monAirdropAmount);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      // Add creator as admin
+      let tx = await ownerClient.write.addAdmin([creator.account.address]);
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      const creatorClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: creator } }
+      );
+      
+      const recipientAddress = recipient.account.address;
+      const nftName = "Admin MON Airdropped NFT";
+      
+      // Record initial balances
+      const initialRecipientBalance = await publicClient.getBalance({ address: recipientAddress });
+      
+      // Execute the airdrop as admin
+      tx = await creatorClient.write.airdrop([
+        recipientAddress,
+        nftName,
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
+      ], { value: requiredValue });
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Confirm NFT was minted and transferred to recipient
+      const tokenId = 1n; // First minted NFT
+      const tokenOwner = await allNads.read.ownerOf([tokenId]);
+      expect(tokenOwner).to.equal(getAddress(recipientAddress));
+      
+      // Get the NFT account address
+      const nftAccount = await allNads.read.accountForToken([tokenId]);
+      
+      // Verify NFT account has received MON
+      const nftAccountBalance = await publicClient.getBalance({ address: nftAccount });
+      expect(nftAccountBalance).to.equal(monAirdropAmount);
+      
+      // Verify recipient has received MON
+      const finalRecipientBalance = await publicClient.getBalance({ address: recipientAddress });
+      expect(finalRecipientBalance).to.equal(initialRecipientBalance + monAirdropAmount);
+    });
+    
+    it("Should not allow non-admin to airdrop NFT and MON", async function () {
+      const { airdropper, allNads, owner, buyer, recipient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // Get the MON airdrop amount
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      
+      // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+      const requiredValue = totalPrice + (2n * monAirdropAmount);
+      
+      const buyerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: buyer } }
+      );
+      
+      const recipientAddress = recipient.account.address;
+      const nftName = "Unauthorized MON Airdropped NFT";
+      
+      // Non-admin attempts to execute airdrop, should be rejected
+      await expect(
+        buyerClient.write.airdrop([
+          recipientAddress,
+          nftName,
+          templateIds[0], // background
+          templateIds[1], // hairstyle
+          templateIds[2], // eyes
+          templateIds[3], // mouth
+          templateIds[4]  // accessory
+        ], { value: requiredValue })
+      ).to.be.rejected;
+    });
+    
+    it("Should reject airdrop if payment is insufficient", async function () {
+      const { airdropper, allNads, owner, recipient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // Get the MON airdrop amount
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      
+      // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+      const requiredValue = totalPrice + (2n * monAirdropAmount);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      const recipientAddress = recipient.account.address;
+      const nftName = "Insufficient Payment MON Airdrop NFT";
+      
+      // Try to execute airdrop with insufficient amount
+      const insufficientAmount = requiredValue - parseEther("0.01");
+      await expect(
+        ownerClient.write.airdrop([
+          recipientAddress,
+          nftName,
+          templateIds[0], // background
+          templateIds[1], // hairstyle
+          templateIds[2], // eyes
+          templateIds[3], // mouth
+          templateIds[4]  // accessory
+        ], { value: insufficientAmount })
+      ).to.be.rejected;
+    });
+    
+    it("Should emit MonAirdropped event when airdropping MON", async function () {
+      const { airdropper, allNads, owner, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // Get the MON airdrop amount
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      
+      // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+      const requiredValue = totalPrice + (2n * monAirdropAmount);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      const recipientAddress = recipient.account.address;
+      const nftName = "Event Test MON Airdrop NFT";
+      
+      // Execute the airdrop
+      const tx = await ownerClient.write.airdrop([
+        recipientAddress,
+        nftName,
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
+      ], { value: requiredValue });
+      
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Get the NFT account address
+      const tokenId = 1n;
+      const nftAccount = await allNads.read.accountForToken([tokenId]);
+      
+      // Check if MonAirdropped event was emitted
+      const monAirdropEvents = await airdropper.getEvents.MonAirdropped();
+      
+      expect(monAirdropEvents.length).to.equal(1);
+      expect(monAirdropEvents[0].args.to).to.equal(getAddress(recipientAddress));
+      expect(monAirdropEvents[0].args.nftAccount).to.equal(getAddress(nftAccount));
+      expect(monAirdropEvents[0].args.amount).to.equal(monAirdropAmount);
+    });
+    
+    it("Should refund excess ETH when overpaying for airdrop", async function () {
+      const { airdropper, allNads, owner, recipient, publicClient, templateIds } = await loadFixture(deployAllNadsAirdropperFixture);
+      
+      const { totalPrice } = await setupMintFeeAndGetPrice(allNads, owner);
+      
+      // Get the MON airdrop amount
+      const monAirdropAmount = await airdropper.read.monAirdropAmount();
+      
+      // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+      const requiredValue = totalPrice + (2n * monAirdropAmount);
+      
+      const ownerClient = await hre.viem.getContractAt(
+        "AllNadsAirdropper",
+        airdropper.address,
+        { client: { wallet: owner } }
+      );
+      
+      const recipientAddress = recipient.account.address;
+      const nftName = "Overpaid MON Airdrop NFT";
+      
+      // Send extra ETH
+      const overpayAmount = parseEther("0.1"); // Overpay by 0.1 ETH
+      const paymentAmount = requiredValue + overpayAmount;
+      
+      // Record owner initial balance
+      const initialOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
+      
+      // Execute airdrop with overpayment
+      const tx = await ownerClient.write.airdrop([
+        recipientAddress,
+        nftName,
+        templateIds[0], // background
+        templateIds[1], // hairstyle
+        templateIds[2], // eyes
+        templateIds[3], // mouth
+        templateIds[4]  // accessory
+      ], { value: paymentAmount });
+      
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      
+      // Get gas cost
+      const gasUsed = receipt.gasUsed * receipt.effectiveGasPrice;
+      
+      // Get owner final balance
+      const finalOwnerBalance = await publicClient.getBalance({ address: owner.account.address });
+      
+      // Verify balance change - should only have spent requiredValue + gas fees
+      const expectedBalance = initialOwnerBalance - requiredValue - gasUsed;
+      
+      // Allow for small margin of error due to gas estimation complexity
+      expect(Number(finalOwnerBalance)).to.be.closeTo(Number(expectedBalance), Number(parseEther("0.01")));
     });
   });
 

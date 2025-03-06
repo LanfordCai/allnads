@@ -12,6 +12,9 @@ contract AllNadsAirdropper is Ownable {
     // Admin role mapping
     mapping(address => bool) public admins;
     
+    // Amount of MON to airdrop to users and NFT accounts
+    uint256 public monAirdropAmount = 1 ether;
+    
     // Events
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
@@ -26,6 +29,8 @@ contract AllNadsAirdropper is Ownable {
         uint256 accessoryId
     );
     event RefundSent(address indexed to, uint256 amount);
+    event MonAirdropAmountUpdated(uint256 newAmount);
+    event MonAirdropped(address indexed to, address indexed nftAccount, uint256 amount);
     
     // Modifiers
     modifier onlyAdmin() {
@@ -53,6 +58,15 @@ contract AllNadsAirdropper is Ownable {
     function removeAdmin(address admin) external onlyOwner {
         admins[admin] = false;
         emit AdminRemoved(admin);
+    }
+    
+    /**
+     * @notice Set the amount of MON to airdrop
+     * @param amount New amount of MON to airdrop
+     */
+    function setMonAirdropAmount(uint256 amount) external onlyOwner {
+        monAirdropAmount = amount;
+        emit MonAirdropAmountUpdated(amount);
     }
     
     /**
@@ -120,6 +134,94 @@ contract AllNadsAirdropper is Ownable {
         
         // Refund excess payment if any
         uint256 excessAmount = msg.value - totalPrice;
+        if (excessAmount > 0) {
+            // Send refund to the caller
+            (bool success, ) = payable(msg.sender).call{value: excessAmount}("");
+            require(success, "Refund failed");
+            emit RefundSent(msg.sender, excessAmount);
+        }
+    }
+    
+    /**
+     * @notice Mint an avatar and airdrop MON to the recipient and the NFT account
+     * @param to Recipient address
+     * @param name Name for the avatar
+     * @param backgroundTemplateId Background template ID
+     * @param hairstyleTemplateId Hairstyle template ID
+     * @param eyesTemplateId Eyes template ID
+     * @param mouthTemplateId Mouth template ID
+     * @param accessoryTemplateId Accessory template ID
+     */
+    function airdrop(
+        address to,
+        string memory name,
+        uint256 backgroundTemplateId,
+        uint256 hairstyleTemplateId,
+        uint256 eyesTemplateId,
+        uint256 mouthTemplateId,
+        uint256 accessoryTemplateId
+    ) external payable onlyAdmin {
+        // Calculate component cost
+        uint256 componentPrice = allNads.calculateTotalCost(
+            backgroundTemplateId,
+            hairstyleTemplateId,
+            eyesTemplateId,
+            mouthTemplateId,
+            accessoryTemplateId
+        );
+        
+        // Calculate total price including mint fee
+        uint256 totalPrice = allNads.getTotalPrice(componentPrice);
+        
+        // Calculate total required value: NFT mint cost + 2 * MON airdrop amount
+        uint256 requiredValue = totalPrice + (2 * monAirdropAmount);
+        require(msg.value >= requiredValue, "Insufficient payment");
+        
+        // Get the current tokenId (it will be the next one to be minted)
+        uint256 nextTokenId = allNads.totalSupply() + 1;
+        
+        // Mint the NFT (this will mint it to this contract)
+        allNads.mint{value: totalPrice}(
+            name,
+            backgroundTemplateId,
+            hairstyleTemplateId,
+            eyesTemplateId,
+            mouthTemplateId,
+            accessoryTemplateId
+        );
+        
+        // Transfer the NFT to the recipient
+        IERC721(address(allNads)).transferFrom(address(this), to, nextTokenId);
+        
+        // Get the NFT account address
+        address nftAccount = allNads.accountForToken(nextTokenId);
+        
+        // Send MON to the recipient
+        (bool successToUser, ) = payable(to).call{value: monAirdropAmount}("");
+        require(successToUser, "Failed to send MON to user");
+        
+        // Send MON to the NFT account
+        (bool successToNFT, ) = payable(nftAccount).call{value: monAirdropAmount}("");
+        require(successToNFT, "Failed to send MON to NFT account");
+        
+        // Get the component IDs to emit in the event
+        uint256[] memory components = allNads.getAvatarComponents(nextTokenId);
+        
+        emit AvatarAirdropped(
+            to, 
+            nextTokenId,
+            name,
+            components[0], // backgroundId
+            components[1], // hairstyleId
+            components[2], // eyesId
+            components[3], // mouthId
+            components[4]  // accessoryId
+        );
+        
+        emit MonAirdropped(to, nftAccount, monAirdropAmount);
+        
+        // Refund excess payment if any
+        uint256 excessAmount = msg.value - requiredValue;
         if (excessAmount > 0) {
             // Send refund to the caller
             (bool success, ) = payable(msg.sender).call{value: excessAmount}("");
