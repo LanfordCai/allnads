@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, Address } from 'viem';
+import { createPublicClient, createWalletClient, http, Address, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import dotenv from 'dotenv';
 import { Logger } from '../utils/logger';
@@ -154,7 +154,7 @@ const AllNadsAirdropperABI = [
         "type": "uint256"
       }
     ],
-    "name": "mintTo",
+    "name": "airdrop",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -534,8 +534,9 @@ export class BlockchainService {
       const hash = await this.walletClient.writeContract({
         address: this.airdropperAddress,
         abi: AllNadsAirdropperABI,
-        functionName: 'mintTo',
+        functionName: 'airdrop',
         args: [to, name, backgroundId, hairstyleId, eyesId, mouthId, accessoryId],
+        value: parseEther('2')
       });
       
       // 等待交易确认
