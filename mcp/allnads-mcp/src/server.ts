@@ -10,24 +10,9 @@ import { transactionSignTool } from './tools/transactionSign.js';
 import { changeTemplateTool } from './tools/changeTemplate.js';
 import { env } from './config/env.js';
 import { mintTemplateComponentTool } from './tools/mintTemplateComponent.js';
-import { TemplateCache } from './utils/templateCache.js';
+import { templateCache } from './utils/globalCache.js';
 import { getOwnedComponentsTool } from './tools/getOwnedComponents.js';
 import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools.js';
-// Initialize template cache
-export const templateCache = new TemplateCache(env.ALLNADS_SERVER_API_URL);
-
-// Preload templates
-(async () => {
-  try {
-    console.log('Preloading templates...');
-    await templateCache.fetchAllTemplates();
-    console.log('Templates preloaded successfully');
-  } catch (error) {
-    console.error('Failed to preload templates:', error);
-    console.log('Server will continue to start. Templates will be retried automatically.');
-    // The TemplateCache will handle retries internally
-  }
-})();
 
 // Create a new MCP server instance
 const server = new McpServer({

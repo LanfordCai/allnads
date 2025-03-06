@@ -11,6 +11,8 @@ const envSchema = z.object({
   MONAD_TESTNET_RPC: z.string().url(),
   MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   MONAD_TESTNET_ALLNADS_ACCOUNT_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  MONAD_TESTNET_ALLNADS_COMPONENT_QUERY_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   
   // API URL for template fetching
   ALLNADS_SERVER_API_URL: z.string().url(),

@@ -2,6 +2,8 @@ import { type Address, isAddress, encodeFunctionData } from 'viem';
 import { z } from 'zod';
 import { createTextResponse, ContentResult } from './types.js';
 import { getPublicClient } from '../utils/viem.js';
+import { templateCache } from '../utils/globalCache.js';
+import { env } from '../config/env.js';
 
 const getAllOwnedTemplatesABI = [
   {
@@ -47,8 +49,18 @@ const COMPONENT_TYPES = {
   "3": 3,
   "4": 4
 };
+
+// Map component type numbers to their string representation
+const COMPONENT_TYPE_NAMES: Record<number, string> = {
+  0: 'BACKGROUND',
+  1: 'HAIRSTYLE',
+  2: 'EYES',
+  3: 'MOUTH',
+  4: 'ACCESSORY'
+};
+
 /**
- * Tool for creating a serialized transaction to send MON tokens
+ * Tool for getting components owned by an Allnads NFT
  */
 export const getOwnedComponentsTool = {
   name: 'get_owned_components',
@@ -65,9 +77,65 @@ export const getOwnedComponentsTool = {
   execute: async (params: { allnadsAccount: string }): Promise<ContentResult> => {
     try {
       const { allnadsAccount } = params;
-      return createTextResponse(`NOT IMPLEMENTED YET`);
+      
+      // Get the public client for interacting with the blockchain
+      const publicClient = getPublicClient();
+      
+      // Get the component contract address from environment variables
+      const componentQueryContractAddress = env.MONAD_TESTNET_ALLNADS_COMPONENT_QUERY_CONTRACT_ADDRESS as Address;
+      
+      // Call the contract to get owned templates
+      const result = await publicClient.readContract({
+        address: componentQueryContractAddress,
+        abi: getAllOwnedTemplatesABI,
+        functionName: 'getAllOwnedTemplates',
+        args: [allnadsAccount as Address]
+      });
+      
+      // Extract the results
+      const [ownedTemplateIds, templateTypes, tokenIds] = result as [bigint[], number[], bigint[]];
+      
+      // Process the results into a structured format
+      const ownedComponents = [];
+      
+      for (let i = 0; i < ownedTemplateIds.length; i++) {
+        const templateId = ownedTemplateIds[i];
+        const templateType = templateTypes[i];
+        const tokenId = tokenIds[i];
+        
+        // Get template details from the global cache
+        const template = await templateCache.getTemplateById(templateId);
+        
+        ownedComponents.push({
+          templateId: templateId.toString(),
+          tokenId: tokenId.toString(),
+          componentType: COMPONENT_TYPE_NAMES[templateType] || `UNKNOWN(${templateType})`,
+          name: template?.name || `Unknown Template (ID: ${templateId})`
+        });
+      }
+      
+      // Group components by type
+      const groupedComponents: Record<string, any[]> = {};
+      
+      for (const component of ownedComponents) {
+        if (!groupedComponents[component.componentType]) {
+          groupedComponents[component.componentType] = [];
+        }
+        groupedComponents[component.componentType].push(component);
+      }
+      
+      // Format the response
+      const responseText = JSON.stringify({
+        success: true,
+        data: {
+          allnadsAccount,
+          ownedComponents: groupedComponents
+        }
+      }, null, 2);
+      
+      return createTextResponse(responseText);
     } catch (error) {
-      return createTextResponse(`Error creating transaction: ${error instanceof Error ? error.message : String(error)}`);
+      return createTextResponse(`Error getting owned components: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 }; 
