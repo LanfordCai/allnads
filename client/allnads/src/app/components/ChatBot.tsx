@@ -14,6 +14,7 @@ import { NFTAvatarDisplay } from './chat/NFTAvatarDisplay';
 import { useChatSessions } from '../hooks/useChatSessions';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
 import { useNotification } from '../contexts/NotificationContext';
+import { useTemplateOwnership } from '../hooks/useTemplateOwnership';
 // Local storage key
 const STORAGE_KEY = 'allnads_chat_sessions';
 
@@ -120,6 +121,16 @@ export default function ChatBot() {
     error: nftHookError, 
     isNftInfoSet 
   } = useChatWithNFT(chatServiceRef.current || new ChatService());
+  
+  // Use the template ownership hook to manage template ownership
+  const { checkOwnership } = useTemplateOwnership();
+  
+  // Check template ownership when NFT account changes
+  useEffect(() => {
+    if (nftAccount) {
+      checkOwnership(nftAccount);
+    }
+  }, [nftAccount, checkOwnership]);
 
   // Monitor Privy authentication status changes
   useEffect(() => {

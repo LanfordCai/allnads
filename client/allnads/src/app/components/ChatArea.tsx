@@ -7,6 +7,7 @@ import { useWallets } from '@privy-io/react-auth';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAllNads } from '../hooks/useAllNads';
 import { blockchainService } from '../services/blockchain';
+import { useTemplateOwnership } from '../hooks/useTemplateOwnership';
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -47,12 +48,15 @@ export default function ChatArea({
   // Use the useAllNads hook to get NFT information
   const { tokenId } = useAllNads();
 
+  // Use the template ownership hook
+  const { ownedTemplates, checkOwnership } = useTemplateOwnership();
+
   // Update local avatar image when prop changes
   useEffect(() => {
     setLocalAvatarImage(avatarImage);
   }, [avatarImage]);
 
-  // Check for <ComponentChanged> in messages and refresh NFT metadata
+  // Check for <<ComponentChanged>> and <<ComponentMinted>> in messages
   useEffect(() => {
     const checkForComponentChanged = async () => {
       // Only continue if there are messages
@@ -68,54 +72,78 @@ export default function ChatArea({
       
       console.log(`Checking message ID: ${latestMessage.id}, content: ${latestMessage.content.substring(0, 50)}...`);
       
-      // Check if the message contains the <ComponentChanged> tag
-      if (latestMessage.role === 'bot' && 
-          latestMessage.content.includes('<ComponentChanged>') && 
-          !isRefreshingNFT && tokenId) {
-        
+      // Check if the message is from the bot
+      if (latestMessage.role === 'bot') {
         // Mark this message as processed
         processedMessageIdsRef.current.add(latestMessage.id);
-        console.log(`Found <ComponentChanged> tag, starting to refresh NFT metadata, message ID: ${latestMessage.id}`);
         
-        setIsRefreshingNFT(true);
-        showNotification('Refreshing NFT metadata...', 'info');
+        // Process all tags in the message
+        let hasComponentChanged = false;
+        let hasComponentMinted = false;
         
-        try {
-          // Use blockchain service to get token URI
-          const tokenURI = await blockchainService.getTokenURI(tokenId);
+        // Check for tags
+        hasComponentChanged = latestMessage.content.includes('<<ComponentChanged>>');
+        hasComponentMinted = latestMessage.content.includes('<<ComponentMinted>>');
+        
+        // Handle ComponentChanged tag
+        if (hasComponentChanged && !isRefreshingNFT && tokenId) {
+          console.log(`Found <<ComponentChanged>> tag, starting to refresh NFT metadata, message ID: ${latestMessage.id}`);
           
-          // Parse tokenURI
-          const jsonData = tokenURI.replace('data:application/json,', '');
-          const json = JSON.parse(jsonData);
+          setIsRefreshingNFT(true);
+          showNotification('Refreshing NFT metadata...', 'info');
           
-          console.log('Retrieved NFT metadata:', json);
-          
-          // Extract image from tokenURI
-          if (json.image) {
-            setLocalAvatarImage(json.image);
-            // Notify parent component about the avatar image change
-            if (onAvatarImageChange) {
-              onAvatarImageChange(json.image);
+          try {
+            // Use blockchain service to get token URI
+            const tokenURI = await blockchainService.getTokenURI(tokenId);
+            
+            // Parse tokenURI
+            const jsonData = tokenURI.replace('data:application/json,', '');
+            const json = JSON.parse(jsonData);
+            
+            console.log('Retrieved NFT metadata:', json);
+            
+            // Extract image from tokenURI
+            if (json.image) {
+              setLocalAvatarImage(json.image);
+              // Notify parent component about the avatar image change
+              if (onAvatarImageChange) {
+                onAvatarImageChange(json.image);
+              }
+              console.log('NFT avatar updated:', json.image.substring(0, 50) + '...');
+              showNotification('NFT metadata updated', 'success');
+            } else {
+              throw new Error("NFT metadata doesn't contain an image");
             }
-            console.log('NFT avatar updated:', json.image.substring(0, 50) + '...');
-            showNotification('NFT metadata updated', 'success');
-          } else {
-            throw new Error("NFT metadata doesn't contain an image");
+          } catch (error) {
+            console.error('Error refreshing NFT metadata:', error);
+            showNotification('Failed to refresh NFT metadata', 'error');
+          } finally {
+            setIsRefreshingNFT(false);
           }
-        } catch (error) {
-          console.error('Error refreshing NFT metadata:', error);
-          showNotification('Failed to refresh NFT metadata', 'error');
-        } finally {
-          setIsRefreshingNFT(false);
         }
-      } else {
-        // Mark as processed even if it doesn't contain <ComponentChanged>
-        processedMessageIdsRef.current.add(latestMessage.id);
+        
+        // Handle ComponentMinted tag
+        if (hasComponentMinted && nftAccount) {
+          console.log(`Found <<ComponentMinted>> tag, rechecking template ownership, message ID: ${latestMessage.id}`);
+          
+          showNotification('Updating template ownership...', 'info');
+          
+          try {
+            // Recheck template ownership using the hook's function with forceRefresh=true
+            await checkOwnership(nftAccount, true);
+            
+            console.log('Template ownership updated for account:', nftAccount);
+            showNotification('Template ownership updated', 'success');
+          } catch (error) {
+            console.error('Error updating template ownership:', error);
+            showNotification('Failed to update template ownership', 'error');
+          }
+        }
       }
     };
     
     checkForComponentChanged();
-  }, [messages, tokenId, isRefreshingNFT, onAvatarImageChange, showNotification]);
+  }, [messages, tokenId, isRefreshingNFT, onAvatarImageChange, showNotification, ownedTemplates, nftAccount, checkOwnership]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -376,16 +404,30 @@ export default function ChatArea({
       return text;
     };
     
-    // Handle normal text (supporting line breaks, <ComponentChanged> tags, and Ethereum entities)
+    // Handle normal text (supporting line breaks, <<ComponentChanged>> tags, <<ComponentMinted>> tags, and Ethereum entities)
     return trimmedContent.split('\n').map((line, i) => {
-      // Check if it contains the <ComponentChanged> tag
-      if (line.includes('<ComponentChanged>')) {
-        // Replace <ComponentChanged> tag with styled version
-        const parts = line.split('<ComponentChanged>');
+      // Check if it contains the <<ComponentChanged>> tag
+      if (line.includes('<<ComponentChanged>>')) {
+        // Replace <<ComponentChanged>> tag with styled version
+        const parts = line.split('<<ComponentChanged>>');
         return (
           <span key={i}>
             {formatEthereumEntities(parts[0])}
             <span className="text-xs opacity-50 italic text-gray-500 dark:text-gray-400">&lt;ComponentChanged&gt;</span>
+            {formatEthereumEntities(parts[1])}
+            {i < trimmedContent.split('\n').length - 1 && <br />}
+          </span>
+        );
+      }
+      
+      // Check if it contains the <<ComponentMinted>> tag
+      if (line.includes('<<ComponentMinted>>')) {
+        // Replace <<ComponentMinted>> tag with styled version
+        const parts = line.split('<<ComponentMinted>>');
+        return (
+          <span key={i}>
+            {formatEthereumEntities(parts[0])}
+            <span className="text-xs opacity-50 italic text-green-600 dark:text-green-400">&lt;ComponentMinted&gt;</span>
             {formatEthereumEntities(parts[1])}
             {i < trimmedContent.split('\n').length - 1 && <br />}
           </span>

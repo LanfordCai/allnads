@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { blockchainService, Template } from '../services/blockchain';
 import Image from 'next/image';
 import { TemplateDetails } from '../types/template';
+import { useTemplateOwnership } from '../hooks/useTemplateOwnership';
 
 // Define component types matching the enum in the contract
 const COMPONENT_TYPES = {
@@ -33,41 +34,23 @@ export default function TemplateModal({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("BACKGROUND");
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
-  const [ownedTemplates, setOwnedTemplates] = useState<Record<string, bigint>>({});
-  const [checkingOwnership, setCheckingOwnership] = useState(false);
+  
+  // Use the template ownership hook instead of local state
+  const { 
+    ownedTemplates, 
+    isLoading: checkingOwnership, 
+    checkOwnership
+  } = useTemplateOwnership();
   
   // Function to check if NFT account owns templates
-  const checkTemplateOwnership = async (nftAccountAddress: string) => {
+  const checkTemplateOwnership = async (nftAccountAddress: string, forceRefresh: boolean = false) => {
     if (!nftAccountAddress) {
       console.log('checkTemplateOwnership: nftAccountAddress is empty, skipping ownership check');
       return;
     }
     
-    console.log('checkTemplateOwnership: Starting ownership check for address:', nftAccountAddress);
-    setCheckingOwnership(true);
-    try {
-      console.log('checkTemplateOwnership: Calling blockchainService.getAllOwnedTemplates');
-      const ownedTemplatesData = await blockchainService.getAllOwnedTemplates(nftAccountAddress);
-      console.log('checkTemplateOwnership: Received data:', ownedTemplatesData);
-      
-      // Create a map of template IDs to token IDs
-      const ownedTemplatesMap: Record<string, bigint> = {};
-      
-      // Process the results
-      for (let i = 0; i < ownedTemplatesData.templateIds.length; i++) {
-        const templateId = ownedTemplatesData.templateIds[i];
-        const tokenId = ownedTemplatesData.tokenIds[i];
-        ownedTemplatesMap[templateId.toString()] = tokenId;
-      }
-      
-      console.log('checkTemplateOwnership: Setting ownedTemplates state with map:', ownedTemplatesMap);
-      setOwnedTemplates(ownedTemplatesMap);
-      console.log('Owned templates by NFT account:', ownedTemplatesMap);
-    } catch (error) {
-      console.error('Error checking template ownership:', error);
-    } finally {
-      setCheckingOwnership(false);
-    }
+    console.log(`checkTemplateOwnership: Starting ownership check for address: ${nftAccountAddress}${forceRefresh ? ' (forced refresh)' : ''}`);
+    await checkOwnership(nftAccountAddress, forceRefresh);
   };
   
   // Function to get the connected user's address
@@ -137,6 +120,22 @@ export default function TemplateModal({
     initializeData();
   }, [nftAccount]);
   
+  // Force refresh when modal is opened
+  useEffect(() => {
+    if (isOpen && nftAccount) {
+      console.log('TemplateModal opened, forcing refresh of template ownership for:', nftAccount);
+      checkTemplateOwnership(nftAccount, true);
+    }
+  }, [isOpen, nftAccount]);
+  
+  // Check if NFT account owns a template
+  const userOwnsTemplate = (templateId: bigint) => {
+    const templateIdStr = templateId.toString();
+    const isOwned = !!ownedTemplates[templateIdStr];
+    console.log(`userOwnsTemplate: Checking if template ${templateIdStr} is owned: ${isOwned}, ownedTemplates:`, ownedTemplates);
+    return isOwned;
+  };
+  
   // Function to handle template selection
   const handleSelectTemplate = (templateId: bigint) => {
     // Find the template in the templates object
@@ -177,14 +176,6 @@ export default function TemplateModal({
   const formatPrice = (price: bigint) => {
     const priceInEth = Number(price) / 1e18;
     return priceInEth.toFixed(4);
-  };
-  
-  // Check if NFT account owns a template
-  const userOwnsTemplate = (templateId: bigint) => {
-    const templateIdStr = templateId.toString();
-    const isOwned = !!ownedTemplates[templateIdStr];
-    console.log(`userOwnsTemplate: Checking if template ${templateIdStr} is owned: ${isOwned}`);
-    return isOwned;
   };
   
   if (!isOpen) return null;
