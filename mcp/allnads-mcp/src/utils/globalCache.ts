@@ -1,5 +1,5 @@
-import { TemplateCache } from './templateCache.js';
-import { env } from '../config/env.js';
+import { TemplateCache } from './templateCache';
+import { env } from '../config/env';
 
 // Create a global template cache instance
 export const templateCache = new TemplateCache(env.ALLNADS_SERVER_API_URL);

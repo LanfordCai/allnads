@@ -1,7 +1,9 @@
 import { type Address, isAddress, encodeFunctionData } from 'viem';
 import { z } from 'zod';
-import { createTextResponse, ContentResult } from './types.js';
-import { getPublicClient } from '../utils/viem.js';
+import { createTextResponse, ContentResult } from './types';
+import { getPublicClient } from '../utils/viem';
+import { ERC20_TOKENS } from '../utils/supportedErc20Tokens';
+import { AllNadsAccountABI } from '../abis/AllNadsAccount';
 
 /**
  * Formats a token balance according to its decimals
@@ -29,38 +31,15 @@ function formatTokenBalance(balance: bigint, decimals: number): string {
   }
 }
 
-const ERC20_TOKENS = {
-  'Wrapped Monad': {
-    contractAddress: '0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701' as Address,
-    symbol: 'WMON',
-    name: 'Wrapped Monad',
-    decimals: 18
-  },
-  'Moyaki': {
-    contractAddress: '0xfe140e1dCe99Be9F4F15d657CD9b7BF622270C50' as Address,
-    symbol: 'YAKI',
-    name: 'Moyaki',
-    decimals: 18
-  },
-  'Chog': {
-    contractAddress: '0xE0590015A873bF326bd645c3E1266d4db41C4E6B' as Address,
-    symbol: 'CHOG',
-    name: 'Chog',
-    decimals: 18
-  },
-  'Molandak': {
-    contractAddress: '0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714' as Address,
-    symbol: 'DAK',
-    name: 'Molandak',
-    decimals: 18
-  }
-}
 /**
  * Tool for creating a serialized transaction to send MON tokens
  */
 export const getErc20TokensTool= {
   name: 'get_erc20_tokens',
-  description: 'Get all erc20 tokens for an address, the information includes the token name, symbol, contract address, decimals and balance. Only Wrapped Monad(WMON) Moyaki(YAKI), Chog(CHOG) and Molandak(DAK) are supported. Note: MON is not ERC20 token, you should use evm_tool to get the balance of MON',
+  description: `
+  Get all erc20 tokens for an address, the information includes the token name, symbol, contract address, decimals and balance.
+  Only Wrapped Monad(WMON) Moyaki(YAKI), Chog(CHOG), Molandak(DAK), USDT, USDC, WBTC are supported.
+  Note: MON is not ERC20 token, you should use evm_tool to get the balance of MON`,
   parameters: z.object({
     address: z.string()
       .refine(addr => isAddress(addr), {
@@ -123,33 +102,6 @@ export const getErc20TokensTool= {
   },
 }; 
 
-
-const TransferERC20ABI = [
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_token",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "transferERC20",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-]
-
 export const transferErc20TokenTool = {
   name: 'transfer_erc20_token',
   description: 'Transfer an erc20 token to an address',
@@ -207,7 +159,7 @@ export const transferErc20TokenTool = {
       const transactionRequest = {
         to: allnadsAccount,
         data: encodeFunctionData({
-          abi: TransferERC20ABI,
+          abi: AllNadsAccountABI,
           functionName: 'transferERC20',
           args: [tokenInfo.contractAddress, to, amount]
         })

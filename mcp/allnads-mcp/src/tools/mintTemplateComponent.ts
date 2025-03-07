@@ -1,7 +1,7 @@
-import { type Address, isAddress, encodeFunctionData, parseEther, formatEther } from 'viem';
+import { type Address, isAddress, encodeFunctionData } from 'viem';
 import { z } from 'zod';
-import { createTextResponse, ContentResult } from './types.js';
-import { getPublicClient } from '../utils/viem.js';
+import { createTextResponse, ContentResult } from './types';
+import { getPublicClient } from '../utils/viem';
 
 const ExecuteCallABI = [
   {

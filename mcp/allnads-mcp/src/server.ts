@@ -4,15 +4,15 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
-import { ContentResult } from './tools/types.js';
-import { sendMonTool } from './tools/sendMon.js';
-import { transactionSignTool } from './tools/transactionSign.js';
-import { changeTemplateTool } from './tools/changeTemplate.js';
-import { env } from './config/env.js';
-import { mintTemplateComponentTool } from './tools/mintTemplateComponent.js';
-import { templateCache } from './utils/globalCache.js';
-import { getOwnedComponentsTool } from './tools/getOwnedComponents.js';
-import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools.js';
+import { ContentResult } from './tools/types';
+import { sendMonTool } from './tools/sendMon';
+import { transactionSignTool } from './tools/transactionSign';
+import { changeTemplateTool } from './tools/changeTemplate';
+import { env } from './config/env';
+import { mintTemplateComponentTool } from './tools/mintTemplateComponent';
+import { templateCache } from './utils/globalCache';
+import { getOwnedComponentsTool } from './tools/getOwnedComponents';
+import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools';
 
 // Create a new MCP server instance
 const server = new McpServer({

@@ -1,4 +1,4 @@
-import { Template } from '../types/template.js';
+import { Template } from '../types/template';
 
 /**
  * TemplateCache class for fetching and caching templates from the API

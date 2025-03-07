@@ -10,7 +10,9 @@
       "declaration": true,
       "resolveJsonModule": true,
       "rootDir": "src",
-      "skipLibCheck": true
+      "skipLibCheck": true,
+      "allowImportingTsExtensions": true,
+      "emitDeclarationOnly": true
     },
     "ts-node": {
       "esm": true,

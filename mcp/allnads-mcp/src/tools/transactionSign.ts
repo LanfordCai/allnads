@@ -1,6 +1,6 @@
 import { isAddress } from 'viem';
 import { z } from 'zod';
-import { createTextResponse, ContentResult } from './types.js';
+import { createTextResponse, ContentResult } from './types';
 
 /**
  * Tool for creating a serialized transaction to sign

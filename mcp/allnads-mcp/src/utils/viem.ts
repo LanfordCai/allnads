@@ -1,5 +1,5 @@
 import { createPublicClient, http, PublicClient } from 'viem';
-import { networks } from '../config/networks.js';
+import { networks } from '../config/networks';
 
 export function getPublicClient(networkName: keyof typeof networks = 'monadTestnet'): PublicClient {
   const network = networks[networkName];

@@ -1,8 +1,39 @@
-[
+export const AllNadsABI = [
     {
-      "inputs": [],
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_name",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_symbol",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_registry",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_accountImplementation",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_componentContract",
+          "type": "address"
+        }
+      ],
       "stateMutability": "nonpayable",
       "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "ERC721EnumerableForbiddenBatchMint",
+      "type": "error"
     },
     {
       "inputs": [
@@ -13,13 +44,24 @@
         },
         {
           "internalType": "uint256",
-          "name": "balance",
+          "name": "tokenId",
           "type": "uint256"
         },
         {
-          "internalType": "uint256",
-          "name": "needed",
-          "type": "uint256"
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "ERC721IncorrectOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
         },
         {
           "internalType": "uint256",
@@ -27,7 +69,7 @@
           "type": "uint256"
         }
       ],
-      "name": "ERC1155InsufficientBalance",
+      "name": "ERC721InsufficientApproval",
       "type": "error"
     },
     {
@@ -38,23 +80,7 @@
           "type": "address"
         }
       ],
-      "name": "ERC1155InvalidApprover",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "idsLength",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "valuesLength",
-          "type": "uint256"
-        }
-      ],
-      "name": "ERC1155InvalidArrayLength",
+      "name": "ERC721InvalidApprover",
       "type": "error"
     },
     {
@@ -65,7 +91,18 @@
           "type": "address"
         }
       ],
-      "name": "ERC1155InvalidOperator",
+      "name": "ERC721InvalidOperator",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "ERC721InvalidOwner",
       "type": "error"
     },
     {
@@ -76,7 +113,7 @@
           "type": "address"
         }
       ],
-      "name": "ERC1155InvalidReceiver",
+      "name": "ERC721InvalidReceiver",
       "type": "error"
     },
     {
@@ -87,23 +124,34 @@
           "type": "address"
         }
       ],
-      "name": "ERC1155InvalidSender",
+      "name": "ERC721InvalidSender",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ERC721NonexistentToken",
       "type": "error"
     },
     {
       "inputs": [
         {
           "internalType": "address",
-          "name": "operator",
+          "name": "owner",
           "type": "address"
         },
         {
-          "internalType": "address",
-          "name": "owner",
-          "type": "address"
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
         }
       ],
-      "name": "ERC1155MissingApprovalForAll",
+      "name": "ERC721OutOfBoundsIndex",
       "type": "error"
     },
     {
@@ -129,20 +177,23 @@
       "type": "error"
     },
     {
+      "anonymous": false,
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
         },
         {
+          "indexed": true,
           "internalType": "uint256",
-          "name": "length",
+          "name": "tokenId",
           "type": "uint256"
         }
       ],
-      "name": "StringsInsufficientHexLength",
-      "type": "error"
+      "name": "AccountCreated",
+      "type": "event"
     },
     {
       "anonymous": false,
@@ -150,7 +201,32 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "account",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "approved",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "Approval",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
           "type": "address"
         },
         {
@@ -174,18 +250,105 @@
       "inputs": [
         {
           "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": true,
           "internalType": "uint256",
           "name": "tokenId",
           "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "bool",
-          "name": "equipped",
-          "type": "bool"
+          "internalType": "uint256",
+          "name": "backgroundId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "hairstyleId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "eyesId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "mouthId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "accessoryId",
+          "type": "uint256"
         }
       ],
-      "name": "ComponentEquipStatusChanged",
+      "name": "AvatarMinted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "newName",
+          "type": "string"
+        }
+      ],
+      "name": "AvatarNameUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "enum AllNadsComponent.ComponentType",
+          "name": "componentType",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newComponentId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ComponentChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newMintFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "MintFeeUpdated",
       "type": "event"
     },
     {
@@ -212,24 +375,12 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "uint256",
-          "name": "templateId",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
           "internalType": "address",
-          "name": "creator",
+          "name": "renderer",
           "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "enum AllNadsComponent.ComponentType",
-          "name": "componentType",
-          "type": "uint8"
         }
       ],
-      "name": "TemplateCreated",
+      "name": "RendererSet",
       "type": "event"
     },
     {
@@ -237,160 +388,48 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "uint256",
-          "name": "templateId",
-          "type": "uint256"
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
         },
         {
           "indexed": true,
           "internalType": "address",
-          "name": "minter",
+          "name": "to",
           "type": "address"
         },
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "uint256",
           "name": "tokenId",
           "type": "uint256"
         }
       ],
-      "name": "TemplateMinted",
+      "name": "Transfer",
       "type": "event"
     },
     {
-      "anonymous": false,
       "inputs": [
         {
-          "indexed": true,
           "internalType": "uint256",
-          "name": "templateId",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "newPrice",
+          "name": "tokenId",
           "type": "uint256"
         }
       ],
-      "name": "TemplatePriceUpdated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
+      "name": "accountForToken",
+      "outputs": [
         {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "templateId",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "isActive",
-          "type": "bool"
+          "internalType": "address",
+          "name": "",
+          "type": "address"
         }
       ],
-      "name": "TemplateStatusUpdated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "operator",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "from",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256[]",
-          "name": "ids",
-          "type": "uint256[]"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256[]",
-          "name": "values",
-          "type": "uint256[]"
-        }
-      ],
-      "name": "TransferBatch",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "operator",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "from",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        }
-      ],
-      "name": "TransferSingle",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "value",
-          "type": "string"
-        },
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "URI",
-      "type": "event"
+      "stateMutability": "view",
+      "type": "function"
     },
     {
       "inputs": [],
-      "name": "allNadsContract",
+      "name": "accountImplementation",
       "outputs": [
         {
           "internalType": "address",
@@ -405,13 +444,26 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "account",
+          "name": "to",
           "type": "address"
         },
         {
           "internalType": "uint256",
-          "name": "id",
+          "name": "tokenId",
           "type": "uint256"
+        }
+      ],
+      "name": "approve",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
         }
       ],
       "name": "balanceOf",
@@ -428,22 +480,37 @@
     {
       "inputs": [
         {
-          "internalType": "address[]",
-          "name": "accounts",
-          "type": "address[]"
+          "internalType": "uint256",
+          "name": "_backgroundTemplateId",
+          "type": "uint256"
         },
         {
-          "internalType": "uint256[]",
-          "name": "ids",
-          "type": "uint256[]"
+          "internalType": "uint256",
+          "name": "_hairstyleTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_eyesTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_mouthTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_accessoryTemplateId",
+          "type": "uint256"
         }
       ],
-      "name": "balanceOfBatch",
+      "name": "calculateTotalCost",
       "outputs": [
         {
-          "internalType": "uint256[]",
+          "internalType": "uint256",
           "name": "",
-          "type": "uint256[]"
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -452,211 +519,72 @@
     {
       "inputs": [
         {
-          "internalType": "string",
-          "name": "_name",
-          "type": "string"
-        },
-        {
           "internalType": "uint256",
-          "name": "_maxSupply",
+          "name": "tokenId",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "_price",
+          "name": "componentId",
           "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "_imageData",
-          "type": "string"
         },
         {
           "internalType": "enum AllNadsComponent.ComponentType",
-          "name": "_componentType",
+          "name": "componentType",
           "type": "uint8"
         }
       ],
-      "name": "createTemplate",
-      "outputs": [
+      "name": "changeComponent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "backgroundId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "hairstyleId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "eyesId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "mouthId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "accessoryId",
           "type": "uint256"
         }
       ],
-      "stateMutability": "payable",
+      "name": "changeComponents",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
       "inputs": [],
-      "name": "creatorRoyaltyPercentage",
+      "name": "componentContract",
       "outputs": [
         {
-          "internalType": "uint256",
+          "internalType": "contract AllNadsComponent",
           "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_owner",
           "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_templateId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getAddressTemplateToken",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "enum AllNadsComponent.ComponentType",
-          "name": "_type",
-          "type": "uint8"
-        }
-      ],
-      "name": "getComponentTypeName",
-      "outputs": [
-        {
-          "internalType": "string",
-          "name": "",
-          "type": "string"
-        }
-      ],
-      "stateMutability": "pure",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_templateId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getTemplate",
-      "outputs": [
-        {
-          "components": [
-            {
-              "internalType": "string",
-              "name": "name",
-              "type": "string"
-            },
-            {
-              "internalType": "address",
-              "name": "creator",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxSupply",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "currentSupply",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "price",
-              "type": "uint256"
-            },
-            {
-              "internalType": "string",
-              "name": "imageData",
-              "type": "string"
-            },
-            {
-              "internalType": "bool",
-              "name": "isActive",
-              "type": "bool"
-            },
-            {
-              "internalType": "enum AllNadsComponent.ComponentType",
-              "name": "componentType",
-              "type": "uint8"
-            }
-          ],
-          "internalType": "struct AllNadsComponent.Template",
-          "name": "",
-          "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_templateId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getTemplateType",
-      "outputs": [
-        {
-          "internalType": "enum AllNadsComponent.ComponentType",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_creator",
-          "type": "address"
-        }
-      ],
-      "name": "getTemplatesByCreator",
-      "outputs": [
-        {
-          "internalType": "uint256[]",
-          "name": "",
-          "type": "uint256[]"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "enum AllNadsComponent.ComponentType",
-          "name": "_componentType",
-          "type": "uint8"
-        }
-      ],
-      "name": "getTemplatesByType",
-      "outputs": [
-        {
-          "internalType": "uint256[]",
-          "name": "",
-          "type": "uint256[]"
         }
       ],
       "stateMutability": "view",
@@ -670,7 +598,26 @@
           "type": "uint256"
         }
       ],
-      "name": "getTokenFullTemplate",
+      "name": "getApproved",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getAvatar",
       "outputs": [
         {
           "components": [
@@ -680,42 +627,32 @@
               "type": "string"
             },
             {
-              "internalType": "address",
-              "name": "creator",
-              "type": "address"
-            },
-            {
               "internalType": "uint256",
-              "name": "maxSupply",
+              "name": "backgroundId",
               "type": "uint256"
             },
             {
               "internalType": "uint256",
-              "name": "currentSupply",
+              "name": "hairstyleId",
               "type": "uint256"
             },
             {
               "internalType": "uint256",
-              "name": "price",
+              "name": "eyesId",
               "type": "uint256"
             },
             {
-              "internalType": "string",
-              "name": "imageData",
-              "type": "string"
+              "internalType": "uint256",
+              "name": "mouthId",
+              "type": "uint256"
             },
             {
-              "internalType": "bool",
-              "name": "isActive",
-              "type": "bool"
-            },
-            {
-              "internalType": "enum AllNadsComponent.ComponentType",
-              "name": "componentType",
-              "type": "uint8"
+              "internalType": "uint256",
+              "name": "accessoryId",
+              "type": "uint256"
             }
           ],
-          "internalType": "struct AllNadsComponent.Template",
+          "internalType": "struct AllNads.Avatar",
           "name": "",
           "type": "tuple"
         }
@@ -727,11 +664,30 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "_tokenId",
+          "name": "tokenId",
           "type": "uint256"
         }
       ],
-      "name": "getTokenTemplate",
+      "name": "getAvatarComponents",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "componentPrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "getTotalPrice",
       "outputs": [
         {
           "internalType": "uint256",
@@ -746,7 +702,7 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "account",
+          "name": "owner",
           "type": "address"
         },
         {
@@ -769,73 +725,44 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        }
-      ],
-      "name": "isEquipped",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
+          "internalType": "string",
+          "name": "_name",
+          "type": "string"
+        },
         {
           "internalType": "uint256",
-          "name": "_templateId",
+          "name": "_backgroundTemplateId",
           "type": "uint256"
         },
         {
-          "internalType": "address",
-          "name": "_to",
-          "type": "address"
-        }
-      ],
-      "name": "mintComponent",
-      "outputs": [
+          "internalType": "uint256",
+          "name": "_hairstyleTemplateId",
+          "type": "uint256"
+        },
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "_eyesTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_mouthTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_accessoryTemplateId",
           "type": "uint256"
         }
       ],
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256[]",
-          "name": "_templateIds",
-          "type": "uint256[]"
-        },
-        {
-          "internalType": "address",
-          "name": "_to",
-          "type": "address"
-        }
-      ],
-      "name": "mintComponents",
-      "outputs": [
-        {
-          "internalType": "uint256[]",
-          "name": "",
-          "type": "uint256[]"
-        }
-      ],
+      "name": "mint",
+      "outputs": [],
       "stateMutability": "payable",
       "type": "function"
     },
     {
       "inputs": [],
-      "name": "nextTemplateId",
+      "name": "mintFee",
       "outputs": [
         {
           "internalType": "uint256",
@@ -848,20 +775,143 @@
     },
     {
       "inputs": [],
-      "name": "nextTokenId",
+      "name": "name",
       "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
+        }
+      ],
+      "name": "onERC1155BatchReceived",
+      "outputs": [
+        {
+          "internalType": "bytes4",
+          "name": "",
+          "type": "bytes4"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
         {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
         }
       ],
-      "stateMutability": "view",
+      "name": "onERC1155Received",
+      "outputs": [
+        {
+          "internalType": "bytes4",
+          "name": "",
+          "type": "bytes4"
+        }
+      ],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
       "inputs": [],
       "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ownerOf",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "registry",
+      "outputs": [
+        {
+          "internalType": "contract IERC6551Registry",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "rendererContract",
       "outputs": [
         {
           "internalType": "address",
@@ -892,22 +942,12 @@
           "type": "address"
         },
         {
-          "internalType": "uint256[]",
-          "name": "ids",
-          "type": "uint256[]"
-        },
-        {
-          "internalType": "uint256[]",
-          "name": "values",
-          "type": "uint256[]"
-        },
-        {
-          "internalType": "bytes",
-          "name": "data",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
         }
       ],
-      "name": "safeBatchTransferFrom",
+      "name": "safeTransferFrom",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -926,12 +966,7 @@
         },
         {
           "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "value",
+          "name": "tokenId",
           "type": "uint256"
         },
         {
@@ -941,19 +976,6 @@
         }
       ],
       "name": "safeTransferFrom",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_allNadsContract",
-          "type": "address"
-        }
-      ],
-      "name": "setAllNadsContract",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -980,11 +1002,11 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "_percentage",
+          "name": "_mintFee",
           "type": "uint256"
         }
       ],
-      "name": "setCreatorRoyaltyPercentage",
+      "name": "setMintFee",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -992,30 +1014,12 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "equipped",
-          "type": "bool"
+          "internalType": "address",
+          "name": "_rendererContract",
+          "type": "address"
         }
       ],
-      "name": "setEquippedStatus",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_fee",
-          "type": "uint256"
-        }
-      ],
-      "name": "setTemplateCreationFee",
+      "name": "setRendererContract",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1041,7 +1045,50 @@
     },
     {
       "inputs": [],
-      "name": "templateCreationFee",
+      "name": "symbol",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
+        }
+      ],
+      "name": "tokenByIndex",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
+        }
+      ],
+      "name": "tokenOfOwnerByIndex",
       "outputs": [
         {
           "internalType": "uint256",
@@ -1056,32 +1103,55 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "_templateId",
+          "name": "tokenId",
           "type": "uint256"
         }
       ],
-      "name": "toggleTemplateStatus",
+      "name": "tokenURI",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalSupply",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferFrom",
       "outputs": [],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_tokenId",
-          "type": "uint256"
-        }
-      ],
-      "name": "tokenExists",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -1101,34 +1171,16 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "_templateId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_newMaxSupply",
-          "type": "uint256"
-        }
-      ],
-      "name": "updateTemplateMaxSupply",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_templateId",
+          "name": "tokenId",
           "type": "uint256"
         },
         {
           "internalType": "string",
-          "name": "_newName",
+          "name": "newName",
           "type": "string"
         }
       ],
-      "name": "updateTemplateName",
+      "name": "updateName",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1137,34 +1189,36 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "_templateId",
+          "name": "_backgroundTemplateId",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "_newPrice",
+          "name": "_hairstyleTemplateId",
           "type": "uint256"
-        }
-      ],
-      "name": "updateTemplatePrice",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
+        },
         {
           "internalType": "uint256",
-          "name": "_tokenId",
+          "name": "_eyesTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_mouthTemplateId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_accessoryTemplateId",
           "type": "uint256"
         }
       ],
-      "name": "uri",
+      "name": "validateComponents",
       "outputs": [
         {
-          "internalType": "string",
+          "internalType": "bool",
           "name": "",
-          "type": "string"
+          "type": "bool"
         }
       ],
       "stateMutability": "view",
