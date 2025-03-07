@@ -4,6 +4,7 @@ import AllNadsComponentABI from '../contracts/AllNadsComponent.json';
 import AllNadsABI from '../contracts/AllNads.json';
 import AllNadsComponentQueryABI from '../contracts/AllNadsComponentQuery.json';
 import { RateLimiter, withRateLimitAndRetry } from '../utils/rateLimit';
+import { NFTService } from './NFTService';
 
 // Define Template interface
 export interface Template {
@@ -559,13 +560,7 @@ class BlockchainService {
 
     try {
       console.log('[Templates] Fetching templates from API');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/nft/templates`);
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const responseData = await response.json();
+      const responseData = await NFTService.fetchTemplates();
       
       // Check if the response has the expected structure
       if (!responseData.success) {

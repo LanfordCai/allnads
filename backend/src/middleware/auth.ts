@@ -91,3 +91,38 @@ export const privyAuth = async (
     throw new AppError('Invalid Authorization header format', 401, 'UNAUTHORIZED');
   }
 };
+
+export const basicPrivyAuth = async (
+  req: Request & { user?: any; isService?: boolean },
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    throw new AppError('Authorization header is required', 401, 'UNAUTHORIZED');
+  }
+
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    
+    // Check for service API key first
+    if (verifyServiceApiKey(token)) {
+      req.isService = true;
+      return next();
+    }
+
+    // If not a service key, verify as regular access token
+    try {
+      const accessTokenData = await privyService.verifyAccessToken(token);
+      req.user = { id: accessTokenData.privyUserId };
+      req.isService = false;
+      next();
+    } catch (error: any) {
+      console.error('Authentication error:', error);
+      throw new AppError(`Authentication failed: ${error.message}`, 401, 'UNAUTHORIZED');
+    }
+  } else {
+    throw new AppError('Invalid Authorization header format', 401, 'UNAUTHORIZED');
+  }
+};

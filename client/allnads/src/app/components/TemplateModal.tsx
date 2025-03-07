@@ -45,11 +45,9 @@ export default function TemplateModal({
   // Function to check if NFT account owns templates
   const checkTemplateOwnership = async (nftAccountAddress: string, forceRefresh: boolean = false) => {
     if (!nftAccountAddress) {
-      console.log('checkTemplateOwnership: nftAccountAddress is empty, skipping ownership check');
       return;
     }
     
-    console.log(`checkTemplateOwnership: Starting ownership check for address: ${nftAccountAddress}${forceRefresh ? ' (forced refresh)' : ''}`);
     await checkOwnership(nftAccountAddress, forceRefresh);
   };
   
@@ -61,21 +59,17 @@ export default function TemplateModal({
   // Function to load all templates
   const loadAllTemplates = async () => {
     if (templatesLoaded && Object.keys(templates).length > 0) {
-      console.log("Using cached templates");
       return;
     }
     
     setLoading(true);
     try {
-      console.log("Starting to load all templates from API...");
-      
       // Fetch all templates from the API in a single request
       const templatesByType = await blockchainService.fetchAllTemplatesFromAPI();
-      
       // Update the templates state with the fetched data
       setTemplates(templatesByType);
       
-      console.log("All templates loaded successfully from API");
+      console.log("All templates loaded successfully");
       setTemplatesLoaded(true);
     } catch (error) {
       console.error("Error loading templates:", error);
@@ -87,28 +81,15 @@ export default function TemplateModal({
   // Load templates and check ownership when component mounts or nftAccount changes
   useEffect(() => {
     const initializeData = async () => {
-      console.log('TemplateModal useEffect: initializeData called with nftAccount:', nftAccount);
-      
       if (nftAccount) {
         // Load templates
         await loadAllTemplates();
-        
-        // Check template ownership
-        console.log("[blockchain] Checking template ownership for:", nftAccount);
         await checkTemplateOwnership(nftAccount);
       } else {
-        console.log("Waiting for nftAccount before loading templates");
-        
-        // If nftAccount is not provided, try to get the user's address
-        console.log("No nftAccount provided, attempting to get user address");
         const address = await getUserAddress();
-        console.log("Got user address:", address);
-        
         if (address) {
-          console.log("Using user wallet address as fallback:", address);
           // Load templates
           await loadAllTemplates();
-          
           // Check template ownership using user's wallet address
           await checkTemplateOwnership(address);
         } else {

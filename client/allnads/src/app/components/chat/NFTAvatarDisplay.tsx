@@ -73,7 +73,6 @@ export function NFTAvatarDisplay({
       
       if (result.name) {
         setNftName(result.name);
-        console.log("NFT name:", result.name);
       }
       
       if (result.image) {

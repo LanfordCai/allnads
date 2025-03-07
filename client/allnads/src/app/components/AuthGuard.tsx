@@ -18,7 +18,6 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     // 如果认证加载完成且用户未登录，重定向到登录页
     if (!isLoading && !isAuthenticated) {
-      console.log(`User not authenticated, redirecting to login from ${pathname}`);
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, router, pathname]);

@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(setControllerContext('Health'));
 
 // GET /api/health - Health check endpoint
-router.get('/', (req, res) => {
+router.get('/', (_, res) => {
   return ResponseUtil.success(
     res, 
     {

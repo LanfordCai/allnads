@@ -27,7 +27,6 @@ export default function AirdropPage() {
         setIsCheckingNFT(true);
         try {
           const result = await NFTService.checkNFT(user.wallet.address);
-          console.log('Initial NFT check result:', result);
           
           if (result.success && result.data) {
             setHasNFT(result.data.hasNFT);
@@ -67,17 +66,10 @@ export default function AirdropPage() {
     setErrorMessage('');
 
     try {
-      // Log identity token availability
-      console.log('Using identity token for authentication:', identityToken ? 'Token available' : 'No token');
-      
-      console.log('Requesting airdrop for wallet address:', user.wallet.address);
       const result = await NFTService.airdropNFT(user.wallet.address, identityToken, nftName);
       
       if (result.success) {
         setAirdropStatus('success');
-        
-        // On successful airdrop request, show success message for 2 seconds then redirect to app
-        console.log('NFT airdrop successful, redirecting to app page shortly');
         
         // Redirect after a short delay so user sees the success message
         setTimeout(() => {

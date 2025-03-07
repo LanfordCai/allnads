@@ -1,5 +1,7 @@
 import { Template } from '../types/template';
+import dotenv from 'dotenv';
 
+dotenv.config();
 /**
  * TemplateCache class for fetching and caching templates from the API
  * Templates are fetched once at server start and used until server restart
@@ -9,11 +11,16 @@ export class TemplateCache {
   private readonly RETRY_DELAY_MS: number = 60 * 1000; // 1 minute retry delay
   private isRetrying: boolean = false;
   private apiUrl: string;
+  private apiKey: string;
 
   constructor(apiUrl?: string) {
     this.apiUrl = apiUrl || process.env.ALLNADS_SERVER_API_URL || '';
+    this.apiKey = process.env.ALLNADS_SERVER_API_KEY || '';
     if (!this.apiUrl) {
       console.warn('[TemplateCache] No API URL provided, template fetching will fail');
+    }
+    if (!this.apiKey) {
+      console.warn('[TemplateCache] No API key provided, authentication will fail');
     }
   }
 
@@ -30,7 +37,11 @@ export class TemplateCache {
 
     try {
       console.log('[TemplateCache] Fetching templates from API');
-      const response = await fetch(`${this.apiUrl}/api/nft/templates`);
+      const response = await fetch(`${this.apiUrl}/api/nft/templates`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);

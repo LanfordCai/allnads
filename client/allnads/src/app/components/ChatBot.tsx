@@ -15,6 +15,7 @@ import { useChatSessions } from '../hooks/useChatSessions';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
 import { useNotification } from '../contexts/NotificationContext';
 import { useTemplateOwnership } from '../hooks/useTemplateOwnership';
+import { usePrivyTokens } from '../hooks/usePrivyTokens';
 // Local storage key
 const STORAGE_KEY = 'allnads_chat_sessions';
 
@@ -56,6 +57,9 @@ export default function ChatBot() {
   // Chat service setup
   const chatServiceRef = useRef<ChatService | null>(null);
   
+  // Replace getPrivyTokens with usePrivyTokens hook
+  const { getTokens } = usePrivyTokens();
+  
   // Initialize chat service
   useEffect(() => {
     if (!chatServiceRef.current) {
@@ -63,24 +67,9 @@ export default function ChatBot() {
       chatServiceRef.current = new ChatService();
       
       // Set token provider function
-      chatServiceRef.current.setTokenProvider(getPrivyTokens);
+      chatServiceRef.current.setTokenProvider(getTokens);
     }
-  }, []);
-  
-  // Function to get Privy access tokens
-  const getPrivyTokens = async (): Promise<{ accessToken: string | null; identityToken: string | null }> => {
-    if (!isAuthenticated) {
-      return { accessToken: null, identityToken: null };
-    }
-    
-    try {
-      const accessToken = await privy.getAccessToken();
-      return { accessToken, identityToken };
-    } catch (error) {
-      console.error('Failed to get Privy access token:', error);
-      return { accessToken: null, identityToken: null };
-    }
-  };
+  }, [getTokens]); // Add getTokens to dependency array
   
   // Clear authentication error
   useEffect(() => {
@@ -317,19 +306,13 @@ export default function ChatBot() {
     }
   };
 
-  // 监听用户认证状态变化
   useEffect(() => {
-    // 当用户登录时，检查是否有会话数据
     if (isAuthenticated && !isLoading) {
-      console.log('用户已登录，检查会话数据');
-      // 如果没有会话数据，创建一个新会话
       if (sessions.length === 0) {
-        console.log('没有会话数据，创建新会话');
         createNewSession(isMobile || isMediumScreen, chatServiceRef.current, isNftInfoSet);
       }
     }
     
-    // 标记初始渲染已完成
     if (!initialRenderRef.current) {
       initialRenderRef.current = true;
     }

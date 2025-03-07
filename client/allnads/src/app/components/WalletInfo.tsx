@@ -38,7 +38,6 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
   const { balance: privyWalletBalance } = useAccountBalance(walletAddress as Address);
   
   // Check if the wallet is already delegated
-  console.log(`user: ${JSON.stringify(user, null, 2)}`);
   const isWalletDelegated = !!user?.linkedAccounts?.find(
     (account) => account.type === 'wallet' && 'delegated' in account && account.delegated
   );
