@@ -21,28 +21,49 @@ const addressBookEntrySchema = z.object({
  */
 export class AddressBookController {
   /**
-   * 获取当前用户的地址簿
+   * 验证用户访问权限
+   */
+  private static validateUserAccess(req: Request & { user?: any; isService?: boolean }, res: Response): boolean {
+    const { userId: rawUserId } = req.params;
+    const userId = decodeURIComponent(rawUserId);
+    
+    // Allow service requests to bypass user check
+    if (req.isService) {
+      return true;
+    }
+
+    if (!req.user || !req.user.id) {
+      Logger.warn('AddressBookController', 'User not authenticated');
+      ResponseUtil.error(res, 'User not authenticated', 401, 'AUTH_REQUIRED');
+      return false;
+    }
+
+    if (userId !== req.user.id) {
+      Logger.warn('AddressBookController', `User ${req.user.id} attempted to access address book of user ${userId}`);
+      ResponseUtil.error(res, 'Unauthorized access', 403, 'FORBIDDEN');
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 获取用户的地址簿
    */
   static async getAddressBook(req: Request & { user?: any }, res: Response) {
     try {
       Logger.debug('AddressBookController', 'Getting address book for user');
       
-      if (!req.user || !req.user.id) {
-        Logger.warn('AddressBookController', 'User not authenticated when accessing address book');
-        return ResponseUtil.error(
-          res, 
-          'User not authenticated',
-          401,
-          'AUTH_REQUIRED'
-        );
-      }
+      if (!AddressBookController.validateUserAccess(req, res)) return;
 
-      const privyUserId = req.user.id;
-      Logger.debug('AddressBookController', `Fetching address book for user: ${privyUserId}`);
+      const { userId: rawUserId } = req.params;
+      const userId = decodeURIComponent(rawUserId);
+
+      Logger.debug('AddressBookController', `Fetching address book for user: ${userId}`);
       
-      const addresses = await db.select().from(addressBook).where(eq(addressBook.privyUserId, privyUserId));
+      const addresses = await db.select().from(addressBook).where(eq(addressBook.privyUserId, userId));
       
-      Logger.info('AddressBookController', `Successfully retrieved ${addresses.length} addresses for user: ${privyUserId}`);
+      Logger.info('AddressBookController', `Successfully retrieved ${addresses.length} addresses for user: ${userId}`);
       return ResponseUtil.success(res, { addresses });
     } catch (error: any) {
       Logger.error('AddressBookController', 'Error getting address book', error);
@@ -62,15 +83,7 @@ export class AddressBookController {
     try {
       Logger.debug('AddressBookController', 'Adding address to address book');
       
-      if (!req.user || !req.user.id) {
-        Logger.warn('AddressBookController', 'User not authenticated when adding address');
-        return ResponseUtil.error(
-          res, 
-          'User not authenticated',
-          401,
-          'AUTH_REQUIRED'
-        );
-      }
+      if (!AddressBookController.validateUserAccess(req, res)) return;
 
       // 验证请求体
       const validationResult = addressBookEntrySchema.safeParse(req.body);
@@ -87,12 +100,13 @@ export class AddressBookController {
       }
       
       const { name, address, description } = validationResult.data;
-      const privyUserId = req.user.id;
+      const { userId: rawUserId } = req.params;
+      const userId = decodeURIComponent(rawUserId);
       
       // 添加新地址 (允许重复添加相同地址)
       const now = new Date();
       const newAddress = await db.insert(addressBook).values({
-        privyUserId,
+        privyUserId: userId,
         name,
         address,
         description,
@@ -100,7 +114,7 @@ export class AddressBookController {
         updatedAt: now
       }).returning();
       
-      Logger.info('AddressBookController', `Successfully added address ${address} for user ${privyUserId}`);
+      Logger.info('AddressBookController', `Successfully added address ${address} for user ${userId}`);
       return ResponseUtil.success(
         res,
         newAddress[0],
@@ -122,18 +136,11 @@ export class AddressBookController {
    */
   static async updateAddress(req: Request & { user?: any }, res: Response) {
     try {
-      const { addressId } = req.params;
+      const { addressId, userId: rawUserId } = req.params;
+      const userId = decodeURIComponent(rawUserId);
       Logger.debug('AddressBookController', `Updating address with ID: ${addressId}`);
       
-      if (!req.user || !req.user.id) {
-        Logger.warn('AddressBookController', 'User not authenticated when updating address');
-        return ResponseUtil.error(
-          res, 
-          'User not authenticated',
-          401,
-          'AUTH_REQUIRED'
-        );
-      }
+      if (!AddressBookController.validateUserAccess(req, res)) return;
 
       if (!addressId || isNaN(parseInt(addressId))) {
         Logger.warn('AddressBookController', `Invalid address ID: ${addressId}`);
@@ -160,18 +167,17 @@ export class AddressBookController {
       }
       
       const { name, address, description } = validationResult.data;
-      const privyUserId = req.user.id;
       
       // 检查地址是否存在且属于当前用户
       const existingAddress = await db.select().from(addressBook).where(
         and(
           eq(addressBook.id, parseInt(addressId)),
-          eq(addressBook.privyUserId, privyUserId)
+          eq(addressBook.privyUserId, userId)
         )
       );
       
       if (existingAddress.length === 0) {
-        Logger.warn('AddressBookController', `Address with ID ${addressId} not found for user ${privyUserId}`);
+        Logger.warn('AddressBookController', `Address with ID ${addressId} not found for user ${userId}`);
         return ResponseUtil.error(
           res,
           'Address not found in your address book',
@@ -191,12 +197,12 @@ export class AddressBookController {
         .where(
           and(
             eq(addressBook.id, parseInt(addressId)),
-            eq(addressBook.privyUserId, privyUserId)
+            eq(addressBook.privyUserId, userId)
           )
         )
         .returning();
       
-      Logger.info('AddressBookController', `Successfully updated address with ID ${addressId} for user ${privyUserId}`);
+      Logger.info('AddressBookController', `Successfully updated address with ID ${addressId} for user ${userId}`);
       return ResponseUtil.success(
         res,
         updatedAddress[0],
@@ -218,18 +224,11 @@ export class AddressBookController {
    */
   static async deleteAddress(req: Request & { user?: any }, res: Response) {
     try {
-      const { addressId } = req.params;
+      const { addressId, userId: rawUserId } = req.params;
+      const userId = decodeURIComponent(rawUserId);
       Logger.debug('AddressBookController', `Deleting address with ID: ${addressId}`);
       
-      if (!req.user || !req.user.id) {
-        Logger.warn('AddressBookController', 'User not authenticated when deleting address');
-        return ResponseUtil.error(
-          res, 
-          'User not authenticated',
-          401,
-          'AUTH_REQUIRED'
-        );
-      }
+      if (!AddressBookController.validateUserAccess(req, res)) return;
 
       if (!addressId || isNaN(parseInt(addressId))) {
         Logger.warn('AddressBookController', `Invalid address ID: ${addressId}`);
@@ -240,19 +239,17 @@ export class AddressBookController {
           'INVALID_ID'
         );
       }
-
-      const privyUserId = req.user.id;
       
       // 检查地址是否存在且属于当前用户
       const existingAddress = await db.select().from(addressBook).where(
         and(
           eq(addressBook.id, parseInt(addressId)),
-          eq(addressBook.privyUserId, privyUserId)
+          eq(addressBook.privyUserId, userId)
         )
       );
       
       if (existingAddress.length === 0) {
-        Logger.warn('AddressBookController', `Address with ID ${addressId} not found for user ${privyUserId}`);
+        Logger.warn('AddressBookController', `Address with ID ${addressId} not found for user ${userId}`);
         return ResponseUtil.error(
           res,
           'Address not found in your address book',
@@ -265,11 +262,11 @@ export class AddressBookController {
       await db.delete(addressBook).where(
         and(
           eq(addressBook.id, parseInt(addressId)),
-          eq(addressBook.privyUserId, privyUserId)
+          eq(addressBook.privyUserId, userId)
         )
       );
       
-      Logger.info('AddressBookController', `Successfully deleted address with ID ${addressId} for user ${privyUserId}`);
+      Logger.info('AddressBookController', `Successfully deleted address with ID ${addressId} for user ${userId}`);
       return ResponseUtil.success(
         res,
         null,

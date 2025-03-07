@@ -32,21 +32,10 @@ export const chatEmbeddings = pgTable('chat_embeddings', {
 });
 */
 
-// 用户引用表 - 关联 Privy 用户和应用内数据
-export const userReferences = pgTable('user_references', {
-  id: serial('id').primaryKey(),
-  privyUserId: varchar('privy_user_id', { length: 255 }).notNull().unique(),
-  username: varchar('username', { length: 255 }),
-  email: varchar('email', { length: 255 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  lastLoginAt: timestamp('last_login_at'),
-  metadata: jsonb('metadata'),
-});
-
 // 用户地址簿表 - 存储用户保存的地址
 export const addressBook = pgTable('address_book', {
   id: serial('id').primaryKey(),
-  privyUserId: varchar('privy_user_id', { length: 255 }).notNull().references(() => userReferences.privyUserId, { onDelete: 'cascade' }),
+  privyUserId: varchar('privy_user_id', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   address: varchar('address', { length: 255 }).notNull(),
   description: text('description'),
@@ -57,7 +46,7 @@ export const addressBook = pgTable('address_book', {
 // 用户奖励领取记录表 - 记录用户NFT和MON代币的领取状态
 export const userClaims = pgTable('user_claims', {
   id: serial('id').primaryKey(),
-  privyUserId: varchar('privy_user_id', { length: 255 }).notNull().references(() => userReferences.privyUserId, { onDelete: 'cascade' }),
+  privyUserId: varchar('privy_user_id', { length: 255 }).notNull(),
   address: varchar('address', { length: 255 }).notNull(),
   hasClaimedNFT: boolean('has_claimed_nft').notNull().default(false),
   nftClaimTxId: varchar('nft_claim_tx_id', { length: 255 }),
