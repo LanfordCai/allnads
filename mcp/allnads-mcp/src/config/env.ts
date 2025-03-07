@@ -14,8 +14,9 @@ const envSchema = z.object({
   MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   MONAD_TESTNET_ALLNADS_COMPONENT_QUERY_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   
-  // API URL for template fetching
+  // API URL and key for server communication
   ALLNADS_SERVER_API_URL: z.string().url(),
+  ALLNADS_SERVER_API_KEY: z.string().min(1, 'API key is required'),
 });
 
 // Validate environment variables

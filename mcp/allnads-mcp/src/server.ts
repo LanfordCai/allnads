@@ -15,6 +15,7 @@ import { getOwnedComponentsTool } from './tools/getOwnedComponents';
 import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools';
 import { uniswapQuoteTool, uniswapSwapTool } from './tools/swapTools';
 import { getTemplatesTool } from './tools/getTemplates';
+import { getAllAddressesTool, addAddressTool, removeAddressTool, updateAddressTool } from './tools/addressBookTools.js';
 
 // Create a new MCP server instance
 const server = new McpServer({
@@ -222,6 +223,80 @@ server.tool(
   }
 )
 
+server.tool(
+  getAllAddressesTool.name,
+  getAllAddressesTool.description,
+  {
+    privyUserId: z.string().describe('The Privy userId of the sender')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${getAllAddressesTool.name}...`);
+    const result = await getAllAddressesTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(getAllAddressesTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+server.tool(
+  addAddressTool.name,
+  addAddressTool.description,
+  {
+    privyUserId: z.string().describe('The Privy user ID of the sender'),
+    addressName: z.string().describe('The name/label for the address'),
+    address: z.string().describe('The ethereum address to add')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${addAddressTool.name}...`);
+    const result = await addAddressTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(addAddressTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+server.tool(
+  removeAddressTool.name,
+  removeAddressTool.description,
+  {
+    privyUserId: z.string().describe('The Privy user ID of the sender'),
+    addressIdentifier: z.string().describe('The address or name to find and remove from the address book')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${removeAddressTool.name}...`);
+    const result = await removeAddressTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(removeAddressTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+const updateAddressParams = {
+  privyUserId: z.string().describe('The Privy user ID of the sender'),
+  addressIdentifier: z.string().describe('The current address or name to find in the address book'),
+  newName: z.string().optional().describe('The new name for the address'),
+  newAddress: z.string().optional().describe('The new ethereum address')
+};
+
+const updateAddressSchema = z.object(updateAddressParams).refine((data) => {
+  return (data.newName !== undefined && data.newAddress === undefined) || 
+         (data.newName === undefined && data.newAddress !== undefined);
+}, {
+  message: 'Exactly one of newName or newAddress must be provided'
+});
+
+server.tool(
+  updateAddressTool.name,
+  updateAddressTool.description,
+  updateAddressParams,
+  async (args: z.infer<typeof updateAddressSchema>) => {
+    console.log(`⚡ Executing ${updateAddressTool.name}...`);
+    const result = await updateAddressTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(updateAddressTool.name, args, result);
+    return adaptedResponse;
+  }
+);
 
 // Check if we should run in HTTP server mode
 const USE_HTTP = process.env.USE_HTTP === 'true';
