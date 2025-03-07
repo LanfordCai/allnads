@@ -13,7 +13,7 @@ import { mintTemplateComponentTool } from './tools/mintTemplateComponent';
 import { templateCache } from './utils/globalCache';
 import { getOwnedComponentsTool } from './tools/getOwnedComponents';
 import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools';
-import { uniswapQuoteTool } from './tools/swapTools';
+import { uniswapQuoteTool, uniswapSwapTool } from './tools/swapTools';
 
 // Create a new MCP server instance
 const server = new McpServer({
@@ -178,6 +178,32 @@ server.tool(
     const result = await uniswapQuoteTool.execute(args);
     const adaptedResponse = adaptToolResponse(result);
     logToolActivity(uniswapQuoteTool.name, args, result);
+    return adaptedResponse;
+  }
+)
+
+server.tool(
+  uniswapSwapTool.name,
+  uniswapSwapTool.description,
+  {
+    tokenIn: z.string().describe('The token to swap from'),
+    tokenOut: z.string().describe('The token to swap to'),
+    amountIn: z.string().describe('The amount of tokens to swap'),
+    slippageTolerance: z.number().optional().describe('Slippage tolerance in percentage (default: 0.5%)'),
+    allNadsAccount: z.string().describe('The allnads account that will execute the swap'),
+    deadline: z.number().optional().describe('Transaction deadline in seconds (default: 20 minutes from now)')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${uniswapSwapTool.name}...`);
+    // Provide default values for optional parameters
+    const params = {
+      ...args,
+      slippageTolerance: args.slippageTolerance ?? 0.5,
+      deadline: args.deadline ?? Math.floor(Date.now() / 1000) + 60 * 20 // 20 minutes from now
+    };
+    const result = await uniswapSwapTool.execute(params);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(uniswapSwapTool.name, args, result);
     return adaptedResponse;
   }
 )
