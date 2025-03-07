@@ -92,6 +92,14 @@ export class ChatService {
     console.log('NFT information has been set', { tokenId, nftAccount, metadata });
   }
 
+  /**
+   * Check if the WebSocket connection is open and ready
+   * @returns boolean indicating if the connection is open
+   */
+  public isConnectionOpen(): boolean {
+    return this.socket !== null && this.socket.readyState === WebSocket.OPEN;
+  }
+
   public connect(): Promise<void> {
     return new Promise(async (resolve, reject) => {
       if (this.socket?.readyState === WebSocket.OPEN) {

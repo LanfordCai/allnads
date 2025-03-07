@@ -8,7 +8,6 @@ import WalletInfoComponent from './WalletInfo';
 import { ChatService } from '../services/ChatService';
 import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { useRouter } from 'next/navigation';
-import { useIdentityToken } from '@privy-io/react-auth';
 import { useChatWithNFT } from '../hooks/useChatWithNFT';
 import { NFTAvatarDisplay } from './chat/NFTAvatarDisplay';
 import { useChatSessions } from '../hooks/useChatSessions';
@@ -46,7 +45,6 @@ export default function ChatBot() {
   const router = useRouter();
   const [authStatus, setAuthStatus] = useState<'authenticated' | 'anonymous' | 'pending'>('pending');
   const [authError, setAuthError] = useState<string | null>(null);
-  const { identityToken } = useIdentityToken();
   
   // Avatar image state
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
@@ -57,7 +55,7 @@ export default function ChatBot() {
   // Chat service setup
   const chatServiceRef = useRef<ChatService | null>(null);
   
-  // Replace getPrivyTokens with usePrivyTokens hook
+  // Use the usePrivyTokens hook
   const { getTokens } = usePrivyTokens();
   
   // Initialize chat service
@@ -223,7 +221,7 @@ export default function ChatBot() {
   }, []);
 
   // Handle sending message
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string) => {
     if (!chatServiceRef.current) {
       console.error('Chat service not initialized');
       return;
@@ -233,7 +231,6 @@ export default function ChatBot() {
     if (authStatus !== 'authenticated') {
       console.log('User not authenticated, cannot send message');
       setAuthError('Please log in to send message');
-      // No need to display error message as UI already displays login prompt
       return;
     }
 
@@ -251,19 +248,33 @@ export default function ChatBot() {
     // Create and immediately add user message to UI
     const userMessage = chatServiceRef.current.createLocalMessage(content, 'user');
     
-    // Set loading state
-    // setIsLoading(true); // Now handled in the WebSocket hook
+    // Check if there are previous messages and if the time gap is more than 5 minutes
+    const previousMessage = activeSession.messages[activeSession.messages.length - 1];
+    const timeSinceLastMessage = previousMessage 
+      ? new Date().getTime() - new Date(previousMessage.timestamp).getTime() 
+      : Infinity;
+    const fiveMinutesInMs = 5 * 60 * 1000;
+
+    // If time gap is more than 5 minutes or WebSocket is not connected, try to reconnect
+    if (timeSinceLastMessage > fiveMinutesInMs || 
+        !chatServiceRef.current.isConnectionOpen()) {
+      console.log('Connection might be stale or closed, attempting to reconnect...');
+      try {
+        await chatServiceRef.current.connect();
+        console.log('Successfully reconnected WebSocket');
+      } catch (error) {
+        console.error('Failed to reconnect:', error);
+        showNotification('Failed to establish connection. Please try again.', 'error');
+        return;
+      }
+    }
     
     // Update session
     setSessions((prevSessions: ChatSession[]) => {
       console.log(`Adding user message to session: ${currentSessionId}`, content.substring(0, 30));
       return prevSessions.map((session: ChatSession) => {
         if (session.id === currentSessionId) {
-          // Set session title:
-          // 1. If this is a new chat (no messages), directly use the first message as title
-          // 2. Or if the current title is still "New Chat" default title, also use this message to update title
           const title = updateSessionTitle(session, content);
-          
           return {
             ...session,
             title,
@@ -282,15 +293,15 @@ export default function ChatBot() {
     // Send message to server, using current session ID
     try {
       chatServiceRef.current.sendMessage(content, {
-        sessionId: currentSessionId, // Use current active session ID
+        sessionId: currentSessionId,
         enableTools: true
       });
     } catch (error) {
       console.error('Error sending message:', error);
       // Update UI to display error
       const errorMessage = chatServiceRef.current.createLocalMessage(
-        'Failed to send message. Please check your connection.', 
-        'bot'
+        'Failed to send message. Please check your connection and try again.', 
+        'error'
       );
       
       setSessions((prevSessions: ChatSession[]) => prevSessions.map((session: ChatSession) => {

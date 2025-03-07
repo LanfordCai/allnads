@@ -5,19 +5,7 @@ import AllNadsABI from '../contracts/AllNads.json';
 import AllNadsComponentQueryABI from '../contracts/AllNadsComponentQuery.json';
 import { RateLimiter, withRateLimitAndRetry } from '../utils/rateLimit';
 import { NFTService } from './NFTService';
-
-// Define Template interface
-export interface Template {
-  id: bigint;
-  name: string;
-  creator: string;
-  maxSupply: bigint;
-  currentSupply: bigint;
-  price: bigint;
-  imageData: string;
-  isActive: boolean;
-  componentType: number;
-}
+import { Template } from '../types/template';
 
 // Define AvatarData interface
 export interface AvatarData {

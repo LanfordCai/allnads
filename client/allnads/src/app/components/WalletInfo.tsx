@@ -245,7 +245,7 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
         <div className="absolute top-3 right-3">
           {walletAddress && (
             <span className={`text-white text-xs font-medium px-3 py-1 rounded-full ${isWalletDelegated ? 'bg-[#22c55e]' : 'bg-[#ef4444]'}`}>
-              {isWalletDelegated ? 'Delegated' : 'Not Delegated'}
+              {isWalletDelegated ? 'AutoSign Enabled' : 'AutoSign Disabled'}
             </span>
           )}
         </div>
@@ -315,7 +315,7 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
               }`}
             disabled={!walletAddress}
           >
-            {isWalletDelegated ? 'Undelegate' : 'Delegate'}
+            {isWalletDelegated ? 'Disable AutoSign' : 'Enable AutoSign'}
           </button>
 
           <div className="p-3 bg-[#F9F7FF] rounded-lg border border-[#C4B5FD] text-sm">

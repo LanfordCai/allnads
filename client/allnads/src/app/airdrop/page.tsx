@@ -66,7 +66,7 @@ export default function AirdropPage() {
     setErrorMessage('');
 
     try {
-      const result = await NFTService.airdropNFT(user.wallet.address, identityToken, nftName);
+      const result = await NFTService.airdropNFT(user.wallet.address, nftName);
       
       if (result.success) {
         setAirdropStatus('success');

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import ImageCard from '../ImageCard';
-import { blockchainService, Template } from '../../services/blockchain';
+import { blockchainService } from '../../services/blockchain';
+import { Template } from '../../types/template';
 import Image from 'next/image';
 
 // Define a type for template details that extends Template

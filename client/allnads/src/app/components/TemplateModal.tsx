@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { blockchainService, Template } from '../services/blockchain';
+import { blockchainService } from '../services/blockchain';
+import { Template } from '../types/template';
 import Image from 'next/image';
 import { TemplateDetails } from '../types/template';
 import { useTemplateOwnership } from '../hooks/useTemplateOwnership';

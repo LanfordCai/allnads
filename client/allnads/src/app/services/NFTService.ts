@@ -1,5 +1,4 @@
-// NFT service to handle NFT-related API requests
-import { usePrivyTokens } from '../hooks/usePrivyTokens';
+import { Template } from '../types/template';
 
 /**
  * API response interface for standardized server responses
@@ -64,7 +63,7 @@ export class NFTService {
    * @returns Promise with API response containing templates data
    * @throws {AuthenticationError} If user is not authenticated
    */
-  static async fetchTemplates(): Promise<ApiResponse<{ templates: Record<string, any[]> }>> {
+  static async fetchTemplates(): Promise<ApiResponse<{ templates: Record<string, Template[]> }>> {
     console.log('Fetching templates from API');
     
     try {

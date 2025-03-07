@@ -1,6 +1,6 @@
 import { usePrivy, useIdentityToken } from '@privy-io/react-auth';
 
-export async function getPrivyTokens(): Promise<{ accessToken: string | null; identityToken: string | null }> {
+export function usePrivyTokens(): { accessToken: string | null; identityToken: string | null } | Promise<{ accessToken: string | null; identityToken: string | null }> {
   const privy = usePrivy();
   const { identityToken } = useIdentityToken();
 
@@ -9,8 +9,10 @@ export async function getPrivyTokens(): Promise<{ accessToken: string | null; id
   }
   
   try {
-    const accessToken = await privy.getAccessToken();
-    return { accessToken, identityToken };
+    return privy.getAccessToken().then(accessToken => ({
+      accessToken,
+      identityToken
+    }));
   } catch (error) {
     console.error('Failed to get Privy access token:', error);
     return { accessToken: null, identityToken: null };

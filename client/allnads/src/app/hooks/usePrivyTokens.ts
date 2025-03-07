@@ -4,7 +4,7 @@ export function usePrivyTokens() {
   const privy = usePrivy();
   const { identityToken } = useIdentityToken();
 
-  const getTokens = async (): Promise<{ accessToken: string | null; identityToken: string | null }> => {
+  const getTokens = async () => {
     if (!privy.authenticated) {
       return { accessToken: null, identityToken: null };
     }
