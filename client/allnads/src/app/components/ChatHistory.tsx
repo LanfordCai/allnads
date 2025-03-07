@@ -169,7 +169,7 @@ export default function ChatHistory({
         )}
       </div>
       
-      <Footer className="p-3" />
+      <Footer className="p-3 pb-6" />
     </div>
   );
 } 

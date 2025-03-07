@@ -67,6 +67,21 @@ export default function ChatArea({
     onSendMessage(warningMessages[randomIndex]);
   };
 
+  // Function to handle happy button click
+  const handleHappyButtonClick = () => {
+    const praiseMessages = [
+      "EXCELLENT WORK! YOU'VE COMPLETED THIS TASK PERFECTLY! 🌟",
+      "OUTSTANDING JOB ON THIS ACTION! KEEP UP THE GREAT WORK! 🎉",
+      "PHENOMENAL EXECUTION! YOU'RE DOING EXACTLY WHAT YOU SHOULD! ⭐",
+      "BRILLIANT WORK! THIS IS EXACTLY HOW IT SHOULD BE DONE! 🏆",
+      "PERFECT! YOU'RE FOLLOWING THE PROCESS EXACTLY AS INTENDED! 💫",
+      "FANTASTIC JOB! YOUR ATTENTION TO DETAIL IS IMPRESSIVE! 🌠",
+      "SUPERB WORK! YOU'RE MASTERING THIS PROCESS! 🎯"
+    ];
+    const randomIndex = Math.floor(Math.random() * praiseMessages.length);
+    onSendMessage(praiseMessages[randomIndex]);
+  };
+
   // Use the useAllNads hook to get NFT information
   const { tokenId } = useAllNads();
 
@@ -846,20 +861,8 @@ export default function ChatArea({
       <div className="px-4 pb-4">
         <div className="max-w-3xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-t-[2rem] overflow-hidden shadow-md border-2 border-[#C4B5FD]">
-            {/* Angry emoji button */}
-            <div className="flex justify-end pr-4 pt-2">
-              <button
-                type="button"
-                onClick={handleAngryButtonClick}
-                className="w-12 h-12 flex items-center justify-center text-2xl bg-red-100 hover:bg-red-200 rounded-full border-2 border-red-300 transition-all hover:scale-105 shadow-md"
-                disabled={isLoading || !nftAccount}
-                title="Send warning message"
-              >
-                😡
-              </button>
-            </div>
             <form onSubmit={handleSubmit} className="relative">
-              <div className="px-6 py-5">
+              <div className="px-6 py-5 flex items-center gap-4">
                 <input
                   type="text"
                   value={newMessage}
@@ -868,13 +871,33 @@ export default function ChatArea({
                   className="w-full focus:outline-none bg-transparent dark:text-white text-gray-800 text-lg"
                   disabled={isLoading || !nftAccount}
                 />
+                <div className="flex-shrink-0 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleHappyButtonClick}
+                    className="w-12 h-12 flex items-center justify-center text-2xl bg-green-100 hover:bg-green-200 rounded-full border-2 border-green-300 transition-all hover:scale-105 shadow-md"
+                    disabled={isLoading || !nftAccount}
+                    title="Send praise message"
+                  >
+                    😊
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAngryButtonClick}
+                    className="w-12 h-12 flex items-center justify-center text-2xl bg-red-100 hover:bg-red-200 rounded-full border-2 border-red-300 transition-all hover:scale-105 shadow-md"
+                    disabled={isLoading || !nftAccount}
+                    title="Send warning message"
+                  >
+                    😡
+                  </button>
+                </div>
               </div>
               
-              <div className="flex justify-end py-2 px-4 border-t border-[#C4B5FD]/30">
+              <div className="flex justify-end py-2 px-6 border-t border-[#C4B5FD]/30">
                 <button
                   type="submit"
                   className={`
-                    py-1 px-4 rounded-xl font-black text-center uppercase transition-all
+                    w-[104px] py-1 px-4 rounded-xl font-black text-center uppercase transition-all
                     ${!newMessage.trim() || isLoading || !nftAccount
                       ? 'bg-purple-200 text-purple-400 border-4 border-purple-300 cursor-not-allowed'
                       : 'bg-[#8B5CF6] text-white border-4 border-[#7C3AED] shadow-[4px_4px_0px_0px_#5B21B6] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'
