@@ -14,6 +14,7 @@ import { templateCache } from './utils/globalCache';
 import { getOwnedComponentsTool } from './tools/getOwnedComponents';
 import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools';
 import { uniswapQuoteTool, uniswapSwapTool } from './tools/swapTools';
+import { getTemplatesTool } from './tools/getTemplates';
 
 // Create a new MCP server instance
 const server = new McpServer({
@@ -207,6 +208,23 @@ server.tool(
     return adaptedResponse;
   }
 )
+
+server.tool(
+  getTemplatesTool.name,
+  getTemplatesTool.description,
+  {
+    type: z.enum(['all', 'background', 'hairstyle', 'eyes', 'mouth', 'accessory'])
+      .describe('Filter templates by type (all, background, hairstyle, eyes, mouth, accessory)')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${getTemplatesTool.name}...`);
+    const result = await getTemplatesTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(getTemplatesTool.name, args, result);
+    return adaptedResponse;
+  }
+)
+
 
 // Check if we should run in HTTP server mode
 const USE_HTTP = process.env.USE_HTTP === 'true';

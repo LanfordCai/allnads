@@ -273,6 +273,7 @@ export class ChatService {
           let toolArgs: Record<string, any> = {};
 
           try {
+            console.log('toolCall.function.arguments', toolCall.function.arguments);
             toolArgs = typeof toolCall.function.arguments === 'string'
               ? JSON.parse(toolCall.function.arguments)
               : toolCall.function.arguments;
@@ -294,7 +295,7 @@ export class ChatService {
 
             // Execute tool call
             const result = await mcpManager.callTool(toolName, toolArgs);
-
+            console.log('result', result);
             // Extract content from result
             let resultContent = '';
             if (result.content && result.content.length > 0) {
