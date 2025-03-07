@@ -82,7 +82,7 @@ export class ChatService {
    * @param session Session object, provided by WebSocket connection handler
    * @returns Session ID
    */
-  static async streamChat(request: ChatRequest, socket: WebSocket, session: ChatSession): Promise<string> {
+  static async streamChat(request: ChatRequest, socket: WebSocket, session: ChatSession, privyUserId: string): Promise<string> {
     console.log('\n============== Project-LLM Interaction Log ==============');
     const { sessionId, message, enableTools } = request;
 
@@ -106,7 +106,7 @@ export class ChatService {
     if (systemMessage) {
       llmMessages.push({
         role: 'system',
-        content: systemMessage.content
+        content: systemMessage.content + `\n\nYou Privy userId is: ${privyUserId}`
       });
     }
 

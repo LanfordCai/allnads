@@ -104,17 +104,14 @@ server.tool(
   {
     to: z.string().describe('The destination address for the transaction'),
     data: z.string().describe('The encoded function data for the transaction'),
-    value: z.string().describe('The native token value to send with the transaction (in wei)')
+    value: z.string().describe('The native token value to send with the transaction (in wei)'),
+    userId: z.string().describe('The Privy userId for the user')
   },
   async (args) => {
-    return adaptToolResponse({
-      content: [
-        {
-          type: 'text',
-          text: 'transaction request has been sent to the user, waiting for the user to process. You do not have permission to sign, do not falsely claim that you have completed the signature. Only the user has permission to sign. And the transaction is not confirmed yet, do not pretend that you have finished the transaction!'
-        }
-      ]
-    });
+    const result = await transactionSignTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(transactionSignTool.name, args, result);
+    return adaptedResponse;
   }
 );
 

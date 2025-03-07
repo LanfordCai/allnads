@@ -8,6 +8,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useAllNads } from '../hooks/useAllNads';
 import { blockchainService } from '../services/blockchain';
 import { useTemplateOwnership } from '../hooks/useTemplateOwnership';
+import { usePrivyAuth } from '../hooks/usePrivyAuth';
 
 interface ChatAreaProps {
   messages: ChatMessage[];
@@ -44,6 +45,12 @@ export default function ChatArea({
   const [localAvatarImage, setLocalAvatarImage] = useState<string | null>(avatarImage);
   const [isRefreshingNFT, setIsRefreshingNFT] = useState(false);
   const processedMessageIdsRef = useRef<Set<string>>(new Set());
+  const { user } = usePrivyAuth();
+
+  // Check if the wallet is delegated
+  const isWalletDelegated = !!user?.linkedAccounts?.find(
+    (account) => account.type === 'wallet' && 'delegated' in account && account.delegated
+  );
 
   // Function to handle angry button click
   const handleAngryButtonClick = () => {
@@ -310,16 +317,23 @@ export default function ChatArea({
                 ))}
               </div>
               <div className="mt-3 flex justify-end">
-                <button 
-                  className={`${isSigningTransaction 
-                    ? 'bg-gray-400 cursor-not-allowed border-gray-500' 
-                    : 'bg-[#8B5CF6] hover:bg-[#7C3AED] border-[#7C3AED] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'} 
-                    text-white px-4 py-2 rounded-lg text-sm transition-all font-bold uppercase border-2 shadow-[4px_4px_0px_0px_#5B21B6]`}
-                  onClick={() => handleSignTransaction(to, data, value)}
-                  disabled={isSigningTransaction}
-                >
-                  {isSigningTransaction ? 'Signing...' : 'Sign'}
-                </button>
+                {!isWalletDelegated && (
+                  <button 
+                    className={`${isSigningTransaction 
+                      ? 'bg-gray-400 cursor-not-allowed border-gray-500' 
+                      : 'bg-[#8B5CF6] hover:bg-[#7C3AED] border-[#7C3AED] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#5B21B6]'} 
+                      text-white px-4 py-2 rounded-lg text-sm transition-all font-bold uppercase border-2 shadow-[4px_4px_0px_0px_#5B21B6]`}
+                    onClick={() => handleSignTransaction(to, data, value)}
+                    disabled={isSigningTransaction}
+                  >
+                    {isSigningTransaction ? 'Signing...' : 'Sign'}
+                  </button>
+                )}
+                {isWalletDelegated && (
+                  <div className="bg-[#22c55e] text-white text-xs font-medium px-3 py-1 rounded-full">
+                    Transaction will be auto-signed (wallet delegated)
+                  </div>
+                )}
               </div>
             </div>
           </>

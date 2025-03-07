@@ -5,7 +5,7 @@ import { usePrivyAuth } from '../hooks/usePrivyAuth';
 import { useAccountBalance } from '../hooks/useAccountBalance';
 import { Address } from 'viem';
 import { useNotification } from '../contexts/NotificationContext';
-import { useFundWallet } from '@privy-io/react-auth';
+import { useFundWallet, useWallets, useDelegatedActions } from '@privy-io/react-auth';
 import AddressBookModal from './AddressBookModal';
 
 // Define Monad Testnet chain
@@ -30,10 +30,18 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
   const { showNotification } = useNotification();
   const { fundWallet } = useFundWallet();
   const { balance } = useAccountBalance(nftAccount as Address);
+  const { wallets } = useWallets();
+  const { delegateWallet, revokeWallets } = useDelegatedActions();
 
   // Get user wallet address
   const walletAddress = user?.wallet?.address;
   const { balance: privyWalletBalance } = useAccountBalance(walletAddress as Address);
+  
+  // Check if the wallet is already delegated
+  console.log(`user: ${JSON.stringify(user, null, 2)}`);
+  const isWalletDelegated = !!user?.linkedAccounts?.find(
+    (account) => account.type === 'wallet' && 'delegated' in account && account.delegated
+  );
 
   const topUpWallet = async (walletAddress: Address) => {
     await fundWallet(walletAddress, {
@@ -63,6 +71,48 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
     // Send message to ChatArea when Swap button is clicked
     if (onSendMessage) {
       onSendMessage("Let's do a swap!");
+    }
+  };
+
+  const handleDelegateClick = async () => {
+    try {
+      // Find the embedded wallet
+      const embeddedWallet = wallets.find(wallet => 
+        wallet.walletClientType === 'privy'
+      );
+      
+      if (!embeddedWallet) {
+        showNotification("No embedded wallet found to delegate from", "error");
+        return;
+      }
+      
+      // Check if the wallet is already delegated
+      const isAlreadyDelegated = !!user?.linkedAccounts?.find(
+        (account) => account.type === 'wallet' && 'delegated' in account && account.delegated
+      );
+      
+      if (isAlreadyDelegated) {
+        try {
+          // Revoke all delegated wallets
+          await revokeWallets();
+          showNotification("Successfully revoked delegation from AllNads", "success");
+        } catch (error) {
+          console.error("Undelegation error:", error);
+          showNotification("Failed to revoke delegation. Please try again.", "error");
+        }
+        return;
+      }
+      
+      // Delegate the wallet using the delegateWallet method
+      await delegateWallet({
+        address: embeddedWallet.address,
+        chainType: 'ethereum'
+      });
+      
+      showNotification("Successfully delegated transaction signing to AllNads", "success");
+    } catch (error) {
+      console.error("Delegation error:", error);
+      showNotification("Failed to delegate. Please try again.", "error");
     }
   };
 
@@ -187,6 +237,15 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
             Privy Linked Wallet
           </span>
         </div>
+        
+        {/* Delegation status label */}
+        <div className="absolute top-3 right-3">
+          {walletAddress && (
+            <span className={`text-white text-xs font-medium px-3 py-1 rounded-full ${isWalletDelegated ? 'bg-[#22c55e]' : 'bg-[#ef4444]'}`}>
+              {isWalletDelegated ? 'Delegated' : 'Not Delegated'}
+            </span>
+          )}
+        </div>
 
         <div className="p-4 pt-12">
           {walletAddress && (
@@ -240,6 +299,21 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
               </>
             </div>
           </div>
+
+          {/* Delegate button - styled like the Address Book button but with green color */}
+          <button 
+            onClick={handleDelegateClick}
+            className={`w-full py-2 px-4 rounded-lg font-bold text-sm mb-3 transition-all
+              ${!walletAddress
+                ? 'bg-green-200 text-green-400 cursor-not-allowed'
+                : isWalletDelegated 
+                  ? 'bg-[#ef4444] text-white border-2 border-[#dc2626] shadow-[2px_2px_0px_0px_#b91c1c] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#b91c1c]'
+                  : 'bg-[#22c55e] text-white border-2 border-[#16a34a] shadow-[2px_2px_0px_0px_#15803d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#15803d]'
+              }`}
+            disabled={!walletAddress}
+          >
+            {isWalletDelegated ? 'Undelegate' : 'Delegate'}
+          </button>
 
           <div className="p-3 bg-[#F9F7FF] rounded-lg border border-[#C4B5FD] text-sm">
             <p className="text-[#6D28D9]">

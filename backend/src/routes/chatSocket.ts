@@ -278,7 +278,7 @@ export class ChatSocketService {
             
             // Process chat request
             const session = await SessionService.getSession(finalSessionId);
-            await ChatService.streamChat(chatRequest, socket, session!);
+            await ChatService.streamChat(chatRequest, socket, session!, privyUserId);
             
           } catch (error) {
             console.error('Error processing message:', error);

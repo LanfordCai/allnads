@@ -15,15 +15,16 @@
   "license": "ISC",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.0",
+    "@privy-io/server-auth": "^1.18.12",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "viem": "^2.23.5",
-    "zod": "^3.24.2",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "viem": "^2.23.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
