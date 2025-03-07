@@ -13,6 +13,7 @@ import { mintTemplateComponentTool } from './tools/mintTemplateComponent';
 import { templateCache } from './utils/globalCache';
 import { getOwnedComponentsTool } from './tools/getOwnedComponents';
 import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools';
+import { uniswapQuoteTool } from './tools/swapTools';
 
 // Create a new MCP server instance
 const server = new McpServer({
@@ -160,6 +161,23 @@ server.tool(
     const result = await getErc20TokensTool.execute(args);
     const adaptedResponse = adaptToolResponse(result);
     logToolActivity(getErc20TokensTool.name, args, result);
+    return adaptedResponse;
+  }
+)
+
+server.tool(
+  uniswapQuoteTool.name,
+  uniswapQuoteTool.description,
+  {
+    tokenIn: z.string().describe('The token to swap from'),
+    tokenOut: z.string().describe('The token to swap to'),
+    amountIn: z.string().describe('The amount of tokens to swap')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${uniswapQuoteTool.name}...`);
+    const result = await uniswapQuoteTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(uniswapQuoteTool.name, args, result);
     return adaptedResponse;
   }
 )
