@@ -25,7 +25,6 @@ router.delete('/address-book/:addressId', privyAuth, setControllerContext('Addre
 
 // 奖励领取路由
 router.get('/claims', privyAuth, setControllerContext('UserClaimsController'), UserClaimsController.getClaimStatus);
-router.post('/claims/mon', privyAuth, setControllerContext('UserClaimsController'), UserClaimsController.claimMON);
 
 // 管理员路由 (这里仅作示例，实际应该添加管理员权限检查中间件)
 router.get('/:userId', privyAuth, UserController.getUserById);

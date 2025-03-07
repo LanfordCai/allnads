@@ -62,10 +62,6 @@ export const userClaims = pgTable('user_claims', {
   hasClaimedNFT: boolean('has_claimed_nft').notNull().default(false),
   nftClaimTxId: varchar('nft_claim_tx_id', { length: 255 }),
   nftClaimDate: timestamp('nft_claim_date'),
-  hasClaimedMON: boolean('has_claimed_mon').notNull().default(false),
-  monClaimTxId: varchar('mon_claim_tx_id', { length: 255 }),
-  monClaimDate: timestamp('mon_claim_date'),
-  monClaimAmount: varchar('mon_claim_amount', { length: 255 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }); 
