@@ -59,6 +59,13 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
     }
   };
 
+  const handleSwapClick = () => {
+    // Send message to ChatArea when Swap button is clicked
+    if (onSendMessage) {
+      onSendMessage("Let's do a swap!");
+    }
+  };
+
   return (
     <div className="flex flex-col items-center gap-y-6 w-full">
       {/* AllNads Account Section */}
@@ -142,6 +149,7 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
                 : 'bg-[#F3F0FF] text-[#6D28D9] hover:bg-[#EDE9FE] border border-[#C4B5FD]'
                 }`}
               disabled={!nftAccount}
+              onClick={handleSwapClick}
             >
               Swap
             </button>
