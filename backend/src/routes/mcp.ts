@@ -1,6 +1,6 @@
 import express, { RequestHandler } from 'express';
 import { MCPController } from '../controllers/mcp';
-import { authenticate } from '../middleware/auth';
+import { serviceAuth } from '../middleware/auth';
 import { setControllerContext } from '../middleware/context';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(setControllerContext('MCPController'));
 
 // 应用鉴权中间件
-router.use(authenticate);
+router.use(serviceAuth);
 
 // GET /api/mcp/servers - 获取所有MCP服务器
 router.get('/servers', MCPController.getServers as RequestHandler);

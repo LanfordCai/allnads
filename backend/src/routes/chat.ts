@@ -1,6 +1,6 @@
 import express, { RequestHandler } from 'express';
 import { ChatController } from '../controllers/chat';
-import { authenticate } from '../middleware/auth';
+import { privyAuth } from '../middleware/auth';
 import { setControllerContext } from '../middleware/context';
 
 const router = express.Router();
@@ -9,10 +9,7 @@ const router = express.Router();
 router.use(setControllerContext('ChatController'));
 
 // 应用鉴权中间件
-router.use(authenticate);
-
-// POST /api/chat/tools - 直接调用工具
-router.post('/tools', ChatController.callTool as RequestHandler);
+router.use(privyAuth);
 
 // GET /api/chat/sessions - 获取所有会话
 router.get('/sessions', ChatController.getAllSessions as RequestHandler);

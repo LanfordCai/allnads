@@ -2,11 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from './error';
 import { privyService } from '../services/PrivyService';
 
+// Service API key verification helper
+const verifyServiceApiKey = (token: string): boolean => {
+  const validApiKey = process.env.SERVICE_API_KEY || 'test-api-key';
+  return token === validApiKey;
+};
+
 /**
- * API 身份验证中间件
- * 验证请求中的 API 密钥
+ * Service API 身份验证中间件
+ * 仅验证请求中的 API 密钥
  */
-export function authenticate(req: Request, res: Response, next: NextFunction) {
+export const serviceAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -14,52 +20,74 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   }
   
   const token = authHeader.split(' ')[1];
-  const validApiKey = process.env.SERVICE_API_KEY || 'test-api-key';
   
-  if (token !== validApiKey) {
+  if (!verifyServiceApiKey(token)) {
     throw new AppError('无效的API密钥', 401, 'UNAUTHORIZED');
   }
   
   next();
 }
 
-/**
- * Privy 认证中间件
- * 验证请求中的 Privy ID 令牌，提取用户信息并将其附加到请求对象
- */
 export const privyAuth = async (
-  req: Request & { user?: any },
+  req: Request & { user?: any; isService?: boolean },
   res: Response,
   next: NextFunction
 ) => {
-  // 从请求头或 cookie 中获取 ID 令牌
-  const idToken = 
-    req.headers['x-privy-token'] as string || 
-    req.cookies?.['privy-id-token'];
+  const authHeader = req.headers.authorization;
+  const idToken = req.headers['x-privy-token'] as string || 
+                 req.cookies?.['privy-id-token'];
 
-  if (!idToken) {
-    res.status(401).json({
-      success: false,
-      message: 'Unauthorized: No authentication token provided'
-    });
-    return;
+  if (!authHeader) {
+    throw new AppError('Authorization header is required', 401, 'UNAUTHORIZED');
   }
 
-  try {
-    // 验证令牌并获取用户信息
-    console.log('idToken', idToken);
-    const user = await privyService.getUserFromIdToken(idToken);
-    console.log('user', user);
+  // Check for service API key
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
     
-    // 将用户信息附加到请求对象，供后续路由处理程序使用
-    req.user = user;
-    
-    next();
-  } catch (error: any) {
-    console.error('Authentication error:', error);
-    res.status(401).json({
-      success: false,
-      message: `Unauthorized: ${error.message}`
-    });
+    // If it's a service API key
+    if (verifyServiceApiKey(token)) {
+      try {
+        if (!idToken) {
+          throw new AppError('ID token is required even for service access', 401, 'UNAUTHORIZED');
+        }
+        const user = await privyService.getUserFromIdToken(idToken);
+        req.user = user;
+        req.isService = true; // Mark the request as service
+        return next();
+      } catch (error: any) {
+        console.error('Service authentication error:', error);
+        throw new AppError(`Service authentication failed: ${error.message}`, 401, 'UNAUTHORIZED');
+      }
+    }
+
+    // Regular user authentication flow
+    if (!idToken) {
+      throw new AppError('Both access token and ID token are required for user access', 401, 'UNAUTHORIZED');
+    }
+
+    try {
+      // Verify both tokens and get user information
+      const [accessTokenData, user] = await Promise.all([
+        privyService.verifyAccessToken(token),
+        privyService.getUserFromIdToken(idToken)
+      ]);
+
+      // Verify that both tokens belong to the same user
+      if (accessTokenData.privyUserId !== user.id) {
+        throw new Error('Token mismatch: Access token and ID token belong to different users');
+      }
+
+      // Attach verified user data to request
+      req.user = user;
+      req.isService = false;
+      
+      next();
+    } catch (error: any) {
+      console.error('Authentication error:', error);
+      throw new AppError(`Authentication failed: ${error.message}`, 401, 'UNAUTHORIZED');
+    }
+  } else {
+    throw new AppError('Invalid Authorization header format', 401, 'UNAUTHORIZED');
   }
-}; 
+};

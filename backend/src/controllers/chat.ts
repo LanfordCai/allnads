@@ -16,69 +16,6 @@ const toolCallRequestSchema = z.object({
  */
 export class ChatController {
   /**
-   * Direct tool call
-   */
-  static async callTool(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      Logger.debug('ChatController', 'Processing tool call request');
-      
-      // Validate request data
-      const result = toolCallRequestSchema.safeParse(req.body);
-      
-      if (!result.success) {
-        Logger.warn('ChatController', 'Invalid tool call request', result.error.format());
-        return ResponseUtil.error(
-          res,
-          'Invalid tool call request',
-          400,
-          'VALIDATION_ERROR',
-          result.error.format()
-        );
-      }
-      
-      const { toolName, args } = result.data;
-      
-      // Check tool name format
-      if (!toolName.includes('__')) {
-        Logger.warn('ChatController', `Invalid tool name format: ${toolName}`);
-        return ResponseUtil.error(
-          res,
-          'Invalid tool name format, should be: serverId__toolName',
-          400,
-          'INVALID_TOOL_NAME'
-        );
-      }
-      
-      try {
-        Logger.info('ChatController', `Calling tool: ${toolName} with args`, args);
-        // Call tool
-        const toolResult = await mcpManager.callTool(toolName, args);
-        
-        Logger.info('ChatController', `Tool call successful: ${toolName}`);
-        return ResponseUtil.success(res, toolResult);
-      } catch (error) {
-        // Handle tool call error
-        Logger.error('ChatController', `Tool call failed: ${toolName}`, error);
-        return ResponseUtil.error(
-          res,
-          `Tool call failed: ${error instanceof Error ? error.message : String(error)}`,
-          500,
-          'TOOL_CALL_ERROR'
-        );
-      }
-    } catch (error) {
-      Logger.error('ChatController', 'Unexpected error in callTool', error);
-      return ResponseUtil.error(
-        res,
-        'Internal server error',
-        500,
-        'INTERNAL_ERROR',
-        error instanceof Error ? { message: error.message } : undefined
-      );
-    }
-  }
-  
-  /**
    * Get session history
    */
   static async getSessionHistory(req: Request & { user?: any }, res: Response, next: NextFunction): Promise<void> {
