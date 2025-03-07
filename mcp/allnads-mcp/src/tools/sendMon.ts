@@ -28,7 +28,7 @@ const SendABI = [
  */
 export const sendMonTool = {
   name: 'send_mon',
-  description: 'Create a transaction request to send MON to a specific address from the allnads account, can only be used if the sender is the allnadsAccount',
+  description: 'Create a transaction request to send MON to a specific address from the allnads account, can only be used if the sender is the allnadsAccount. You can query the address book to get the recipient address.',
   parameters: z.object({
     allnadsAccount: z.string()
       .refine(addr => isAddress(addr), {

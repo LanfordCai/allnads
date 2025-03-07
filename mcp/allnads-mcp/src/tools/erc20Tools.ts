@@ -104,7 +104,7 @@ export const getErc20TokensTool= {
 
 export const transferErc20TokenTool = {
   name: 'transfer_erc20_token',
-  description: 'Transfer an erc20 token to an address',
+  description: 'Transfer an erc20 token to an address. You can query the address book to get the recipient address.',
   parameters: z.object({
     allnadsAccount: z.string()
       .refine(addr => isAddress(addr), {
