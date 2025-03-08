@@ -92,7 +92,7 @@ export class ChatService {
     // Send initial thinking message
     this.sendSocketMessage(socket, {
       type: 'thinking',
-      content: 'I am thinking about your question...'
+      content: 'I am thinking ...'
     });
 
     // Get session history messages
@@ -126,11 +126,11 @@ export class ChatService {
         msg.sessionId = session.id;
       } else if (msg.sessionId !== session.id) {
         console.warn(`[Warning] History message session ID(${msg.sessionId}) doesn't match current session ID(${session.id}), may cause message confusion`);
-        // Don't modify session ID, but log warning
       }
 
       // Only add messages belonging to current session to LLM message list
       if (msg.sessionId === session.id) {
+        // 消息历史里面应该不需要存 tool call 相关的？
         llmMessages.push({
           role: msg.role === ChatRole.USER ? 'user' : 'assistant',
           content: msg.content
@@ -158,7 +158,7 @@ export class ChatService {
     let assistantMessage: ChatMessage;
 
     try {
-      // Prepare initial request parameters
+      // Prepare request parameters
       const requestOptions: any = {
         model: this.getModelName(),
         messages: llmMessages,
@@ -174,46 +174,31 @@ export class ChatService {
         }
       }
 
-      // Record start time for LLM request
-      const requestStartTime = Date.now();
-      
-      // Send initial request
-      let response = await this.llmService.sendChatRequest(requestOptions);
-      
-      // Calculate and log time taken for LLM request
-      const requestEndTime = Date.now();
-      const requestDuration = requestEndTime - requestStartTime;
-      console.log(`[LLM Timing] Initial request completed in ${requestDuration}ms`);
-
-      // Main message processing loop
       let currentMessages = [...llmMessages];
       let continueProcessing = true;
       let toolCallRounds = 0;
-      const MAX_TOOL_CALL_ROUNDS = 5;
+      const MAX_TOOL_CALL_ROUNDS = 10;
 
       while (continueProcessing && toolCallRounds < MAX_TOOL_CALL_ROUNDS) {
-        // If first round, use already fetched response; otherwise send new request
-        let currentResponse = toolCallRounds === 0 ? response : null;
-
-        if (toolCallRounds > 0 || currentResponse === null) {
-          // Record start time for subsequent LLM request
-          const toolCallStartTime = Date.now();
-          
-          currentResponse = await this.llmService.sendChatRequest({
-            model: this.getModelName(),
-            messages: currentMessages,
-            temperature: 0.7,
-            tools: requestOptions.tools,
-            tool_choice: 'auto'
-          });
-          
-          // Calculate and log time taken for tool call LLM request
-          const toolCallEndTime = Date.now();
-          const toolCallDuration = toolCallEndTime - toolCallStartTime;
-          console.log(`[LLM Timing] Tool call round ${toolCallRounds} completed in ${toolCallDuration}ms`);
-        }
+        // Record start time for LLM request
+        const requestStartTime = Date.now();
+        
+        // Send request (no need for initial separate request)
+        const currentResponse = await this.llmService.sendChatRequest({
+          model: this.getModelName(),
+          messages: currentMessages,
+          temperature: 0.7,
+          tools: requestOptions.tools,
+          tool_choice: 'auto'
+        });
+        
+        // Calculate and log time taken
+        const requestEndTime = Date.now();
+        const requestDuration = requestEndTime - requestStartTime;
+        console.log(`[LLM Timing] Tool call round ${toolCallRounds} completed in ${requestDuration}ms`);
 
         // Ensure currentResponse is not null
+        // 没收到回复就直接 break 吗？
         if (!currentResponse) {
           console.error('Error: currentResponse is null');
           break;
