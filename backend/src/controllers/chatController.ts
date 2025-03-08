@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { SessionService } from '../services/session';
+import { SessionService } from '../services/sessionService';
 import { z } from 'zod';
 import { mcpManager } from '../services/mcpService';
 import { Logger } from '../utils/logger';

@@ -5,8 +5,7 @@ import { Logger } from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 import { serializeBigInt } from '../utils/serialization';
-
-dotenv.config();
+import { env } from '../config/env';
 
 // Simplified ABIs with only the functions we need
 const AllNadsABI = [
@@ -170,13 +169,13 @@ const NETWORKS = {
       network: 'monadTestnet',
       nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
       rpcUrls: {
-        default: { http: [process.env.MONAD_TESTNET_RPC as string] }
+        default: { http: [env.MONAD_TESTNET_RPC] }
       }
     },
-    allnadsAddress: process.env.MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as Address,
-    allnadsComponentAddress: process.env.MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS as Address,
-    airdropperAddress: process.env.MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS as Address,
-    privateKey: process.env.MONAD_AIRDROPPER_PRIVATE_KEY
+    allnadsAddress: env.MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS as Address,
+    allnadsComponentAddress: env.MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS as Address,
+    airdropperAddress: env.MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS as Address,
+    privateKey: env.MONAD_AIRDROPPER_PRIVATE_KEY
   }
 };
 

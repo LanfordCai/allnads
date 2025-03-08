@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { isAddress } from 'viem';
 import { z } from 'zod';
 
 // Load environment variables from .env file
@@ -33,9 +34,10 @@ const envSchema = z.object({
   
   // Blockchain - Monad Testnet
   MONAD_TESTNET_RPC: z.string(),
-  MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS: z.string(),
-  MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS: z.string(),
-  MONAD_AIRDROPPER_ADDRESS: z.string(),
+  MONAD_TESTNET_ALLNADS_CONTRACT_ADDRESS: z.string().refine(addr => isAddress(addr)),
+  MONAD_TESTNET_ALLNADS_COMPONENT_CONTRACT_ADDRESS: z.string().refine(addr => isAddress(addr)),
+  MONAD_TESTNET_AIRDROPPER_CONTRACT_ADDRESS: z.string().refine(addr => isAddress(addr)),
+  MONAD_AIRDROPPER_ADDRESS: z.string().refine(addr => isAddress(addr)),
   MONAD_AIRDROPPER_PRIVATE_KEY: z.string(),
 
   // MCP

@@ -1,5 +1,6 @@
 import { Message, ChatOptions, ChatResponse, ChatResponseChunk } from '../types/chat';
 import { EventEmitter } from 'events';
+import { env } from '../config/env'
 
 interface LLMServiceConfig {
   apiKey?: string;
@@ -24,7 +25,7 @@ export class LLMService extends EventEmitter {
   constructor(config: LLMServiceConfig = {}) {
     super();
     
-    this.apiKey = config.apiKey || process.env.OPENROUTER_API_KEY || '';
+    this.apiKey = config.apiKey || env.OPENROUTER_API_KEY;
     this.baseUrl = config.baseUrl || 'https://openrouter.ai/api/v1';
     this.defaultModel = config.defaultModel || 'gpt-4o';
     

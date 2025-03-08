@@ -1,5 +1,5 @@
 import express, { RequestHandler } from 'express';
-import { ChatController } from '../controllers/chat';
+import { ChatController } from '../controllers/chatController';
 import { privyAuth } from '../middleware/auth';
 import { setControllerContext } from '../middleware/context';
 

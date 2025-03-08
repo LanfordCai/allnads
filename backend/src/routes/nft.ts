@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { NFTController } from '../controllers/nft';
+import { NFTController } from '../controllers/nftController';
 import { privyAuth, basicPrivyAuth } from '../middleware/auth';
 import { setControllerContext } from '../middleware/context';
 

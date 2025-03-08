@@ -1,13 +1,7 @@
 import { PrivyClient } from '@privy-io/server-auth';
-import * as dotenv from 'dotenv';
 import * as jwt from 'jsonwebtoken';
+import { env } from '../config/env'
 
-// Load environment variables
-dotenv.config();
-
-// Get environment variables
-const PRIVY_APP_ID = process.env.PRIVY_APP_ID || '';
-const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET || '';
 
 // Define Privy JWT token type
 interface PrivyTokenClaims {
@@ -28,8 +22,8 @@ interface PrivyTokenClaims {
   constructor() {
     // According to Privy documentation, constructor may need the following parameters
     this.client = new PrivyClient(
-      PRIVY_APP_ID,
-      PRIVY_APP_SECRET
+      env.PRIVY_APP_ID,
+      env.PRIVY_APP_SECRET
     );
   }
 

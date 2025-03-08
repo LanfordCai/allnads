@@ -1,5 +1,5 @@
 import express, { RequestHandler } from 'express';
-import { MCPController } from '../controllers/mcp';
+import { MCPController } from '../controllers/mcpController';
 import { serviceAuth } from '../middleware/auth';
 import { setControllerContext } from '../middleware/context';
 

@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from './error';
 import { privyService } from '../services/PrivyService';
+import { env } from '../config/env';
 
 // Service API key verification helper
 const verifyServiceApiKey = (token: string): boolean => {
-  const validApiKey = process.env.SERVICE_API_KEY || 'test-api-key';
+  const validApiKey = env.SERVICE_API_KEY;
   return token === validApiKey;
 };
 

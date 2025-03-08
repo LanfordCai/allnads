@@ -11,7 +11,7 @@ import { userRouter } from './routes/user';
 import { nftRouter } from './routes/nft';
 import { notFoundHandler, errorHandler } from './middleware/error';
 import { initializeMCPServers } from './services/mcpService';
-import { SessionService } from './services/session';
+import { SessionService } from './services/sessionService';
 import { closeDatabase } from './config/database';
 import { initializeChatWebSocket, closeChatWebSocket } from './routes/chatSocket';
 import { requestLogger } from './middleware/logger';
@@ -120,7 +120,7 @@ async function initializeServer(): Promise<void> {
   }
 
   // Start server (使用http.Server而不是app)
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3030;
+  const PORT = parseInt(env.PORT, 10);
   server.listen(PORT, '::', () => {
     Logger.info('Server', `服务器已启动，运行在端口 ${PORT}，模式：${env.NODE_ENV}`);
     Logger.info('Server', `健康检查: http://localhost:${PORT}/api/health`);

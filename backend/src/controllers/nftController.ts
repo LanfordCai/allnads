@@ -5,7 +5,7 @@ import { Address, isAddress } from 'viem';
 import { Logger } from '../utils/logger';
 import { ResponseUtil } from '../utils/response';
 import { serializeTemplates } from '../utils/serialization';
-import { UserClaimsController } from './userClaims';
+import { UserClaimsController } from './userClaimsController';
 import { db } from '../config/database';
 import { userClaims } from '../models/schema';
 import { eq, and } from 'drizzle-orm';

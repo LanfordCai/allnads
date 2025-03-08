@@ -1,15 +1,16 @@
 import WebSocket from 'ws';
-import { ChatService } from '../services/chat';
+import { ChatService } from '../services/chatService';
 import { ChatMessage, ChatRequest, ChatRole } from '../types/chat';
 import http from 'http';
 import url from 'url';
 import { getSystemPrompt } from '../config/prompts';
-import { SessionService } from '../services/session';
+import { SessionService } from '../services/sessionService';
 import { v4 as uuidv4 } from 'uuid';
 import { privyService } from '../services/PrivyService';
 import { z } from 'zod';
 import { isAddress } from 'viem';
 import { User } from '@privy-io/server-auth';
+import { env } from '../config/env';
 /**
  * WebSocket Chat Service
  */
@@ -205,7 +206,7 @@ export class ChatSocketService {
         console.log(`Final session ID: ${finalSessionId}`);
         
         // Only log history messages in development environment
-        if (process.env.NODE_ENV === 'development') {
+        if (env.NODE_ENV === 'development') {
           console.log('History messages', session.messages);
         }
         

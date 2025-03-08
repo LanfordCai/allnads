@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { UserController } from '../controllers/user';
-import { AddressBookController } from '../controllers/addressBook';
-import { UserClaimsController } from '../controllers/userClaims';
+import { UserController } from '../controllers/userController';
+import { AddressBookController } from '../controllers/addressBookController';
+import { UserClaimsController } from '../controllers/userClaimsController';
 import { privyAuth, serviceAuth, basicPrivyAuth } from '../middleware/auth';
 import { setControllerContext } from '../middleware/context';
 

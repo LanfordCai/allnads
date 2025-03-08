@@ -9,11 +9,12 @@
  */
 
 import { ChatMessage, ChatRequest, ChatRole, Message, ChatCompletionTool, ChatSession } from '../types/chat';
-import { SessionService } from './session';
+import { SessionService } from './sessionService';
 import { TextContent, ImageContent, EmbeddedResource } from '../types/mcp';
 import { mcpManager } from './mcpService';
 import { mcpConfig } from '../config/mcpConfig';
 import { LLMService } from './llmService';
+import { env } from '../config/env'
 import WebSocket from 'ws';
 
 /**
@@ -31,7 +32,7 @@ export class ChatService {
    */
   private static getModelName(): string {
     // Get model name from environment variable, or use default if not set
-    return process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+    return env.OPENROUTER_MODEL;
   }
 
   /**
@@ -114,7 +115,7 @@ export class ChatService {
     const historyMessages = history.filter(msg => msg.role !== ChatRole.SYSTEM);
     
     // Only log historyMessages in development environment
-    if (process.env.NODE_ENV === 'development') {
+    if (env.NODE_ENV === 'development') {
       console.log('historyMessages', historyMessages);
     }
 
