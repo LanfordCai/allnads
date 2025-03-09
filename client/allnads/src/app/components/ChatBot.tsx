@@ -600,7 +600,29 @@ export default function ChatBot() {
             }}
           />
           
-          <WalletInfoComponent nftAccount={nftAccount} onSendMessage={handleSendMessage} />
+          <WalletInfoComponent 
+            nftAccount={nftAccount} 
+            onSendMessage={handleSendMessage} 
+            isSmallScreen={isMobile}
+            onSwitchToChat={() => {
+              // Open chat modal on small screens
+              if (isMobile) {
+                setIsChatModalOpen(true);
+              } else {
+                // On large screens, scroll to chat area
+                // Close the sidebar if it's open on mobile
+                if (isMediumScreen && isSidebarOpen) {
+                  setIsSidebarOpen(false);
+                }
+                
+                // Scroll to the chat area
+                const chatArea = document.querySelector('.chat-area-container');
+                if (chatArea) {
+                  chatArea.scrollIntoView({ behavior: 'smooth' });
+                }
+              }
+            }}
+          />
         </div>
       </div>
     </div>

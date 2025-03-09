@@ -20,9 +20,11 @@ const monadChain = {
 interface WalletInfoProps {
   nftAccount?: string | null;
   onSendMessage?: (message: string) => void;
+  onSwitchToChat?: () => void;
+  isSmallScreen?: boolean;
 }
 
-export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProps) {
+export default function WalletInfo({ nftAccount, onSendMessage, onSwitchToChat, isSmallScreen = false }: WalletInfoProps) {
   const { user } = usePrivyAuth();
   const [, setShowTokensModal] = useState(false);
   const { showNotification } = useNotification();
@@ -55,12 +57,28 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
       onSendMessage("Show me the tokens you have.");
     }
     setShowTokensModal(true);
+    
+    // Automatically switch to chat area on small screens
+    if (isSmallScreen && onSwitchToChat) {
+      // Short delay to ensure modal is closed
+      setTimeout(() => {
+        onSwitchToChat();
+      }, 100);
+    }
   };
 
   const handleSendClick = () => {
     // Send message to ChatArea when Send button is clicked
     if (onSendMessage) {
       onSendMessage("I want to transfer some tokens");
+    }
+    
+    // Automatically switch to chat area on small screens
+    if (isSmallScreen && onSwitchToChat) {
+      // Short delay to ensure any state changes are processed
+      setTimeout(() => {
+        onSwitchToChat();
+      }, 100);
     }
   };
 
@@ -69,11 +87,27 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
     if (onSendMessage) {
       onSendMessage("Let's do a swap!");
     }
+    
+    // Automatically switch to chat area on small screens
+    if (isSmallScreen && onSwitchToChat) {
+      // Short delay to ensure any state changes are processed
+      setTimeout(() => {
+        onSwitchToChat();
+      }, 100);
+    }
   };
 
   const handleAddressBookClick = () => {
     if (onSendMessage) {
       onSendMessage("Show me the address book");
+    }
+    
+    // Automatically switch to chat area on small screens
+    if (isSmallScreen && onSwitchToChat) {
+      // Short delay to ensure any state changes are processed
+      setTimeout(() => {
+        onSwitchToChat();
+      }, 100);
     }
   };
 
@@ -234,7 +268,7 @@ export default function WalletInfo({ nftAccount, onSendMessage }: WalletInfoProp
       </div>
 
       {/* Privy Linked Wallet Section */}
-      <div className="bg-white rounded-xl border-4 border-[#8B5CF6] shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden w-full max-w-[320px] relative">
+      <div className={`${isSmallScreen ? 'mb-10' : ''} bg-white rounded-xl border-4 border-[#8B5CF6] shadow-[8px_8px_0px_0px_#8B5CF6] overflow-hidden w-full max-w-[320px] relative`}>
         <div className="absolute top-3 left-3">
           <span className="bg-[#6dbc70] text-white text-xs font-medium px-3 py-1 rounded-full">
             Privy Linked Wallet

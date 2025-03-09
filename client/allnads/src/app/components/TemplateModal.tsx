@@ -194,7 +194,7 @@ export default function TemplateModal({
           </div>
           
           {/* Component Type Tabs - Fixed to ensure they're not covered */}
-          <div className="flex border-b-4 border-[#8B5CF6] overflow-x-auto sticky top-0 bg-white z-10">
+          <div className="flex min-h-[50px] border-b-4 border-[#8B5CF6] overflow-x-auto sticky top-0 bg-white z-10">
             {Object.keys(COMPONENT_TYPES).map((type) => (
               <button
                 key={type}
