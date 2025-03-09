@@ -4,18 +4,17 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
-import { ContentResult } from './tools/types';
-import { sendMonTool } from './tools/sendMon';
-import { transactionSignTool } from './tools/transactionSign';
-import { changeTemplateTool } from './tools/changeTemplate';
-import { env } from './config/env';
-import { mintTemplateComponentTool } from './tools/mintTemplateComponent';
-import { templateCache } from './utils/globalCache';
-import { getOwnedComponentsTool } from './tools/getOwnedComponents';
-import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools';
-import { uniswapQuoteTool, uniswapSwapTool } from './tools/swapTools';
-import { getTemplatesTool } from './tools/getTemplates';
+import { ContentResult } from './tools/types.js';
+import { sendMonTool } from './tools/sendMon.js';
+import { transactionSignTool } from './tools/transactionSign.js';
+import { changeTemplateTool } from './tools/changeTemplate.js';
+import { mintTemplateComponentTool } from './tools/mintTemplateComponent.js';
+import { getOwnedComponentsTool } from './tools/getOwnedComponents.js';
+import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools.js';
+import { uniswapQuoteTool, uniswapSwapTool } from './tools/swapTools.js';
+import { getTemplatesTool } from './tools/getTemplates.js';
 import { getAllAddressesTool, addAddressTool, removeAddressTool, updateAddressTool } from './tools/addressBookTools.js';
+import { getEquippedComponentsTool } from './tools/getEquippedComponents.js';
 
 // Create a new MCP server instance
 const server = new McpServer({
@@ -294,6 +293,28 @@ server.tool(
     const result = await updateAddressTool.execute(args);
     const adaptedResponse = adaptToolResponse(result);
     logToolActivity(updateAddressTool.name, args, result);
+    return adaptedResponse;
+  }
+);
+
+server.tool(
+  getEquippedComponentsTool.name,
+  getEquippedComponentsTool.description,
+  {
+    tokenId: z.string()
+      .or(z.number())
+      .transform(val => typeof val === 'string' ? parseInt(val, 10) : val)
+      .refine(val => !isNaN(val) && val >= 0, {
+        message: 'Invalid token ID format',
+        path: ['tokenId']
+      })
+      .describe('The token ID of the Allnads NFT')
+  },
+  async (args) => {
+    console.log(`⚡ Executing ${getEquippedComponentsTool.name}...`);
+    const result = await getEquippedComponentsTool.execute(args);
+    const adaptedResponse = adaptToolResponse(result);
+    logToolActivity(getEquippedComponentsTool.name, args, result);
     return adaptedResponse;
   }
 );
