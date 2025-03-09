@@ -177,11 +177,13 @@ export default function TemplateModal({
           {/* Modal Header */}
           <div className="p-4 border-b-4 border-[#8B5CF6] flex justify-between items-center">
             <div className="flex flex-col">
-              <h2 className="text-xl font-bold text-[#6D28D9]">Select Component</h2>
+              <div className="flex items-center">
+                <h2 className="text-xl font-bold text-[#6D28D9]">Select Component</h2>
+                {(loading || checkingOwnership) && (
+                  <div className="ml-3 animate-spin rounded-full h-4 w-4 border-2 border-[#8B5CF6] border-t-transparent"></div>
+                )}
+              </div>
               <p className="text-sm text-gray-500 mt-1">After selecting a template, a message will be sent in the chat to let AllNads change the template</p>
-              {(loading || checkingOwnership) && (
-                <div className="ml-3 animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8B5CF6]"></div>
-              )}
             </div>
             <button 
               onClick={onClose}
@@ -212,7 +214,7 @@ export default function TemplateModal({
           <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '400px' }}>
             {loading && templates[activeTab]?.length === 0 ? (
               <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6]"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#8B5CF6] border-t-transparent"></div>
               </div>
             ) : templates[activeTab]?.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

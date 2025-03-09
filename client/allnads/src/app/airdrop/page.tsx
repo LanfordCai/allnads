@@ -119,7 +119,7 @@ export default function AirdropPage() {
 
             {isCheckingNFT ? (
               <div className="text-center py-6">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#8B5CF6] border-t-transparent mx-auto mb-4"></div>
                 <p className="text-gray-600">Checking AllNads status...</p>
               </div>
             ) : hasNFT ? (

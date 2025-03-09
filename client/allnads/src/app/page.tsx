@@ -70,7 +70,7 @@ export default function Home() {
         <p className="text-lg text-gray-600 mb-8 text-center">Degen AI Buddy for All</p>
         
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#8B5CF6] mt-6"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#8B5CF6] border-t-transparent mt-6"></div>
           <p className="mt-4 text-gray-500">
             {isCheckingNFT ? 'Checking NFT status...' : 'Loading...'}
           </p>
