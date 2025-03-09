@@ -13,7 +13,6 @@ interface AppAreaProps {
 export default function AppArea({ walletInfo, onOpenChat, isMobile }: AppAreaProps) {
   const { isAuthenticated, displayName: privyDisplayName } = usePrivyAuth();
   
-  // 如果用户已登录，尝试使用Privy账户信息
   const displayName = isAuthenticated 
     ? (privyDisplayName || walletInfo.username)
     : walletInfo.username;

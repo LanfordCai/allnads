@@ -266,9 +266,9 @@ export default function ChatArea({
                   <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                 </svg>
                 Calling
-                <div className="ml-1 flex">
-                  <span className="bg-[#7C3AED] text-white px-2 py-0.5 rounded-l-md rounded-r-none text-xs font-medium">{leftTag}</span>
-                  <span className="bg-[#EDE9FE] dark:bg-[#7C3AED]/30 text-[#7C3AED] dark:text-white px-2 py-0.5 rounded-r-md rounded-l-none text-xs font-medium">{rightTag}</span>
+                <div className="ml-1 flex overflow-hidden">
+                  <span className="bg-[#7C3AED] text-white px-2 py-0.5 rounded-l-md rounded-r-none text-xs font-medium flex-shrink-0">{leftTag}</span>
+                  <span className="bg-[#EDE9FE] dark:bg-[#7C3AED]/30 text-[#7C3AED] dark:text-white px-2 py-0.5 rounded-r-md rounded-l-none text-xs font-medium truncate max-w-[120px]">{rightTag}</span>
                 </div>
               </div>
               <div className="text-xs font-mono overflow-x-auto">
@@ -469,7 +469,7 @@ export default function ChatArea({
         return (
           <span key={i}>
             {formatEthereumEntities(parts[0])}
-            <span className="text-xs opacity-50 italic text-green-600 dark:text-green-400">&lt;ComponentMinted&gt;</span>
+            <span className="text-xs opacity-50 italic text-gray-500 dark:text-gray-400">&lt;ComponentMinted&gt;</span>
             {formatEthereumEntities(parts[1])}
             {i < trimmedContent.split('\n').length - 1 && <br />}
           </span>

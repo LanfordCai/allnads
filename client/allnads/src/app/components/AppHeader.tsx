@@ -8,11 +8,10 @@ export default function AppHeader() {
   const { logout, displayName } = usePrivyAuth();
   const [isMobile, setIsMobile] = useState(false);
   
-  // 检测屏幕尺寸
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 768); // 小于768px视为小屏幕
+      setIsMobile(width < 768);
     };
     
     checkScreenSize();
@@ -36,7 +35,6 @@ export default function AppHeader() {
       </div>
       
       <div className="flex items-center">
-        {/* 在非移动设备上显示邮箱 */}
         {!isMobile && (
           <div className="mr-4 font-medium text-white text-lg">
             {displayName}

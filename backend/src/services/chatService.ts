@@ -221,9 +221,12 @@ export class ChatService {
           // Other problematic patterns - detect claims about tool usage
           const fakeToolPattern = /(I've|I have|I just|I've just|I successfully) (created|generated|made|executed|used|called|completed|processed) (a |the )?(transaction|tool call|function)/i;
           
+          // Add pattern to catch "transaction is ready" claims
+          const fakeTransactionReadyPattern = /The transaction is ready/i;
+          
           // Check for JSON pattern or fake tool claims (with no actual tool calls)
           const hasJsonPattern = jsonPattern.test(messageContent);
-          const hasFakeToolClaim = fakeToolPattern.test(messageContent) && 
+          const hasFakeToolClaim = (fakeToolPattern.test(messageContent) || fakeTransactionReadyPattern.test(messageContent)) && 
                                   (!currentResponseMessage.tool_calls || currentResponseMessage.tool_calls.length === 0);
           
           // Check if problematic pattern exists and handle retries (max 2)
