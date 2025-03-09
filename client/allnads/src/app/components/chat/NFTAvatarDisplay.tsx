@@ -122,15 +122,6 @@ export function NFTAvatarDisplay({
       onSendMessage(message);
     }
   };
-
-  if (isLoadingAvatar) {
-    return (
-      <div className="mx-auto text-center mt-4 mb-6">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-black mx-auto"></div>
-        <p className="text-sm text-gray-500 mt-2">Loading your AllNads NFT...</p>
-      </div>
-    );
-  }
   
   if (avatarImage) {
     return (
@@ -163,6 +154,7 @@ export function NFTAvatarDisplay({
           />
         </div>
         <div className="p-4">
+          <h3 className="text-lg font-bold text-gray-700 mb-3">{`Waiting for your AllNads...`}</h3>
           <div className="grid grid-cols-1 gap-3">
             <button 
               onClick={() => router.push('/airdrop')}

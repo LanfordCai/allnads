@@ -452,7 +452,7 @@ export default function ChatBot() {
           <div className="fixed inset-0 bg-white z-[61] flex flex-col">
             {/* Modal header */}
             <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-              <h2 className="text-lg font-bold">Chat History</h2>
+              <h2 className="text-lg font-bold">AllNads</h2>
               
               {/* Right: Close button */}
               <button 
