@@ -4,6 +4,7 @@
   "description": "Degen AI Buddy for All",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#8B5CF6",
   "icons": [
@@ -17,5 +18,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 } 
