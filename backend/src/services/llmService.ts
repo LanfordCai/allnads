@@ -49,7 +49,9 @@ export class LLMService extends EventEmitter {
       console.log(`[LLM Request] Sending request to ${this.baseUrl}/chat/completions`);
       console.log(`[LLM Request] Using model: ${requestOptions.model}`);
       console.log(`[LLM Request] Message count: ${requestOptions.messages.length}`);
-      
+      requestOptions.messages.forEach(message => {
+        console.log('[LLM Request] Message', JSON.stringify(message, null, 2));
+      });
       // Record start time
       const startTime = Date.now();
       
@@ -66,11 +68,12 @@ export class LLMService extends EventEmitter {
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: response.statusText }));
-        console.error(`[LLM Error] API request failed: ${error.error || response.statusText}`);
+        console.error(`[LLM Error] API request failed ${JSON.stringify(error, null, 2)}: ${error.error || response.statusText}`);
         throw new Error(`API request failed: ${error.error || response.statusText}`);
       }
       
       const responseData: ChatResponse = await response.json();
+      console.log('responseData', responseData);
       
       // Calculate and log time taken
       const endTime = Date.now();

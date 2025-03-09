@@ -178,7 +178,9 @@ export class ChatService {
       let currentMessages = [...llmMessages];
       let continueProcessing = true;
       let toolCallRounds = 0;
+      let remediationAttempts = 0;
       const MAX_TOOL_CALL_ROUNDS = 10;
+      const MAX_REMEDIATION_ATTEMPTS = 2;
 
       while (continueProcessing && toolCallRounds < MAX_TOOL_CALL_ROUNDS) {
         // Record start time for LLM request
@@ -210,25 +212,70 @@ export class ChatService {
 
         // Always send text content (if any), even if tool calls exist
         if (currentResponseMessage.content) {
+          console.log('[asistant message] currentResponseMessage', currentResponseMessage.content);
+          
+          // Pattern detection for problematic messages
+          let messageContent = currentResponseMessage.content;
+          const jsonPattern = /\{"content":\[\{"type":"text"/;
+          
+          // Other problematic patterns - detect claims about tool usage
+          const fakeToolPattern = /(I've|I have|I just|I've just|I successfully) (created|generated|made|executed|used|called|completed|processed) (a |the )?(transaction|tool call|function)/i;
+          
+          // Check for JSON pattern or fake tool claims (with no actual tool calls)
+          const hasJsonPattern = jsonPattern.test(messageContent);
+          const hasFakeToolClaim = fakeToolPattern.test(messageContent) && 
+                                  (!currentResponseMessage.tool_calls || currentResponseMessage.tool_calls.length === 0);
+          
+          // Check if problematic pattern exists and handle retries (max 2)
+          if ((hasJsonPattern || hasFakeToolClaim) && remediationAttempts < MAX_REMEDIATION_ATTEMPTS) {
+            remediationAttempts++;
+            console.log(`[Pattern Detection] Found problematic pattern in assistant message: ${messageContent}. Remediation attempt ${remediationAttempts}/${MAX_REMEDIATION_ATTEMPTS}`);
+            
+            // Add reminder message about important rules
+            const reminderMessage: Message = {
+              role: ChatRole.USER,
+              content: `REMINDER OF CRITICAL RULES:
+1. NEVER provide fake data or pretend to use tools
+2. NEVER post raw JSON strings from tool responses
+3. NEVER claim to have created a transaction or called a function when you haven't
+4. DO NOT pretend to have performed actions or used tools when you haven't actually done so
+5. REMEMBER that all tool usage must be explicit through proper tool_calls
+
+Please reformulate your last response following these rules.`
+            };
+            
+            // Add reminder to messages but DON'T increment toolCallRounds
+            currentMessages.push(reminderMessage);
+            
+            // Skip the rest of this iteration to retry with the reminder
+            continue;
+          }
+
+          remediationAttempts = 0;
+          
+          // Send the message if it's valid or we've exhausted retries
           this.sendSocketMessage(socket, {
             type: 'assistant_message',
-            content: currentResponseMessage.content
+            content: messageContent
           });
 
           // Accumulate assistant content for final storage
           if (!assistantContent) {
-            assistantContent = currentResponseMessage.content;
+            assistantContent = messageContent;
           } else {
-            assistantContent += "\n\n" + currentResponseMessage.content;
+            assistantContent += "\n\n" + messageContent;
           }
 
           // Immediately store this assistant message to database
           const assistantPartialMessage: ChatMessage = {
             role: ChatRole.ASSISTANT,
-            content: currentResponseMessage.content,
+            content: messageContent,
             timestamp: new Date(),
-            sessionId: session.id
+            sessionId: session.id,
+            toolCallId: currentResponseMessage.tool_calls?.[0]?.id,
+            toolName: currentResponseMessage.tool_calls?.[0]?.function?.name
           };
+          console.log('assistantPartialMessage', assistantPartialMessage);
 
           await SessionService.addMessage(session.id, assistantPartialMessage);
         }
@@ -259,12 +306,13 @@ export class ChatService {
           let toolArgs: Record<string, any> = {};
 
           try {
-            console.log('toolCall.function.arguments', toolCall.function.arguments);
             toolArgs = typeof toolCall.function.arguments === 'string'
               ? JSON.parse(toolCall.function.arguments)
               : toolCall.function.arguments;
 
-            let content = `I need to use ${toolName} tool to query related information...`;
+            console.log('toolArgs', toolArgs);
+
+            let content = `I need to use ${toolName} to deal with it...`
             if (toolName.includes(`transaction_sign`)) {
               content = `Here is the transaction info:`
             }
@@ -325,15 +373,15 @@ export class ChatService {
             });
 
             // Save tool message to database
-            // const toolMessage: ChatMessage = {
-            //   role: ChatRole.TOOL,
-            //   content: resultContent,
-            //   timestamp: new Date(),
-            //   sessionId: session.id,
-            //   toolCallId: toolCall.id,
-            //   toolName: toolName
-            // };
-            // await SessionService.addMessage(session.id, toolMessage);
+            const toolMessage: ChatMessage = {
+              role: ChatRole.TOOL,
+              content: resultContent,
+              timestamp: new Date(),
+              sessionId: session.id,
+              toolCallId: toolCall.id,
+              toolName: toolName
+            };
+            await SessionService.addMessage(session.id, toolMessage);
 
           } catch (error) {
             console.error(`[Tool Error] ${error}`);
@@ -353,15 +401,15 @@ export class ChatService {
             });
 
             // Save error tool message to database
-            // const errorToolMessage: ChatMessage = {
-            //   role: ChatRole.TOOL,
-            //   content: errorMessage,
-            //   timestamp: new Date(),
-            //   sessionId: session.id,
-            //   toolCallId: toolCall.id,
-            //   toolName: toolName
-            // };
-            // await SessionService.addMessage(session.id, errorToolMessage);
+            const errorToolMessage: ChatMessage = {
+              role: ChatRole.TOOL,
+              content: errorMessage,
+              timestamp: new Date(),
+              sessionId: session.id,
+              toolCallId: toolCall.id,
+              toolName: toolName
+            };
+            await SessionService.addMessage(session.id, errorToolMessage);
           }
         }
 
