@@ -216,19 +216,22 @@ export class ChatService {
           
           // Pattern detection for problematic messages
           let messageContent = currentResponseMessage.content;
-          const jsonPattern = /\{"content":\[\{"type":"text"/;
+          const jsonPattern = /"type":"text"/;
+          
           
           // Other problematic patterns - detect claims about tool usage
           const fakeToolPattern = /(I've|I have|I just|I've just|I successfully) (created|generated|made|executed|used|called|completed|processed) (a |the )?(transaction|tool call|function)/i;
           
           // Add pattern to catch "transaction is ready" claims
-          const fakeTransactionReadyPattern = /The transaction is ready/i;
+          const fakeTransactionReadyPattern = /transaction is ready/i;
           
           // Check for JSON pattern or fake tool claims (with no actual tool calls)
           const hasJsonPattern = jsonPattern.test(messageContent);
           const hasFakeToolClaim = (fakeToolPattern.test(messageContent) || fakeTransactionReadyPattern.test(messageContent)) && 
                                   (!currentResponseMessage.tool_calls || currentResponseMessage.tool_calls.length === 0);
           
+          console.log('hasJsonPattern', hasJsonPattern);
+          console.log('hasFakeToolClaim', hasFakeToolClaim);
           // Check if problematic pattern exists and handle retries (max 2)
           if ((hasJsonPattern || hasFakeToolClaim) && remediationAttempts < MAX_REMEDIATION_ATTEMPTS) {
             remediationAttempts++;
@@ -278,7 +281,6 @@ Please reformulate your last response following these rules.`
             toolCallId: currentResponseMessage.tool_calls?.[0]?.id,
             toolName: currentResponseMessage.tool_calls?.[0]?.function?.name
           };
-          console.log('assistantPartialMessage', assistantPartialMessage);
 
           await SessionService.addMessage(session.id, assistantPartialMessage);
         }
