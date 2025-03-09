@@ -856,7 +856,7 @@ export default function ChatArea({
       </div>
 
       {/* Message input */}
-      <div className="px-4 pb-4">
+      <div className={`px-4 ${isMobile ? 'pb-10' : 'pb-4'}`}>
         <div className="max-w-3xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-t-[2rem] overflow-hidden shadow-md border-2 border-[#C4B5FD]">
             <form onSubmit={handleSubmit} className="relative">
