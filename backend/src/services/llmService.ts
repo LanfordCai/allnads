@@ -73,22 +73,15 @@ export class LLMService extends EventEmitter {
       }
       
       const responseData: ChatResponse = await response.json();
-      console.log('responseData', responseData);
+      console.log('[LLM Response] ResponseData', responseData);
       
       // Calculate and log time taken
       const endTime = Date.now();
       const duration = endTime - startTime;
       console.log(`[LLM Timing] Request completed in ${duration}ms`);
       
-      // Detailed API response logging
-      console.log(`[LLM Response] Status: ${response.status} ${response.statusText}`);
-      console.log(`[LLM Response] Model: ${responseData.model}`);
-      console.log(`[LLM Response] Token usage: ${responseData.usage?.total_tokens || 'unknown'}`);
-      
       if (responseData.choices && responseData.choices.length > 0) {
         const message = responseData.choices[0].message;
-        console.log(`[LLM Response] Response role: ${message.role}`);
-        
         if (message.content === null) {
           console.warn(`[LLM Warning] Response content is null`);
         } else if (message.content === '...') {

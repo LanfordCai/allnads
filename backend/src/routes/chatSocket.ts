@@ -129,8 +129,6 @@ export class ChatSocketService {
         // Extract parameters from validated result
         const { sessionId, accessToken, idToken, nftTokenId, nftAccount, nftMetadata } = paramsResult.data;
         
-        console.log(`Session ID: ${sessionId}`);
-        
         // Authentication logic: Verify Privy token
         let privyUserId: string;
         let userPrivyWallet: string;
@@ -204,13 +202,6 @@ export class ChatSocketService {
         }
         
         console.log(`Final session ID: ${finalSessionId}`);
-        
-        // Only log history messages in development environment
-        if (env.NODE_ENV === 'development') {
-          console.log('History messages', session.messages);
-        }
-        
-        console.log(`Session history: ${session.messages.length} messages`);
         
         // Check if there are any existing assistant messages in the session history
         const hasExistingAssistantMessages = session.messages.some(

@@ -81,40 +81,6 @@ class BlockchainService {
   }
 
   /**
-   * Display the request log in a user-friendly format
-   */
-  public displayRequestLog(): void {
-    console.group('Blockchain Request Log');
-    console.log(`Total requests: ${this.requestLog.length}`);
-    
-    if (this.requestLog.length === 0) {
-      console.log('No requests logged yet.');
-    } else {
-      this.requestLog.forEach(entry => {
-        console.group(`Request #${entry.id}: ${entry.method}`);
-        console.log(`Time: ${entry.timestamp}`);
-        console.log(`Parameters:`, entry.params);
-        
-        if (entry.result !== undefined) {
-          console.log(`Result:`, entry.result);
-        }
-        
-        if (entry.error !== undefined) {
-          console.log(`Error:`, entry.error);
-        }
-        
-        if (entry.duration !== undefined) {
-          console.log(`Duration: ${entry.duration.toFixed(2)}ms`);
-        }
-        
-        console.groupEnd();
-      });
-    }
-    
-    console.groupEnd();
-  }
-
-  /**
    * Export the request log to a downloadable JSON file
    */
   public exportRequestLog(): void {
@@ -542,12 +508,10 @@ class BlockchainService {
   public async fetchAllTemplatesFromAPI(): Promise<Record<string, Template[]>> {
     // 检查缓存是否有效
     if (this.templatesCache && (Date.now() - this.templatesCacheTimestamp) < this.CACHE_TTL_MS) {
-      console.log('[Templates] Using cached templates data');
       return this.templatesCache;
     }
 
     try {
-      console.log('[Templates] Fetching templates from API');
       const responseData = await NFTService.fetchTemplates();
       
       // Check if the response has the expected structure

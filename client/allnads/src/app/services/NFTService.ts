@@ -64,8 +64,6 @@ export class NFTService {
    * @throws {AuthenticationError} If user is not authenticated
    */
   static async fetchTemplates(): Promise<ApiResponse<{ templates: Record<string, Template[]> }>> {
-    console.log('Fetching templates from API');
-    
     try {
       const headers = await this.getAuthHeaders();
 
@@ -80,7 +78,6 @@ export class NFTService {
       }
 
       const data = await response.json();
-      console.log('Templates fetch response:', data);
       return data;
     } catch (error) {
       if (error instanceof AuthenticationError) {
@@ -105,9 +102,6 @@ export class NFTService {
    * @throws {AuthenticationError} If user is not authenticated
    */
   static async checkNFT(address: string): Promise<ApiResponse<{ hasNFT: boolean }>> {
-    console.log(`Checking NFT for address: ${address}`);
-    console.log(`API URL: ${this.BASE_URL}/nft/check/${address}`);
-
     try {
       const headers = await this.getAuthHeaders();
 
@@ -122,7 +116,6 @@ export class NFTService {
       }
 
       const data = await response.json();
-      console.log('NFT check response:', data);
       return data;
     } catch (error) {
       if (error instanceof AuthenticationError) {
@@ -151,10 +144,6 @@ export class NFTService {
     walletAddress: string,
     nftName: string = 'AllNads Avatar'
   ): Promise<ApiResponse<{ success: boolean, message: string }>> {
-    console.log(`Requesting airdrop for address: ${walletAddress}`);
-    console.log(`API URL: ${this.BASE_URL}/nft/airdrop`);
-    console.log(`NFT Name: ${nftName}`);
-
     try {
       const headers = await this.getAuthHeaders();
 
@@ -162,15 +151,12 @@ export class NFTService {
         address: walletAddress,
         name: nftName
       };
-      console.log('Request body:', requestBody);
 
       const response = await fetch(`${this.BASE_URL}/nft/airdrop`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
       });
-
-      console.log('Airdrop response status:', response.status, response.statusText);
 
       if (!response.ok) {
         let errorMessage = `Error requesting airdrop: ${response.statusText}`;
@@ -185,7 +171,6 @@ export class NFTService {
       }
 
       const data = await response.json();
-      console.log('Airdrop response data:', data);
       return data;
     } catch (error) {
       if (error instanceof AuthenticationError) {

@@ -107,8 +107,6 @@ export default function ChatArea({
         return;
       }
       
-      console.log(`Checking message ID: ${latestMessage.id}, content: ${latestMessage.content.substring(0, 50)}...`);
-      
       // Check if the message is from the bot
       if (latestMessage.role === 'bot') {
         // Mark this message as processed

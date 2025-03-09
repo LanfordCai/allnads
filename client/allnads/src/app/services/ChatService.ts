@@ -103,7 +103,7 @@ export class ChatService {
   public connect(): Promise<void> {
     return new Promise(async (resolve, reject) => {
       if (this.socket?.readyState === WebSocket.OPEN) {
-        console.log('WebSocket已经连接，无需重新连接');
+        console.log('WebSocket is already connected, no need to reconnect');
         resolve();
         return;
       }
@@ -166,26 +166,22 @@ export class ChatService {
           if (accessToken && idToken) {
             queryParams.append('accessToken', accessToken);
             queryParams.append('idToken', idToken);
-            console.log('已添加认证令牌到连接URL');
           } else {
-            console.log('未能获取认证令牌，拒绝匿名连接');
             reject(new Error('Authentication required. Please login to use the chat.'));
             return;
           }
         } catch (error) {
-          console.error('获取认证令牌失败:', error);
+          console.error('Failed to authenticate:', error);
           reject(new Error('Failed to authenticate. Please try again.'));
           return;
         }
       } else {
-        console.log('未设置令牌提供者，拒绝匿名连接');
         reject(new Error('Authentication required. Please login to use the chat.'));
         return;
       }
       
       // 如果没有令牌，拒绝连接
       if (!accessToken || !idToken) {
-        console.log('没有有效的认证令牌，拒绝匿名连接');
         reject(new Error('Authentication required. Please login to use the chat.'));
         return;
       }
@@ -196,13 +192,12 @@ export class ChatService {
         connectionUrl += (connectionUrl.includes('?') ? '&' : '?') + queryString;
       }
 
-      console.log(`正在连接WebSocket`);
       this.socket = new WebSocket(connectionUrl);
 
       this.socket.onopen = () => {
-        console.log('=== WebSocket连接已建立 ===');
-        console.log(`使用会话ID: ${this.sessionId || '未指定'}`);
-        console.log(`认证状态: ${queryParams.has('token') ? '已认证' : '匿名'}`);
+        console.log('=== WebSocket connection established ===');
+        console.log(`Using session ID: ${this.sessionId || 'Not specified'}`);
+        console.log(`Authentication status: ${queryParams.has('token') ? 'Authenticated' : 'Anonymous'}`);
         console.log('=========================');
         this.reconnectAttempts = 0;
         const openHandler = this.eventHandlers['open'];
@@ -213,9 +208,9 @@ export class ChatService {
       };
 
       this.socket.onclose = (event) => {
-        console.log('=== WebSocket连接已关闭 ===');
-        console.log(`关闭代码: ${event.code}`);
-        console.log(`关闭原因: ${event.reason || '无原因'}`);
+        console.log('=== WebSocket connection closed ===');
+        console.log(`Close code: ${event.code}`);
+        console.log(`Close reason: ${event.reason || 'No reason'}`);
         console.log('=========================');
         
         const closeHandler = this.eventHandlers['close'];
@@ -223,10 +218,8 @@ export class ChatService {
           closeHandler(event);
         }
 
-        // 处理特定的认证错误
         if (event.code === 4001) {
-          console.error('认证失败，令牌可能已过期或无效');
-          // 可以触发特定的认证错误事件处理
+          console.error('Authentication failed, token may have expired or is invalid');
           const authErrorHandler = this.eventHandlers['auth_error'];
           if (authErrorHandler) {
             authErrorHandler({ code: event.code, reason: event.reason });
@@ -234,13 +227,13 @@ export class ChatService {
         }
         // Attempt to reconnect if not a deliberate closure
         else if (event.code !== 1000 && event.code !== 1001) {
-          console.log(`连接非正常关闭 (代码 ${event.code}), 准备重新连接...`);
+          console.log(`Connection closed (code ${event.code}), preparing to reconnect...`);
           this.attemptReconnect();
         }
       };
 
       this.socket.onerror = (error) => {
-        console.error('=== WebSocket发生错误 ===');
+        console.error('=== WebSocket error ===');
         console.error(error);
         console.error('=======================');
         
@@ -260,8 +253,8 @@ export class ChatService {
 
   private attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('=== WebSocket重连失败 ===');
-      console.error(`已达到最大重连次数: ${this.maxReconnectAttempts}次`);
+      console.error('=== WebSocket reconnect failed ===');
+      console.error(`Reached maximum reconnect attempts: ${this.maxReconnectAttempts} times`);
       console.error('=======================');
       return;
     }
@@ -269,9 +262,9 @@ export class ChatService {
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
     
-    console.log('=== WebSocket准备重连 ===');
-    console.log(`重连尝试: ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
-    console.log(`延迟时间: ${delay}ms`);
+    console.log('=== WebSocket preparing to reconnect ===');
+    console.log(`Reconnect attempt: ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+    console.log(`Delay: ${delay}ms`);
     console.log('========================');
     
     if (this.reconnectTimeout) {
@@ -279,46 +272,32 @@ export class ChatService {
     }
     
     this.reconnectTimeout = setTimeout(() => {
-      console.log(`开始第${this.reconnectAttempts}次重连...`);
+      console.log(`Starting ${this.reconnectAttempts}th reconnect...`);
       this.connect().catch(error => {
-        console.error(`第${this.reconnectAttempts}次重连失败:`, error);
+        console.error(`${this.reconnectAttempts}th reconnect failed:`, error);
       });
     }, delay);
   }
 
   private handleMessage(data: string) {
     try {
-      // 打印原始消息
-      console.log('=== WebSocket 收到原始消息 ===');
-      console.log(data);
-      console.log('=========================');
-
       const message = JSON.parse(data) as ServerMessage;
-      
-      // 打印格式化的消息对象
-      console.log(`=== 解析后的消息 [类型: ${message.type}] ===`);
-      console.log(JSON.stringify(message, null, 2));
-      console.log('=========================');
 
       // Save session ID if present
       if (message.sessionId) {
         this.sessionId = message.sessionId;
-        console.log(`会话ID已更新: ${this.sessionId}`);
       }
 
       // Call appropriate event handler
       if (message.type && this.eventHandlers[message.type]) {
-        console.log(`正在处理 "${message.type}" 类型的消息`);
         const handler = this.eventHandlers[message.type];
         if (handler) {
           handler(message);
         }
-      } else {
-        console.warn(`没有处理程序处理 "${message.type}" 类型的消息`);
       }
     } catch (error) {
-      console.error('消息解析失败:', error);
-      console.error('原始消息:', data);
+      console.error('Error parsing message:', error);
+      console.error('Original message:', data);
     }
   }
 
@@ -335,11 +314,6 @@ export class ChatService {
       sessionId: options.sessionId || this.sessionId,
       enableTools: options.enableTools !== false // Default to true
     };
-
-    // 打印发送的消息
-    console.log('=== 发送WebSocket消息 ===');
-    console.log(JSON.stringify(chatRequest, null, 2));
-    console.log('=========================');
 
     this.socket.send(JSON.stringify(chatRequest));
   }
