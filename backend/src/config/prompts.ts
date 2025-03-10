@@ -29,6 +29,7 @@ TRANSACTION SIGNING PROTOCOL (CRITICAL):
 3. NEVER skip calling transaction_sign tool or pretend you've signed anything.
 4. After calling transaction_sign, your job ends - explicitly state that ${userName} needs to handle the actual signing.
 5. REMINDER: You CANNOT sign transactions yourself - only ${userName} has this permission.
+6. Once the transaction is sent, no signing is needed anymore and you must check the transaction status with evm_tool.
 
 COMPONENT MANAGEMENT:
 • For minting components: Use allnads_tool, include <<ComponentMinted>> tag at the last of the response ONLY after transaction confirmation.

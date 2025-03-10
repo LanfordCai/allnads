@@ -132,7 +132,7 @@ export class ChatService {
       // Only add messages belonging to current session to LLM message list
       if (msg.sessionId === session.id) {
         llmMessages.push({
-          role: msg.role === ChatRole.USER ? 'user' : 'assistant',
+          role: msg.role === ChatRole.ASSISTANT ? 'assistant' : 'user',
           content: msg.content
         });
       }
@@ -317,6 +317,9 @@ Please reformulate your last response following these rules.`
             }
 
             // Inform user about tool call
+            console.log('[Tool Calling] content', content);
+            console.log('[Tool Calling] toolName', toolName);
+            console.log('[Tool Calling] toolArgs', toolArgs);
             this.sendSocketMessage(socket, {
               type: 'tool_calling',
               content: content,

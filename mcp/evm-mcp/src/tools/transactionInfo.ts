@@ -12,13 +12,13 @@ export const evmTransactionInfoTool = {
   
   parameters: z.object({
     txHash: z.string().describe('The transaction hash to fetch information for'),
-    chain: z.string().default('ethereum').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
+    chain: z.string().default('monad').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
     customRpcUrl: z.string().optional().describe('Optional custom RPC URL for the chain'),
   }),
   
   execute: async (params: { txHash: string; chain?: string; customRpcUrl?: string }): Promise<ContentResult> => {
     try {
-      const { txHash, chain = 'ethereum', customRpcUrl } = params;
+      const { txHash, chain = 'monad', customRpcUrl } = params;
       
       // Validate transaction hash format
       if (!txHash.match(/^0x[0-9a-fA-F]{64}$/)) {

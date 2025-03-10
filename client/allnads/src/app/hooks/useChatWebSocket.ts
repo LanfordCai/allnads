@@ -1,6 +1,7 @@
 import { useState, useCallback, MutableRefObject } from 'react';
 import { ChatService, isServerMessage } from '../services/ChatService';
 import { ChatSession } from '../types/chat';
+import { formatEther } from 'viem';
 
 export function useChatWebSocket(
   chatServiceRef: MutableRefObject<ChatService | null>,
@@ -187,7 +188,7 @@ export function useChatWebSocket(
           if (message.tool.name === 'allnads_tool__transaction_sign') {
             const { to, data, value } = message.tool.args;
             // Format transaction signing message to make it clearer
-            const transactionContent = `${message.content}\n\nTransaction Request:\nTo: ${to}\nData: ${data}\nValue: ${value || '0'} ETH`;
+            const transactionContent = `${message.content}\n\nTransaction Request:\nTo: ${to}\nData: ${data}\nValue: ${formatEther(BigInt(value as string)) || '0'} MON`;
             const transactionMessage = chatService.createLocalMessage(transactionContent, 'transaction_to_sign');
              
             setSessions(prevSessions => {

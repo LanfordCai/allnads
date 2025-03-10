@@ -11,13 +11,13 @@ export const evmBlockInfoTool = {
   
   parameters: z.object({
     blockNumber: z.string().default('latest').describe('The block number to fetch information for, or "latest" for the latest block'),
-    chain: z.string().default('ethereum').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
+    chain: z.string().default('monad').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
     customRpcUrl: z.string().optional().describe('Optional custom RPC URL for the chain'),
   }),
   
   execute: async (params: { blockNumber?: string; chain?: string; customRpcUrl?: string }): Promise<ContentResult> => {
     try {
-      const { blockNumber = 'latest', chain = 'ethereum', customRpcUrl } = params;
+      const { blockNumber = 'latest', chain = 'monad', customRpcUrl } = params;
       
       // Get provider for the specified chain
       const provider = getProvider(chain, customRpcUrl);

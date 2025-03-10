@@ -15,7 +15,7 @@ export const evmContractCallTool = {
     abi: z.string().describe('The ABI of the function to call (can be a full contract ABI or just the function ABI)'),
     functionName: z.string().describe('The name of the function to call'),
     args: z.array(z.string()).optional().describe('The arguments to pass to the function'),
-    chain: z.string().default('ethereum').describe('The blockchain to use (e.g., ethereum, optimism, arbitrum, polygon)'),
+    chain: z.string().default('monad').describe('The blockchain to use (e.g., ethereum, optimism, arbitrum, polygon)'),
     customRpcUrl: z.string().optional().describe('Optional custom RPC URL for the chain'),
   }),
   
@@ -33,7 +33,7 @@ export const evmContractCallTool = {
         abi, 
         functionName, 
         args = [], 
-        chain = 'ethereum', 
+        chain = 'monad', 
         customRpcUrl 
       } = params;
       

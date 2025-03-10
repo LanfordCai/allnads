@@ -629,7 +629,7 @@ export const uniswapSwapTool = {
         const transactionRequest = {
           to: allNadsAccount as Address,
           data: executeCallData,
-          value: formatEther(amountInWei) // Send ETH with the transaction as hex
+          value: '0'
         };
 
         return createTextResponse(

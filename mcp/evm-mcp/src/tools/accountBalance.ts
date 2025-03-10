@@ -19,13 +19,13 @@ export const evmAccountBalanceTool = {
   
   parameters: z.object({
     address: z.string().describe('The Ethereum address to check'),
-    chain: z.string().default('ethereum').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
+    chain: z.string().default('monad').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
     customRpcUrl: z.string().optional().describe('Optional custom RPC URL for the chain'),
   }),
   
   execute: async (params: AccountBalanceParams): Promise<ContentResult> => {
     try {
-      const { address, chain = 'ethereum', customRpcUrl } = params;
+      const { address, chain = 'monad', customRpcUrl } = params;
       
       // Validate address format
       if (!address.match(/^0x[0-9a-fA-F]{40}$/)) {

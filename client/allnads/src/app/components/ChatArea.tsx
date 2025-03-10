@@ -211,7 +211,7 @@ export default function ChatArea({
       const transactionRequest = {
         to: to,
         data: data,
-        value: value === '0' ? '0x0' : `0x${parseEther(value).toString(16)}`, // Convert to hexadecimal
+        value: value === '0' ? '0x0' : `0x${BigInt(value).toString(16)}`, // Convert to hexadecimal
       };
       
       // Send transaction request
@@ -268,7 +268,7 @@ export default function ChatArea({
                 Calling
                 <div className="ml-1 flex overflow-hidden">
                   <span className="bg-[#7C3AED] text-white px-2 py-0.5 rounded-l-md rounded-r-none text-xs font-medium flex-shrink-0">{leftTag}</span>
-                  <span className="bg-[#EDE9FE] dark:bg-[#7C3AED]/30 text-[#7C3AED] dark:text-white px-2 py-0.5 rounded-r-md rounded-l-none text-xs font-medium truncate max-w-[120px]">{rightTag}</span>
+                  <span className="bg-[#EDE9FE] dark:bg-[#7C3AED]/30 text-[#7C3AED] dark:text-white px-2 py-0.5 rounded-r-md rounded-l-none text-xs font-medium truncate max-w-[120px] md:max-w-[180px]">{rightTag}</span>
                 </div>
               </div>
               <div className="text-xs font-mono overflow-x-auto">

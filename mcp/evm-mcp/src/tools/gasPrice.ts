@@ -28,13 +28,13 @@ export const evmGasPriceTool = {
   description: 'Get current gas prices on an EVM blockchain',
   
   parameters: z.object({
-    chain: z.string().default('ethereum').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
+    chain: z.string().default('monad').describe('The blockchain to check (e.g., ethereum, optimism, arbitrum, polygon)'),
     customRpcUrl: z.string().optional().describe('Optional custom RPC URL for the chain'),
   }),
   
   execute: async (params: { chain?: string; customRpcUrl?: string }): Promise<ContentResult> => {
     try {
-      const { chain = 'ethereum', customRpcUrl } = params;
+      const { chain = 'monad', customRpcUrl } = params;
       
       // Get provider for the specified chain
       const provider = getProvider(chain, customRpcUrl);

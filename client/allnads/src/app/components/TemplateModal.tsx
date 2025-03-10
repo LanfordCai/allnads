@@ -154,7 +154,7 @@ export default function TemplateModal({
     onClose();
   };
   
-  // Format price from wei to ETH
+  // Format price from wei to MON 
   const formatPrice = (price: bigint) => {
     const priceInEth = Number(price) / 1e18;
     return priceInEth.toFixed(4);
@@ -258,7 +258,7 @@ export default function TemplateModal({
                     <div className="p-3 flex flex-col flex-grow">
                       <h3 className="font-medium text-gray-800 truncate text-sm mb-1">{template.name}</h3>
                       <div className="flex justify-between items-center mt-auto">
-                        <span className="text-xs text-gray-600">{formatPrice(template.price)} ETH</span>
+                        <span className="text-xs text-gray-600">{formatPrice(template.price)} MON</span>
                         <span className={`text-[10px] px-1 py-0.5 rounded-sm ${template.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                           {template.isActive ? 'Active' : 'Inactive'}
                         </span>

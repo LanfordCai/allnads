@@ -74,7 +74,7 @@ export const transactionSignTool = {
         }
       });
 
-      return createTextResponse(`Transaction sent with hash: ${txResponse.hash}`);
+      return createTextResponse(`Transaction sent with hash: ${txResponse.hash}, but you need to check the status of the it with evm_tool.`);
     } catch (error) {
       console.error('Error in delegated transaction:', error);
       return createTextResponse(`Error in delegated transaction: ${error instanceof Error ? error.message : String(error)}`);
