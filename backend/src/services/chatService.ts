@@ -227,13 +227,9 @@ export class ChatService {
           
           // Check for JSON pattern or fake tool claims (with no actual tool calls)
           const hasJsonPattern = jsonPattern.test(messageContent);
-          const hasFakeToolClaim = (fakeToolPattern.test(messageContent) || fakeTransactionReadyPattern.test(messageContent)) && 
-                                  (!currentResponseMessage.tool_calls || currentResponseMessage.tool_calls.length === 0);
           
-          console.log('hasJsonPattern', hasJsonPattern);
-          console.log('hasFakeToolClaim', hasFakeToolClaim);
           // Check if problematic pattern exists and handle retries (max 2)
-          if ((hasJsonPattern || hasFakeToolClaim) && remediationAttempts < MAX_REMEDIATION_ATTEMPTS) {
+          if ((hasJsonPattern) && remediationAttempts < MAX_REMEDIATION_ATTEMPTS) {
             remediationAttempts++;
             console.log(`[Pattern Detection] Found problematic pattern in assistant message: ${messageContent}. Remediation attempt ${remediationAttempts}/${MAX_REMEDIATION_ATTEMPTS}`);
             
@@ -242,7 +238,7 @@ export class ChatService {
               role: ChatRole.USER,
               content: `REMINDER OF CRITICAL RULES:
 1. NEVER provide fake data or pretend to use tools
-2. NEVER post raw JSON strings from tool responses
+2. NEVER post raw JSON strings in your response
 3. NEVER claim to have created a transaction or called a function when you haven't
 4. DO NOT pretend to have performed actions or used tools when you haven't actually done so
 5. REMEMBER that all tool usage must be explicit through proper tool_calls
