@@ -13,6 +13,7 @@ An MCP (Model Context Protocol) server for interacting with EVM (Ethereum Virtua
 ## Supported Chains
 
 - Ethereum
+- MonadTestnet
 - Optimism
 - Arbitrum
 - Polygon
@@ -23,10 +24,6 @@ An MCP (Model Context Protocol) server for interacting with EVM (Ethereum Virtua
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/evm-mcp-server.git
-cd evm-mcp-server
-
 # Install dependencies
 npm install
 
@@ -40,42 +37,15 @@ npm run build
 
 ```bash
 # Development mode
-npm run dev
+USE_HTTP=true npm run dev
 
 # Production mode
-npm start
-```
-
-### Using with Claude Desktop
-
-1. Run the setup script to configure Claude Desktop:
-```bash
-./claude-desktop-setup.sh
-```
-
-2. Restart Claude Desktop
-3. Ask Claude to interact with EVM blockchains
-
-### Using with Cursor Editor
-
-1. Run the setup script to configure Cursor:
-```bash
-./cursor-setup.sh
-```
-
-2. Restart Cursor Editor
-3. You can now ask Cursor to interact with EVM blockchains using the same prompts
-
-### Testing the Server
-
-```bash
-# Run the test client
-npx ts-node src/test-client.ts
+USE_HTTP=true npm start
 ```
 
 ## Example Prompts
 
-- "Check the balance of 0x7b65b75d204abed71587c9e519a89277766ee1d0 on Ethereum"
+- "Check the balance of 0x7b65b75d204abed71587c9e519a89277766ee1d0 on Monad"
 - "Get information about the latest block on Optimism"
 - "Call the balanceOf function on the USDC contract at 0x456..."
 - "Get details about transaction 0x789..."

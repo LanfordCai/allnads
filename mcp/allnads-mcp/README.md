@@ -25,10 +25,6 @@ An MCP (Model Context Protocol) server for interacting with the Allnads blockcha
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/allnads-mcp.git
-cd allnads-mcp
-
 # Install dependencies
 npm install
 
