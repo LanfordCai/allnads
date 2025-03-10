@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types/chat';
-import { parseEther, isAddress } from 'viem';
+import { isAddress } from 'viem';
 import { useWallets } from '@privy-io/react-auth';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAllNads } from '../hooks/useAllNads';
