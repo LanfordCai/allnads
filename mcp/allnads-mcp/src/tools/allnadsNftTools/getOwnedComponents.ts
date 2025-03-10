@@ -1,9 +1,9 @@
 import { type Address, isAddress, encodeFunctionData } from 'viem';
 import { z } from 'zod';
-import { createTextResponse, ContentResult } from './types.js';
-import { getPublicClient } from '../utils/viem.js';
-import { templateCache } from '../utils/globalCache.js';
-import { env } from '../config/env.js';
+import { createTextResponse, ContentResult } from '../types.js';
+import { getPublicClient } from '../../utils/viem.js';
+import { templateCache } from '../../utils/globalCache.js';
+import { env } from '../../config/env.js';
 
 const getAllOwnedTemplatesABI = [
   {

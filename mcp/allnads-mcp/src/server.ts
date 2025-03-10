@@ -5,16 +5,16 @@ import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
 import { ContentResult } from './tools/types.js';
-import { sendMonTool } from './tools/sendMon.js';
+import { sendMonTool } from './tools/sendMonTools.js';
 import { transactionSignTool } from './tools/transactionSign.js';
-import { changeTemplateTool } from './tools/changeTemplate.js';
-import { mintTemplateComponentTool } from './tools/mintTemplateComponent.js';
-import { getOwnedComponentsTool } from './tools/getOwnedComponents.js';
+import { changeTemplateTool } from './tools/allnadsNftTools/changeTemplate.js';
+import { mintTemplateComponentTool } from './tools/allnadsNftTools/mintTemplateComponent.js';
+import { getOwnedComponentsTool } from './tools/allnadsNftTools/getOwnedComponents.js';
 import { getErc20TokensTool, transferErc20TokenTool } from './tools/erc20Tools.js';
 import { uniswapQuoteTool, uniswapSwapTool } from './tools/swapTools.js';
-import { getTemplatesTool } from './tools/getTemplates.js';
+import { getTemplatesTool } from './tools/allnadsNftTools/getTemplates.js';
 import { getAllAddressesTool, addAddressTool, removeAddressTool, updateAddressTool } from './tools/addressBookTools.js';
-import { getEquippedComponentsTool } from './tools/getEquippedComponents.js';
+import { getEquippedComponentsTool } from './tools/allnadsNftTools/getEquippedComponents.js';
 
 // Create a new MCP server instance
 const server = new McpServer({

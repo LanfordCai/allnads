@@ -1,10 +1,10 @@
 import { type Address, isAddress } from 'viem';
 import { z } from 'zod';
-import { createTextResponse, ContentResult } from './types.js';
-import { getPublicClient } from '../utils/viem.js';
-import { templateCache } from '../utils/globalCache.js';
-import { env } from '../config/env.js';
-import { AllNadsABI } from '../abis/AllNads.js';
+import { createTextResponse, ContentResult } from '../types.js';
+import { getPublicClient } from '../../utils/viem.js';
+import { templateCache } from '../../utils/globalCache.js';
+import { env } from '../../config/env.js';
+import { AllNadsABI } from '../../abis/AllNads.js';
 
 // Map component type numbers to their string representation
 const COMPONENT_TYPE_NAMES: Record<number, string> = {

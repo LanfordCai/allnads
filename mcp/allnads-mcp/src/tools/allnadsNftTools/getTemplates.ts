@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createTextResponse, ContentResult } from './types.js';
-import { templateCache } from '../utils/globalCache.js';
-import { Template } from '../types/template.js';
+import { createTextResponse, ContentResult } from '../types.js';
+import { templateCache } from '../../utils/globalCache.js';
+import { Template } from '../../types/template.js';
 
 /**
  * Tool for getting all templates information (excluding imageData)
