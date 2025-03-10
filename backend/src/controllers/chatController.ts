@@ -1,15 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SessionService } from '../services/sessionService';
-import { z } from 'zod';
-import { mcpManager } from '../services/mcpService';
 import { Logger } from '../utils/logger';
 import { ResponseUtil } from '../utils/response';
-
-// Tool call request validation schema
-const toolCallRequestSchema = z.object({
-  toolName: z.string().min(1, "Tool name cannot be empty"),
-  args: z.record(z.unknown()).optional().default({})
-});
 
 /**
  * Chat Controller

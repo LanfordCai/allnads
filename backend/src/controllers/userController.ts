@@ -3,18 +3,11 @@ import { privyService } from '../services/PrivyService';
 import { Logger } from '../utils/logger';
 import { ResponseUtil } from '../utils/response';
 
-/**
- * 用户控制器，处理用户相关的请求
- */
 export class UserController {
-  /**
-   * 获取当前认证用户的信息
-   */
   static async getCurrentUser(req: Request & { user?: any }, res: Response) {
     try {
       Logger.debug('UserController', 'Getting current user info');
       
-      // 用户信息已通过中间件附加到请求对象
       if (!req.user) {
         Logger.warn('UserController', 'User not authenticated when accessing getCurrentUser');
         return ResponseUtil.error(
@@ -39,9 +32,6 @@ export class UserController {
     }
   }
 
-  /**
-   * 获取特定用户的信息 (仅限管理员)
-   */
   static async getUserById(req: Request, res: Response) {
     try {
       const { userId } = req.params;
@@ -72,9 +62,6 @@ export class UserController {
     }
   }
 
-  /**
-   * 删除用户 (仅限管理员或用户自己)
-   */
   static async deleteUser(req: Request & { user?: any }, res: Response) {
     try {
       const { userId } = req.params;
@@ -90,10 +77,8 @@ export class UserController {
         );
       }
 
-      // 检查是否是当前用户删除自己的账户
       if (req.user && req.user.id !== userId) {
         Logger.warn('UserController', `User ${req.user.id} attempted to delete another user: ${userId}`);
-        // 此处可以添加管理员权限检查
         return ResponseUtil.error(
           res, 
           'Forbidden: You can only delete your own account',

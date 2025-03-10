@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 消息角色
+// Message role
 export enum ChatRole {
   USER = 'user',
   ASSISTANT = 'assistant',
@@ -8,17 +8,17 @@ export enum ChatRole {
   SYSTEM = 'system',
 }
 
-// 消息内容类型
+// Message content type
 export interface ChatMessage {
   role: ChatRole;
   content: string;
   timestamp: Date;
   sessionId?: string;
-  toolCallId?: string;  // 工具调用ID
-  toolName?: string;    // 工具名称
+  toolCallId?: string;  // Tool call ID
+  toolName?: string;    // Tool name
 }
 
-// 聊天会话
+// Chat session
 export interface ChatSession {
   id: string;
   privyUserId?: string;
@@ -27,29 +27,29 @@ export interface ChatSession {
   messages: ChatMessage[];
 }
 
-// 聊天请求验证模式
+// Chat request validation schema
 export const chatRequestSchema = z.object({
   sessionId: z.string().uuid().optional(),
-  message: z.string().min(1, "消息不能为空"),
+  message: z.string().min(1, "Message cannot be empty"),
   enableTools: z.boolean().optional()
 });
 
-// 聊天请求类型
+// Chat request type
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
-// 聊天响应（应用内部使用）
+// Chat response (internal use)
 export interface AppChatResponse {
   sessionId: string;
   message: ChatMessage;
 }
 
 /**
- * 支持的角色类型
+ * Supported role types
  */
 export type Role = 'user' | 'assistant' | 'system' | 'tool';
 
 /**
- * 函数调用参数定义
+ * Function call parameter definition
  */
 export interface FunctionParameters {
   type: string;
@@ -58,7 +58,7 @@ export interface FunctionParameters {
 }
 
 /**
- * 函数定义
+ * Function definition
  */
 export interface FunctionDefinition {
   name: string;
@@ -67,12 +67,12 @@ export interface FunctionDefinition {
 }
 
 /**
- * 工具类型
+ * Tool type
  */
 export type ToolType = 'function';
 
 /**
- * 聊天工具定义
+ * Chat tool definition
  */
 export interface ChatCompletionTool {
   type: ToolType;
@@ -80,7 +80,7 @@ export interface ChatCompletionTool {
 }
 
 /**
- * 工具调用结果
+ * Tool call result
  */
 export interface ToolCallResult {
   tool_call_id: string;
@@ -89,7 +89,7 @@ export interface ToolCallResult {
 }
 
 /**
- * 函数调用定义
+ * Function call definition
  */
 export interface FunctionCall {
   name: string;
@@ -97,7 +97,7 @@ export interface FunctionCall {
 }
 
 /**
- * 工具调用
+ * Tool call
  */
 export interface ToolCall {
   id: string;
@@ -106,7 +106,7 @@ export interface ToolCall {
 }
 
 /**
- * 聊天消息
+ * Chat message
  */
 export interface Message {
   id?: string;
@@ -118,7 +118,7 @@ export interface Message {
 }
 
 /**
- * 聊天选项
+ * Chat options
  */
 export interface ChatOptions {
   model: string;
@@ -134,7 +134,7 @@ export interface ChatOptions {
 }
 
 /**
- * 聊天响应选择
+ * Chat response choice
  */
 export interface ChatResponseChoice {
   index: number;
@@ -143,7 +143,7 @@ export interface ChatResponseChoice {
 }
 
 /**
- * 聊天使用统计
+ * Chat usage statistics
  */
 export interface ChatUsage {
   prompt_tokens: number;
@@ -152,7 +152,7 @@ export interface ChatUsage {
 }
 
 /**
- * 聊天响应
+ * Chat response
  */
 export interface ChatResponse {
   id: string;
@@ -164,7 +164,7 @@ export interface ChatResponse {
 }
 
 /**
- * 聊天流式响应块
+ * Chat stream response chunk
  */
 export interface ChatResponseChunk {
   id: string;

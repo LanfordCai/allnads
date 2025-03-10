@@ -5,19 +5,19 @@ import { setControllerContext } from '../middleware/context';
 
 const router = express.Router();
 
-// 添加控制器上下文中间件
+// Add controller context middleware
 router.use(setControllerContext('ChatController'));
 
-// 应用鉴权中间件
+// Apply authentication middleware
 router.use(privyAuth);
 
-// GET /api/chat/sessions - 获取所有会话
+// GET /api/chat/sessions - Get all sessions
 router.get('/sessions', ChatController.getAllSessions as RequestHandler);
 
-// GET /api/chat/sessions/:sessionId - 获取会话历史
+// GET /api/chat/sessions/:sessionId - Get session history
 router.get('/sessions/:sessionId', ChatController.getSessionHistory as RequestHandler);
 
-// DELETE /api/chat/sessions/:sessionId - 删除会话
+// DELETE /api/chat/sessions/:sessionId - Delete session
 router.delete('/sessions/:sessionId', ChatController.deleteSession as RequestHandler);
 
 export { router as chatRouter }; 

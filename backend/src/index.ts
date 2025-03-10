@@ -18,126 +18,122 @@ import { requestLogger } from './middleware/logger';
 import { Logger } from './utils/logger';
 import { blockchainService } from './services/blockchainService';
 
-// ES Modules 兼容性: 获取 __dirname 的等效值
+// ES Modules compatibility: Get equivalent value for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 创建 Express 应用
+// Create Express application
 const app = express();
 const server = http.createServer(app);
 
-// 定义关闭应用程序的函数
+// Define function to shut down the application
 function setupShutdownHandlers(server: http.Server) {
   const shutdown = async () => {
-    console.log('正在关闭服务器...');
+    console.log('Server is shutting down...');
     server.close(() => {
-      console.log('HTTP服务器已关闭');
+      console.log('HTTP server closed');
     });
     
-    // 关闭WebSocket连接
+    // Close WebSocket connections
     closeChatWebSocket();
-    console.log('WebSocket连接已关闭');
-    
-    // 关闭数据库连接
+    // Close database connections
     await closeDatabase();
-    console.log('数据库连接已关闭');
     
-    console.log('应用程序已安全关闭');
+    console.log('Application safely closed');
     process.exit(0);
   };
 
-  // 注册进程事件处理程序
+  // Register process event handlers
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
   process.on('uncaughtException', (error) => {
-    console.error('未捕获的异常:', error);
+    console.error('Uncaught exception:', error);
     shutdown();
   });
 }
 
-// 初始化服务
+// Initialize services
 async function initializeServer(): Promise<void> {
   // Middleware
   app.use(cors());
   app.use(express.json());
   
-  // 请求日志中间件 - 在所有其他中间件之前添加
+  // Request logging middleware - add before all other middleware
   app.use(requestLogger);
   
-  // API routes - 添加日志中间件后再注册路由
+  // API routes - register routes after adding logging middleware
   app.use('/api/health', healthRouter);
   app.use('/api/chat', chatRouter);
   app.use('/api/mcp', mcpRouter);
   app.use('/api/users', userRouter);
   app.use('/api/nft', nftRouter);
   
-  // 静态文件
+  // Static files
   app.use(express.static(path.join(__dirname, '../public')));
   
-  // 处理404和错误
+  // Handle 404 and errors
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  // 初始化WebSocket聊天服务
-  Logger.info('Server', '正在初始化WebSocket聊天服务...');
+  // Initialize WebSocket chat service
+  Logger.info('Server', 'Initializing WebSocket chat service...');
   initializeChatWebSocket(server);
-  Logger.info('Server', 'WebSocket聊天服务已初始化');
+  Logger.info('Server', 'WebSocket chat service initialized');
 
-  // 初始化MCP服务器连接
-  Logger.info('Server', '正在连接MCP服务器...');
+  // Initialize MCP server connections
+  Logger.info('Server', 'Connecting to MCP servers...');
   try {
     const success = await initializeMCPServers();
     if (success) {
-      Logger.info('Server', 'MCP服务器连接成功');
+      Logger.info('Server', 'MCP servers connected successfully');
     } else {
-      Logger.warn('Server', '部分MCP服务器连接失败，某些功能可能不可用');
+      Logger.warn('Server', 'Some MCP servers failed to connect, some features may be unavailable');
     }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('Server', `MCP服务器连接失败: ${errorMessage}`, err);
-    Logger.warn('Server', '系统将在无MCP支持的情况下运行，工具调用功能不可用');
+    Logger.error('Server', `Failed to connect to MCP servers: ${errorMessage}`, err);
+    Logger.warn('Server', 'The system will run without MCP support, tool call functionality will be unavailable');
   }
 
-  // 初始化模板缓存
-  Logger.info('Server', '正在初始化NFT模板缓存...');
+  // Initialize NFT template cache
+  Logger.info('Server', 'Initializing NFT template cache...');
   try {
     await blockchainService.initializeTemplateCache();
-    Logger.info('Server', 'NFT模板缓存初始化成功');
+    Logger.info('Server', 'NFT template cache initialized successfully');
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('Server', `NFT模板缓存初始化失败: ${errorMessage}`, err);
-    Logger.warn('Server', '系统将在无模板缓存的情况下运行，模板查询可能较慢');
+    Logger.error('Server', `Failed to initialize NFT template cache: ${errorMessage}`, err);
+    Logger.warn('Server', 'The system will run without template cache, template queries may be slow');
   }
 
-  // 加载所有会话
-  Logger.info('Server', '正在加载聊天会话数据...');
+  // Load all sessions
+  Logger.info('Server', 'Loading chat session data...');
   try {
     await SessionService.loadAllSessions();
-    Logger.info('Server', '聊天会话数据加载成功');
+    Logger.info('Server', 'Chat session data loaded successfully');
   } catch (error) {
-    Logger.error('Server', '聊天会话数据加载失败', error);
-    Logger.warn('Server', '系统将使用空的会话数据启动');
+    Logger.error('Server', 'Failed to load chat session data', error);
+    Logger.warn('Server', 'The system will start with empty session data');
   }
 
-  // Start server (使用http.Server而不是app)
+  // Start server (use http.Server instead of app)
   const PORT = parseInt(env.PORT, 10);
   server.listen(PORT, '::', () => {
-    Logger.info('Server', `服务器已启动，运行在端口 ${PORT}，模式：${env.NODE_ENV}`);
-    Logger.info('Server', `健康检查: http://localhost:${PORT}/api/health`);
-    Logger.info('Server', `聊天 API: http://localhost:${PORT}/api/chat`);
-    Logger.info('Server', `WebSocket 聊天: ws://localhost:${PORT}/ws`);
-    Logger.info('Server', `WebSocket 聊天示例: http://localhost:${PORT}/websocket-chat`);
+    Logger.info('Server', `Server started on port ${PORT}, mode: ${env.NODE_ENV}`);
+    Logger.info('Server', `Health check: http://localhost:${PORT}/api/health`);
+    Logger.info('Server', `Chat API: http://localhost:${PORT}/api/chat`);
+    Logger.info('Server', `WebSocket chat: ws://localhost:${PORT}/ws`);
     Logger.info('Server', `MCP API: http://localhost:${PORT}/api/mcp`);
-    Logger.info('Server', `用户 API: http://localhost:${PORT}/api/users`);
+    Logger.info('Server', `User API: http://localhost:${PORT}/api/users`);
   });
 
-  // 处理进程退出
+  // Handle process exit
   setupShutdownHandlers(server);
 }
 
-// 启动服务器
+// Start server
 initializeServer().catch((err: unknown) => {
   const errorMessage = err instanceof Error ? err.message : String(err);
-  console.error(`服务器启动失败: ${errorMessage}`, err);
+  Logger.error('Server', `Failed to start server: ${errorMessage}`, err);
   process.exit(1);
 }); 

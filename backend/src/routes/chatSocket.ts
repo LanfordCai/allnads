@@ -357,5 +357,6 @@ export async function closeChatWebSocket(): Promise<void> {
   const instance = ChatSocketService.getInstance();
   if (instance) {
     await instance.close();
+    console.log('Chat WebSocket service closed');
   }
 }

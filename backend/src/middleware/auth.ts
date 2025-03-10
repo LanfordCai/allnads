@@ -10,20 +10,20 @@ const verifyServiceApiKey = (token: string): boolean => {
 };
 
 /**
- * Service API 身份验证中间件
- * 仅验证请求中的 API 密钥
+ * Service API Authentication Middleware
+ * Only verifies the API key in the request
  */
 export const serviceAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new AppError('未提供有效的授权令牌', 401, 'UNAUTHORIZED');
+    throw new AppError('Valid authorization token not provided', 401, 'UNAUTHORIZED');
   }
   
   const token = authHeader.split(' ')[1];
   
   if (!verifyServiceApiKey(token)) {
-    throw new AppError('无效的API密钥', 401, 'UNAUTHORIZED');
+    throw new AppError('Invalid API key', 401, 'UNAUTHORIZED');
   }
   
   next();

@@ -1,44 +1,44 @@
 import { z } from 'zod';
 
 /**
- * MCP 工具参数结构
+ * MCP tool parameter structure
  */
 export const toolInputSchema = z.record(z.any());
 
 /**
- * 角色类型
+ * Role type
  */
 export type Role = 'user' | 'assistant' | 'system' | 'tool';
 
 /**
- * MCP 基础结果接口
+ * MCP base result interface
  */
 export interface Result {
   /**
-   * 此结果属性被协议保留，允许客户端和服务器将额外的元数据附加到其响应。
+   * This result attribute is reserved by the protocol, allowing clients and servers to attach additional metadata to their responses.
    */
   _meta?: { [key: string]: unknown };
   [key: string]: unknown;
 }
 
 /**
- * 带注释的内容基类
+ * Annotated content base class
  */
 export interface Annotated {
   annotations?: {
     /**
-     * 描述此对象或数据的预期接收者是谁。
+     * Describes who the expected receiver of this object or data is.
      */
     audience?: Role[];
     /**
-     * :描述此数据对操作服务器的重要性。
+     * :Describes the importance of this data to the operation server.
      */
     priority?: number;
   }
 }
 
 /**
- * 文本内容类型
+ * Text content type
  */
 export interface TextContent extends Annotated {
   type: 'text';
@@ -46,22 +46,22 @@ export interface TextContent extends Annotated {
 }
 
 /**
- * 图像内容类型
+ * Image content type
  */
 export interface ImageContent extends Annotated {
   type: 'image';
   /**
-   * base64编码的图像数据
+   * base64 encoded image data
    */
   data: string;
   /**
-   * 图像的MIME类型
+   * Image MIME type
    */
   mimeType: string;
 }
 
 /**
- * 嵌入资源类型
+ * Embedded resource type
  */
 export interface EmbeddedResource extends Annotated {
   type: 'embedded_resource';
@@ -69,29 +69,29 @@ export interface EmbeddedResource extends Annotated {
 }
 
 /**
- * MCP 工具调用结果 - 根据MCP规范定义
+ * MCP tool call result - according to MCP specification
  */
 export interface ToolCallResult extends Result {
   content: (TextContent | ImageContent | EmbeddedResource)[];
   
   /**
-   * 工具调用是否出错
-   * 如果未设置，则假定为false（调用成功）
+   * Whether the tool call is wrong
+   * If not set, it is assumed to be false (call successful)
    */
   isError?: boolean;
 }
 
 /**
- * MCP 服务器配置
+ * MCP server configuration
  */
 export interface MCPServerConfig {
-  url: string; // SSE 服务器 URL
-  name: string; // 服务器名称
-  description?: string; // 服务器描述
+  url: string; // SSE server URL
+  name: string; // server name
+  description?: string; // server description
 }
 
 /**
- * MCP 工具描述
+ * MCP tool description
  */
 export interface MCPTool {
   name: string;
@@ -100,7 +100,7 @@ export interface MCPTool {
 }
 
 /**
- * 工具调用请求
+ * Tool call request
  */
 export interface ToolCallRequest {
   toolName: string;

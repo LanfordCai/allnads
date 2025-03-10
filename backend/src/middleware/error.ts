@@ -1,8 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 
-/**
- * 自定义错误类
- */
 export class AppError extends Error {
   statusCode: number;
   code: string;
@@ -16,9 +13,6 @@ export class AppError extends Error {
   }
 }
 
-/**
- * 404 错误处理中间件
- */
 export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({
     status: 'error',
@@ -30,17 +24,17 @@ export function notFoundHandler(req: Request, res: Response) {
 }
 
 /**
- * 全局错误处理中间件
+ * Global error handling middleware
+ * Catches and processes all unhandled exceptions in the application
+ * Transforms errors into a standardized JSON response format
  */
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
   console.error('Unhandled error:', err);
   
-  // 默认错误状态和信息
   let statusCode = 500;
   let errorMessage = 'Internal Server Error';
   let errorCode = 'INTERNAL_SERVER_ERROR';
   
-  // 自定义 AppError 信息
   if (err instanceof AppError) {
     statusCode = err.statusCode;
     errorMessage = err.message;
@@ -49,7 +43,6 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
     errorMessage = err.message;
   }
   
-  // 返回 JSON 错误响应
   res.status(statusCode).json({
     status: 'error',
     error: {

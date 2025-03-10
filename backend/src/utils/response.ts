@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { Logger } from './logger';
 
 /**
- * API响应标准格式
+ * API response standard format
  */
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -15,12 +15,12 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * 响应工具类
- * 提供统一的API响应格式和日志记录
+ * Response utility class
+ * Provides unified API response format and logging
  */
 export class ResponseUtil {
   /**
-   * 发送成功响应
+   * Send success response
    */
   static success<T = any>(
     res: Response, 
@@ -40,15 +40,15 @@ export class ResponseUtil {
       response.message = message;
     }
 
-    // 记录响应信息
+    // Log response information
     const logContext = ResponseUtil.getControllerContext(res);
-    Logger.debug(logContext, `成功响应: ${statusCode} ${message || ''}`);
+    Logger.debug(logContext, `Success response: ${statusCode} ${message || ''}`);
 
     res.status(statusCode).json(response);
   }
 
   /**
-   * 发送错误响应
+   * Send error response
    */
   static error(
     res: Response, 
@@ -69,20 +69,20 @@ export class ResponseUtil {
       };
     }
 
-    // 记录错误响应
+    // Log error response
     const logContext = ResponseUtil.getControllerContext(res);
-    Logger.warn(logContext, `错误响应: ${statusCode} ${errorCode || ''} - ${message}`);
+    Logger.warn(logContext, `Error response: ${statusCode} ${errorCode || ''} - ${message}`);
 
     res.status(statusCode).json(response);
   }
 
   /**
-   * 从响应对象中获取控制器上下文
-   * 用于日志记录
+   * Get controller context from response object
+   * Used for logging
    */
   private static getControllerContext(res: Response): string {
-    // 尝试获取控制器名称，如果无法获取则使用默认值
-    // 此处可以通过res.locals传递控制器信息
+    // Try to get controller name, use default value if unable to get
+    // Controller information can be passed through res.locals
     return res.locals?.controller || 'API';
   }
 } 

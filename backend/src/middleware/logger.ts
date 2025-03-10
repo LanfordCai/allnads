@@ -2,19 +2,19 @@ import { Request, Response, NextFunction } from 'express';
 import { Logger } from '../utils/logger';
 
 /**
- * 请求日志中间件
- * 记录所有传入请求的信息和响应时间
+ * Request logging middleware
+ * Records information for all incoming requests and response times
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
-  // 记录请求开始时间
+  // Record request start time
   const startTime = Date.now();
   
-  // 记录请求信息
+  // Log request information
   Logger.logRequest(req, 'HTTP');
   
-  // 在响应完成时进行记录
+  // Record when response completes
   res.on('finish', () => {
-    // 记录响应信息，包括状态码和处理时间
+    // Log response information, including status code and processing time
     Logger.logResponse(res, 'HTTP', startTime);
   });
   

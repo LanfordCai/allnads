@@ -10,7 +10,6 @@ import { db } from '../config/database';
 import { userClaims } from '../models/schema';
 import { eq, and } from 'drizzle-orm';
 
-// 简化的验证模式，只需要地址和可选的名称
 const airdropSchema = z.object({
   address: z.string().refine(val => isAddress(val), {
     message: 'Invalid address'
@@ -26,18 +25,12 @@ const templateRequestSchema = z.object({
   }).optional()
 });
 
-/**
- * NFT控制器，处理NFT相关请求
- */
+
 export class NFTController {
-  /**
-   * 检查地址是否有AllNads NFT并在没有时空投一个
-   */
   static async checkAndAirdropNFT(req: Request & { user?: any }, res: Response): Promise<void> {
     try {
       Logger.debug('NFTController', 'Processing check and airdrop NFT request');
       
-      // 验证请求体
       const validationResult = airdropSchema.safeParse(req.body);
       
       if (!validationResult.success) {
@@ -54,7 +47,6 @@ export class NFTController {
       const { address, name } = validationResult.data;
       Logger.debug('NFTController', `Checking NFT for address: ${address}`);
       
-      // 检查地址是否已经拥有NFT
       const hasNFT = await blockchainService.hasAllNadsNFT(address as Address);
       
       if (hasNFT) {
@@ -66,7 +58,6 @@ export class NFTController {
         );
       }
       
-      // 如果用户已登录，检查是否已经领取过NFT
       if (req.user && req.user.id) {
         const privyUserId = req.user.id;
         const existingClaim = await db.select().from(userClaims).where(
@@ -90,7 +81,7 @@ export class NFTController {
       Logger.info('NFTController', `Airdropping NFT to ${address} with name: ${name}`);
       
       try {
-        // 使用默认组件空投NFT
+        // Airdrop NFT with default templates
         const defaultTemplates = blockchainService.getDefaultTemplateIds();
         const txHash = await blockchainService.airdropNFT(
           address as Address,
@@ -102,16 +93,12 @@ export class NFTController {
           defaultTemplates.accessoryTemplateId
         );
         
-        // airdropNFT 方法内部已经等待交易确认并检查了交易状态
-        // 交易已确认成功，现在更新数据库
-        // 如果用户已登录，更新其NFT领取状态
         if (req.user && req.user.id) {
           try {
             await UserClaimsController.updateNFTClaimStatus(req.user.id, address, txHash);
             Logger.info('NFTController', `Successfully updated NFT claim status for user ${req.user.id}`);
           } catch (updateError) {
             Logger.error('NFTController', `Error updating NFT claim status for user ${req.user.id}`, updateError);
-            // 不中断主流程，继续返回成功
           }
         }
         
@@ -146,9 +133,6 @@ export class NFTController {
     }
   }
   
-  /**
-   * 检查地址是否拥有AllNads NFT
-   */
   static async checkNFT(req: Request, res: Response): Promise<void> {
     try {
       const { address } = req.params;
@@ -185,14 +169,10 @@ export class NFTController {
     }
   }
   
-  /**
-   * 获取所有模板信息
-   */
   static async getAllTemplates(req: Request, res: Response): Promise<void> {
     try {
       Logger.debug('NFTController', 'Processing get all templates request');
       
-      // 获取所有模板（使用缓存）
       const templates = await blockchainService.getAllTemplates();
       
       // Serialize templates for JSON response

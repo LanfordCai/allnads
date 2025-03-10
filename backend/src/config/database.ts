@@ -4,28 +4,28 @@ import { env } from './env';
 
 const { Pool } = pg;
 
-// 创建 PostgreSQL 连接池
+// Create PostgreSQL connection pool
 const pool = new Pool({
   host: env.POSTGRES_HOST,
   port: parseInt(env.POSTGRES_PORT),
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
   database: env.POSTGRES_DB,
-  // 连接池配置
+  // Connection pool configuration
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
 
-// 创建 Drizzle ORM 实例
+// Create Drizzle ORM instance
 export const db = drizzle(pool);
 
-// 导出连接池以便于关闭连接
+// Export the pool for connection closing
 export { pool };
 
-// 用于应用关闭时清理资源
+// For cleaning up resources when the application shuts down
 export async function closeDatabase() {
-  console.log('正在关闭数据库连接...');
+  console.log('Closing database connection...');
   await pool.end();
-  console.log('数据库连接已关闭');
+  console.log('Database connection closed');
 } 

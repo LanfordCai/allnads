@@ -131,7 +131,6 @@ export class ChatService {
 
       // Only add messages belonging to current session to LLM message list
       if (msg.sessionId === session.id) {
-        // 消息历史里面应该不需要存 tool call 相关的？
         llmMessages.push({
           role: msg.role === ChatRole.USER ? 'user' : 'assistant',
           content: msg.content
@@ -201,7 +200,6 @@ export class ChatService {
         console.log(`[LLM Timing] Tool call round ${toolCallRounds} completed in ${requestDuration}ms`);
 
         // Ensure currentResponse is not null
-        // 没收到回复就直接 break 吗？
         if (!currentResponse) {
           console.error('Error: currentResponse is null');
           break;

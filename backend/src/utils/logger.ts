@@ -1,7 +1,7 @@
 import { env } from '../config/env';
 
 /**
- * 日志级别定义
+ * Log level definition
  */
 export enum LogLevel {
   ERROR = 0,
@@ -11,8 +11,8 @@ export enum LogLevel {
 }
 
 /**
- * 日志服务类
- * 提供全局一致的日志记录功能，并根据环境变量控制日志级别
+ * Logger service class
+ * Provides globally consistent logging functionality and controls log levels based on environment variables
  */
 export class Logger {
   private static currentLevel: LogLevel = Logger.getLogLevelFromEnv();
@@ -24,7 +24,7 @@ export class Logger {
   private static readonly GRAY = '\x1b[90m';
 
   /**
-   * 从环境变量获取日志级别
+   * Get log level from environment variable
    */
   private static getLogLevelFromEnv(): LogLevel {
     const level = env.LOG_LEVEL?.toLowerCase();
@@ -34,26 +34,26 @@ export class Logger {
       case 'warn': return LogLevel.WARN;
       case 'info': return LogLevel.INFO;
       case 'debug': return LogLevel.DEBUG;
-      default: return LogLevel.INFO; // 默认INFO级别
+      default: return LogLevel.INFO; // Default INFO level
     }
   }
 
   /**
-   * 获取当前时间戳
+   * Get current timestamp
    */
   private static getTimestamp(): string {
     return new Date().toISOString();
   }
 
   /**
-   * 格式化日志信息
+   * Format log message
    */
   private static format(level: string, context: string, message: string): string {
     return `[${this.getTimestamp()}] [${level}] [${context}] ${message}`;
   }
 
   /**
-   * 记录DEBUG级别日志
+   * Log DEBUG level message
    */
   static debug(context: string, message: string, meta?: any): void {
     if (this.currentLevel >= LogLevel.DEBUG) {
@@ -65,7 +65,7 @@ export class Logger {
   }
 
   /**
-   * 记录INFO级别日志
+   * Log INFO level message
    */
   static info(context: string, message: string, meta?: any): void {
     if (this.currentLevel >= LogLevel.INFO) {
@@ -77,7 +77,7 @@ export class Logger {
   }
 
   /**
-   * 记录WARN级别日志
+   * Log WARN level message
    */
   static warn(context: string, message: string, meta?: any): void {
     if (this.currentLevel >= LogLevel.WARN) {
@@ -89,7 +89,7 @@ export class Logger {
   }
 
   /**
-   * 记录ERROR级别日志
+   * Log ERROR level message
    */
   static error(context: string, message: string, error?: any): void {
     if (this.currentLevel >= LogLevel.ERROR) {
@@ -101,7 +101,7 @@ export class Logger {
   }
 
   /**
-   * 记录API请求
+   * Log API request
    */
   static logRequest(req: any, context: string): void {
     if (this.currentLevel >= LogLevel.INFO) {
@@ -116,7 +116,7 @@ export class Logger {
   }
 
   /**
-   * 记录API响应
+   * Log API response
    */
   static logResponse(res: any, context: string, startTime?: number): void {
     if (this.currentLevel >= LogLevel.INFO) {
