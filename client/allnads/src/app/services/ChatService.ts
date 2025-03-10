@@ -71,8 +71,8 @@ export class ChatService {
   }
 
   /**
-   * 设置获取访问令牌的函数
-   * @param tokenProvider 获取Privy访问令牌的函数
+   * Set the function to get access tokens
+   * @param tokenProvider Function to get Privy access tokens
    */
   public setTokenProvider(tokenProvider: () => Promise<{ accessToken: string | null; identityToken: string | null }>) {
     this.getPrivyTokens = tokenProvider;
@@ -108,16 +108,13 @@ export class ChatService {
         return;
       }
 
-      // 构建URL，附加sessionId和认证令牌作为查询参数
       let connectionUrl = this.url;
       const queryParams = new URLSearchParams();
       
-      // 添加会话ID（如果有）
       if (this.sessionId) {
         queryParams.append('sessionId', this.sessionId);
       }
       
-      // 添加NFT信息（如果有）
       if (this.nftTokenId) {
         queryParams.append('nftTokenId', this.nftTokenId);
       }
@@ -154,7 +151,6 @@ export class ChatService {
         queryParams.append('nftMetadata', JSON.stringify(this.nftMetadata, replacer));
       }
       
-      // 尝试获取认证令牌
       let accessToken = null;
       let idToken = null;
       if (this.getPrivyTokens) {
@@ -180,13 +176,11 @@ export class ChatService {
         return;
       }
       
-      // 如果没有令牌，拒绝连接
       if (!accessToken || !idToken) {
         reject(new Error('Authentication required. Please login to use the chat.'));
         return;
       }
       
-      // 添加查询参数到URL
       const queryString = queryParams.toString();
       if (queryString) {
         connectionUrl += (connectionUrl.includes('?') ? '&' : '?') + queryString;

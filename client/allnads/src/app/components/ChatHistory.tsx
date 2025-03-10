@@ -35,29 +35,29 @@ export default function ChatHistory({
     }
   }, []);
 
-  // 格式化时间的辅助函数
+  // Helper function to format time
   const formatTime = (date: Date) => {
     const now = new Date();
     const messageDate = new Date(date);
     
-    // 如果是今天的消息，只显示时间
+    // If message is from today, only show time
     if (messageDate.toDateString() === now.toDateString()) {
       return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     
-    // 如果是昨天的消息
+    // If message is from yesterday
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     if (messageDate.toDateString() === yesterday.toDateString()) {
-      return '昨天';
+      return 'Yesterday';
     }
     
-    // 如果是今年的消息
+    // If message is from this year
     if (messageDate.getFullYear() === now.getFullYear()) {
       return messageDate.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
     }
     
-    // 其他情况显示完整日期
+    // For all other cases, show full date
     return messageDate.toLocaleDateString([], { year: 'numeric', month: 'numeric', day: 'numeric' });
   };
 

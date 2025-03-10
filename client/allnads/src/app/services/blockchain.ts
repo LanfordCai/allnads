@@ -32,7 +32,6 @@ class BlockchainService {
     duration?: number;
   }> = [];
   
-  // 添加模板缓存相关属性
   private templatesCache: Record<string, Template[]> | null = null;
   private templatesCacheTimestamp: number = 0;
   private readonly CACHE_TTL_MS: number = 3600000; // 缓存有效期：1小时
@@ -506,7 +505,6 @@ class BlockchainService {
    * Fetch all templates from the API
    */
   public async fetchAllTemplatesFromAPI(): Promise<Record<string, Template[]>> {
-    // 检查缓存是否有效
     if (this.templatesCache && (Date.now() - this.templatesCacheTimestamp) < this.CACHE_TTL_MS) {
       return this.templatesCache;
     }
@@ -541,7 +539,6 @@ class BlockchainService {
         }
       });
       
-      // 更新缓存
       this.templatesCache = processedTemplates;
       this.templatesCacheTimestamp = Date.now();
       console.log(`[Templates] Templates cached at ${new Date(this.templatesCacheTimestamp).toLocaleTimeString()}`);
@@ -579,11 +576,8 @@ class BlockchainService {
    * If not found in cache, falls back to blockchain call
    */
   public async findTemplateById(templateId: bigint): Promise<Template | null> {
-    // 尝试从缓存中查找
     if (this.templatesCache) {
-      // 遍历所有类型的模板
       for (const typeTemplates of Object.values(this.templatesCache)) {
-        // 在当前类型中查找匹配的模板
         const template = typeTemplates.find(t => t.id === templateId);
         if (template) {
           console.log(`[Templates] Found template ${templateId.toString()} in cache`);
@@ -595,7 +589,6 @@ class BlockchainService {
       console.log(`[Templates] Cache not initialized, fetching template ${templateId.toString()} from blockchain`);
     }
 
-    // 如果缓存中没有找到，从区块链获取
     try {
       return await this.getTemplateById(templateId);
     } catch (error) {
@@ -612,13 +605,11 @@ class BlockchainService {
     console.log(`[Templates] Getting components map for address ${address}`);
     
     try {
-      // 获取用户拥有的所有模板
       const ownedTemplates = await this.getAllOwnedTemplates(address);
       
-      // 创建映射：tokenId -> { templateId, templateType }
+      // tokenId -> { templateId, templateType }
       const componentsMap = new Map<string, { templateId: bigint, templateType: number }>();
       
-      // 填充映射
       for (let i = 0; i < ownedTemplates.tokenIds.length; i++) {
         const tokenId = ownedTemplates.tokenIds[i].toString();
         const templateId = ownedTemplates.templateIds[i];
@@ -646,16 +637,16 @@ class BlockchainService {
     const tokenIdStr = tokenId.toString();
     console.log(`[Templates] Getting template for token ID ${tokenIdStr}`);
     
-    // 如果提供了组件映射，优先使用映射
+    // If component mapping is provided, use it as the priority source
     if (componentsMap && componentsMap.has(tokenIdStr)) {
       const { templateId } = componentsMap.get(tokenIdStr)!;
       console.log(`[Templates] Found template ID ${templateId.toString()} for token ID ${tokenIdStr} in components map`);
       
-      // 使用模板ID查找完整模板信息
+      // Use template ID to find complete template information
       return await this.findTemplateById(templateId);
     }
     
-    // 如果没有映射或映射中没有找到，回退到区块链调用
+    // If no mapping is provided or the token ID is not found in the mapping, fall back to blockchain call
     try {
       console.log(`[Templates] Getting template ID for token ID ${tokenIdStr} from blockchain`);
       const templateId = await this.getTokenTemplate(tokenId);

@@ -49,7 +49,7 @@ export default function ChatBot() {
   // Avatar image state
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   
-  // 用于跟踪组件是否已经完成初始渲染
+  // Used to track whether the component has completed initial rendering
   const initialRenderRef = useRef<boolean>(false);
   
   // Chat service setup
