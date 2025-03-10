@@ -1,89 +1,77 @@
-# AllNads Project
+# AllNads Contracts
 
-This project contains smart contracts and utility scripts for the AllNads NFT project.
+ERC-6551 smart wallets as composable NFTs on Monad blockchain.
 
-## Basic Hardhat Commands
+## Overview
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
+AllNads is a smart wallet implementation that combines ERC-6551 token-bound accounts with composable NFTs on the Monad blockchain. Each NFT in the collection serves as a smart wallet, capable of owning assets and interacting with other contracts. The composable nature of the NFTs allows for dynamic component-based customization, where each NFT can be assembled from various components. The system includes comprehensive features for NFT minting, component management, and wallet interactions.
 
-## Utility Scripts
+## Smart Contracts
 
-This project includes several utility scripts to interact with the AllNads contracts:
+- `AllNads.sol`: Main NFT contract implementing core NFT functionality
+- `AllNadsComponent.sol`: Manages NFT components and their properties
+- `AllNadsComponentQuery.sol`: Handles queries for NFT component data
+- `AllNadsAirdropper.sol`: Manages NFT airdrop functionality
+- `AllNadsAccount.sol`: Handles user account management
+- `AllNadsRenderer.sol`: Renders NFT visuals
+- `AllNadsRegistry.sol`: Registry contract for platform components
 
-### Template Creation
+## Prerequisites
 
-Create NFT templates by uploading images to the contract:
+- Node.js (v16 or higher)
+- npm or yarn
+- A Monad network wallet with MONAD tokens for deployment
 
-```shell
-# Install required dependencies first
+## Installation
+
+1. Clone the repository
+2. Install dependencies:
+```bash
 npm install
-
-# Create templates on localhost network (default)
-npm run create-templates
-
-# Create templates on Monad testnet
-npm run create-templates -- monadTestnet
 ```
 
-### Mint NFT Tokens
-
-Mint tokens from existing templates:
-
-```shell
-# Mint 1 token from template #1 on localhost
-npm run mint-token
-
-# Mint 3 tokens from template #5 on Monad testnet
-npm run mint-token -- monadTestnet 5 3
-
-# Get help with command options
-npm run mint-token -- --help
+3. Copy the environment file and configure your variables:
+```bash
+cp .env.example .env
 ```
 
-### View Token Metadata and SVG
+## Configuration
 
-View metadata and generate HTML viewer for an AllNads token:
+Update the `.env` file with your configuration
 
-```shell
-# View token #1 on localhost (default)
-npm run view-token
+## Available Scripts
 
-# View token #5 on Monad testnet
-npm run view-token -- monadTestnet 5
+- `npm run create-templates`: Create NFT templates
+- `npm run view-svg`: View SVG representations of NFTs
+- `npm run simple-view-svg`: Simple SVG viewer
+- `npm run mint-token`: Mint new NFT tokens
+- `npm run add-admin-v2`: Add admin to airdropper V2 contract
+- `npm run list-templates`: List available NFT templates by type
 
-# Get help with command options
-npm run view-token -- --help
+## Development
+
+The project uses Hardhat as the development environment with the following configuration:
+- Solidity version: 0.8.28
+- Optimizer enabled with 200 runs
+- Sourcify integration enabled
+- Support for Monad devnet and testnet networks
+
+## Testing
+
+Run tests using Hardhat:
+```bash
+npx hardhat test
 ```
 
-### Simple SVG Viewer
+## Deployment
 
-Generate a minimal HTML viewer that only shows the SVG image:
-
-```shell
-# View SVG for token #1 on localhost (default)
-npm run view-svg
-
-# View SVG for token #3 on Monad testnet
-npm run view-svg -- monadTestnet 3
-
-# Get help with command options
-npm run view-svg -- --help
+Deploy to Monad testnet:
+```bash
+npx hardhat ignition deploy ./ignition/modules/allnads.ts --network monadTestnet
 ```
 
-## Environment Setup
+## License
 
-Create a `.env` file with the following variables:
+MIT
 
-```
-MONAD_TESTNET_RPC=https://rpc.testnet.monad.xyz/
-MONAD_PRIVATE_KEY=your_private_key_here
-HARDHAT_PRIVATE_KEY=your_private_key_here
-```
 
-Note: Never commit your private keys to version control!

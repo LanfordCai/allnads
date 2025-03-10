@@ -1,96 +1,79 @@
-# AllNads - Avatars with Token Bound Accounts
+# AllNads
 
-AllNads is a collection of NFT avatars with ERC6551 Token Bound Accounts, allowing each avatar NFT to own assets and interact with other contracts.
+AllNads is a platform that integrates AI-powered smart wallets with composable NFTs on the Monad blockchain. It enables users to interact with an AI assistant through NFT-gated access, while leveraging ERC-6551 token-bound accounts to create smart wallets capable of owning assets and interacting with other contracts. The system combines web3 authentication, real-time AI chat, and dynamic NFT customization through component-based composition.
 
 ## Overview
 
-AllNads is a complete reimagining of the WeNads project, incorporating the ERC6551 standard for Token Bound Accounts. Each AllNads NFT is an avatar with customizable components, and has its own smart contract account that can own assets and interact with other contracts.
+AllNads unifies several cutting-edge technologies:
+
+- **ERC-6551 Token-Bound Accounts**: Each NFT in the collection serves as a smart wallet capable of owning assets and interacting with other contracts
+- **AI Integration**: Users can chat with an intelligent assistant that can help manage their blockchain assets
+- **Composable NFTs**: NFTs can be customized with various components, creating unique visual identities
+- **Privy Authentication**: Secure web3 authentication with Server Delegated Actions enabling AI to automatically sign transactions
+- **Model Context Protocol (MCP)**: Allows AI agents to interact with external data and perform operations
+- **Community-Driven System**: AllNads NFTs are public goods - anyone in the Monad community can mint, create, sell, and transfer components freely
 
 ## Key Features
 
-- **Token Bound Accounts**: Each AllNads NFT has its own smart contract account
-- **Customizable Avatars**: Avatars can be customized with different components
-- **Component Ownership**: Components are ERC1155 tokens that can be owned by either users or avatar accounts
-- **On-chain Rendering**: Avatar metadata and images are generated on-chain
-- **Fully Transferable**: Unlike the original project, AllNads are standard NFTs that can be transferred
+- **Web3 Authentication**: Secure login using Privy with wallet-based authentication
+- **AI-Powered Smart Wallets**: Each NFT functions as a wallet with an AI assistant that can manage assets
+- **NFT Verification**: Access to the AI chatbot is gated by NFT ownership
+- **Automatic Transaction Signing**: AI assistant can automatically sign transactions via Privy's Server Delegated Actions
+- **Multi-Step Task Execution**: AI can handle complex requests by autonomously selecting and chaining together the appropriate tools
+- **Blockchain Operations**: Send tokens, interact with smart contracts, and manage NFTs
+- **Component-Based NFT System**: Customize your NFT with different components
+- **Real-time Chat**: WebSocket-based chat interface with the AI assistant
 
-## Architecture
+## System Architecture
 
-The project consists of five main contracts:
+AllNads consists of four main components:
 
-1. **AllNads.sol**: The main ERC721 NFT contract that represents avatars
-2. **AllNadsAccount.sol**: The ERC6551 account implementation for token bound accounts
-3. **AllNadsRegistry.sol**: The ERC6551 registry for creating token bound accounts
-4. **AllNadsComponent.sol**: ERC1155 contract for avatar components
-5. **AllNadsRenderer.sol**: On-chain renderer for avatar metadata and images
+1. **Smart Contracts**: ERC-6551 implementation for token-bound accounts and composable NFTs on Monad blockchain
+2. **Backend Server**: Node.js Express server providing API endpoints for chat, user management, and NFT operations
+3. **Frontend Client**: Next.js web application with Privy authentication and real-time chat interface
+4. **MCP Servers**: Model Context Protocol servers allowing AI assistants to interact with external data
 
-## How It Works
+## Technical Details
 
-1. When a user mints an AllNads NFT, a token bound account is automatically created for that NFT
-2. The user can mint components from the AllNadsComponent contract
-3. The user can add these components to their avatar NFT, transferring ownership to the NFT's token bound account
-4. The avatar can be customized by adding/removing components
-5. If the avatar is transferred, all components owned by its token bound account move with it
+### Privy Authentication & Server Delegated Actions
 
-## Using the ERC6551 Account
+AllNads uses Privy for secure web3 authentication. A key feature is Privy's Server Delegated Actions, which enables the AI assistant to automatically sign transactions on behalf of users after proper authorization. This creates a seamless experience where users can simply request actions in natural language, and the AI can execute them without requiring manual signature approval for each transaction.
 
-Each AllNads NFT has its own contract account that can:
+### ERC-6551 Token-Bound Accounts
 
-- Own other NFTs and tokens
-- Execute transactions to any contract
-- Participate in DeFi protocols
-- Hold an on-chain history and identity
+The system implements the ERC-6551 standard, which allows NFTs to own assets and interact with contracts. Each AllNads NFT acts as a smart wallet with its own address and capabilities, managed through the AllNads contracts.
 
-To interact with an NFT's account:
+### Model Context Protocol Integration
 
-```javascript
-// Get the account address for an NFT
-const accountAddress = await allNadsContract.accountForToken(tokenId);
+AllNads implements MCP servers that provide tools for AI assistants to interact with blockchain data and execute transactions. This enables the AI to retrieve balances, make contract calls, transfer tokens, and manage NFT components.
 
-// Execute a transaction from the NFT's account (must be called by the NFT owner)
-await allNadsAccountContract.executeCall(
-  targetAddress,
-  value,
-  data,
-  0 // operation type (0 = call)
-);
-```
+The AI can autonomously handle complex tasks by selecting and chaining together the appropriate tools. For example, when asked to "Swap 10 MON for USDC and send it to Alice," the AI can identify the required steps, select the appropriate tools for each step, and execute the entire workflow without requiring step-by-step instructions from the user.
 
-## Getting Started
+### Composable NFT System
 
-### Prerequisites
+The NFT system allows for dynamic component-based customization, where each NFT can be assembled from various components. This creates unique visual identities and functional attributes for each token.
 
-- Node.js >= 16
-- Hardhat
+### Community-Driven Ecosystem
 
-### Installation
+AllNads is designed as a public good for the Monad blockchain community. Anyone can:
+- Mint AllNads NFTs freely
+- Create new ERC-1155 components
+- Sell components on marketplaces
+- Transfer components between wallets
+- Contribute to the growing ecosystem
 
-1. Clone the repository
-   ```
-   git clone https://github.com/yourusername/allnads.git
-   cd allnads
-   ```
+This open approach fosters community engagement and innovation, allowing the ecosystem to grow organically through user contributions.
 
-2. Install dependencies
-   ```
-   npm install
-   ```
+## Component Documentation
 
-3. Compile contracts
-   ```
-   npx hardhat compile
-   ```
+For more detailed information about each component:
 
-4. Run tests
-   ```
-   npx hardhat test
-   ```
-
-5. Deploy contracts
-   ```
-   npx hardhat run scripts/deploy-allnads.js --network [network]
-   ```
+- [Backend Server](backend/README.md)
+- [Smart Contracts](contract/README.md)
+- [Frontend Client](client/allnads/README.md)
+- [AllNads MCP Server](mcp/allnads-mcp/README.md)
+- [EVM MCP Server](mcp/evm-mcp/README.md)
 
 ## License
 
-MIT 
+MIT
