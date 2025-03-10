@@ -30,8 +30,6 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.41",
-    "@langchain/openai": "^0.4.4",
     "@modelcontextprotocol/sdk": "^1.6.0",
     "@neondatabase/serverless": "^0.10.4",
     "@privy-io/server-auth": "^1.18.10",
@@ -45,7 +43,6 @@
     "eventsource-parser": "^3.0.0",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "langchain": "^0.3.19",
     "pg": "^8.13.3",
     "pg-pool": "^3.7.1",
     "uuid": "^11.1.0",
