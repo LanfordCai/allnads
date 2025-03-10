@@ -26,7 +26,7 @@ AllNads unifies several cutting-edge technologies:
 
 ## System Architecture
 
-AllNads consists of four main components:
+AllNads consists of four main components that work together to create a seamless user experience:
 
 1. **Smart Contracts**: ERC-6551 implementation for token-bound accounts and composable NFTs on Monad blockchain
 2. **Backend Server**: Node.js Express server providing API endpoints for chat, user management, and NFT operations
@@ -63,6 +63,67 @@ AllNads is designed as a public good for the Monad blockchain community. Anyone 
 - Contribute to the growing ecosystem
 
 This open approach fosters community engagement and innovation, allowing the ecosystem to grow organically through user contributions.
+
+## Design Decisions and Technical Implementation
+
+### Why ERC-6551?
+The ERC-6551 standard was chosen because it creates a direct binding between NFTs and autonomous accounts. This provides several advantages:
+- NFTs become more than just digital art; they function as smart contract wallets
+- Each NFT can own assets, execute transactions, and interact with DeFi protocols
+- The token-bound account structure aligns perfectly with the AI assistant concept
+
+### Why Privy for Authentication?
+Privy was selected as the authentication provider for several reasons:
+- Supports email, google and X authentication, lowering barriers to entry, bring us Walletless Onboarding
+- Provides Server Delegated Actions, enabling AI-driven transaction execution
+- Robust security features and straightforward integration with Next.js
+
+### WebSocket for Real-Time Chat
+The decision to use WebSockets for chat communication was driven by:
+- Need for real-time bi-directional communication between users and AI
+- Continuous Feedback Loop: Users receive real-time progress updates as the AI works through sequential steps of a complex task
+
+### Model Context Protocol (MCP) Architecture
+MCP was implemented as separate servers to:
+- Maintain separation of concerns between AI tools and core backend services
+- Allow for independent scaling of AI-related infrastructure
+
+## External Dependencies
+
+### Frontend Dependencies
+- **Next.js** (v15.x): React framework for the web application
+- **TailwindCSS** (v4.x): Utility-first CSS framework for styling
+- **Privy SDK**: Web3 authentication and transaction signing
+- **Viem**: TypeScript library for Ethereum interactions
+- **React** (v19.x): UI component library
+
+### Backend Dependencies
+- **Node.js** (v16+): JavaScript runtime environment
+- **Express.js**: Web application framework
+- **PostgreSQL**: Relational database with Drizzle ORM
+- **WebSockets**: Real-time communication protocol
+- **OpenRouter API**: AI model integration
+
+### Blockchain Integration
+- **Monad Blockchain**: Primary blockchain for NFT and smart wallet functionality
+- **Viem**: Ethereum library for blockchain interactions
+- **ERC-6551 Standard**: Token-bound account implementation
+- **ERC-721 Standard**: For AllNads Avatar NFT.
+- **ERC-1155 Standard**: For component NFTs
+
+### MCP Server Dependencies
+- **Model Context Protocol SDK**: For building AI tools
+- **Ethers.js/Viem**: Ethereum libraries for blockchain interactions
+
+## Future Development
+
+AllNads will continue to evolve and strengthen its capabilities through:
+
+- **Expanded MCP Tools**: Integration of additional Model Context Protocol tools to enhance AI functionality
+- **Advanced DeFi Operations**: Tools for complex financial operations, yield farming, and liquidity provisioning
+- **Enhanced Customization**: More component types and interaction possibilities
+- **Community Governance**: Progressive decentralization of decision-making
+- **AI Model Improvements**: Integration of more capable AI models and specialized training
 
 ## Component Documentation
 
