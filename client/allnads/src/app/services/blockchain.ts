@@ -598,8 +598,8 @@ class BlockchainService {
   }
 
   /**
-   * 获取用户所有组件的映射关系
-   * 返回一个映射：tokenId -> { templateId, templateType }
+   * Get a mapping of all user components
+   * Returns a mapping: tokenId -> { templateId, templateType }
    */
   public async getUserComponentsMap(address: string): Promise<Map<string, { templateId: bigint, templateType: number }>> {
     console.log(`[Templates] Getting components map for address ${address}`);
@@ -625,10 +625,9 @@ class BlockchainService {
       return new Map();
     }
   }
-
   /**
-   * 根据 tokenId 查找对应的模板信息
-   * 优先使用用户组件映射，如果没有则回退到区块链调用
+   * Find template information by tokenId
+   * Prioritize using user component mapping, fall back to blockchain call if not available
    */
   public async getTemplateByTokenId(
     tokenId: bigint, 
