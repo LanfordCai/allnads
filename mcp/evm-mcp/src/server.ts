@@ -240,8 +240,8 @@ if (USE_HTTP) {
     return originalSend.call(this, message);
   };
   
-  // 注：Stdio传输不提供接收消息的事件监听，所以只能记录发送的消息
-  console.log('⚠️ 注意: 无法记录Stdio模式下的传入消息，因为StdioServerTransport不提供事件监听接口');
-  
+  // Note: Stdio transport doesn't provide event listeners for receiving messages, so we can only log outgoing messages
+  console.log('⚠️ Note: Cannot log incoming messages in Stdio mode because StdioServerTransport does not provide an event listening interface');
+
   await server.connect(transport);
 } 
