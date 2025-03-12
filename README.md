@@ -1,4 +1,4 @@
-# AllNads
+# [AllNads](https://allnads.app)
 
 AllNads is a platform that integrates AI-powered smart wallets with composable NFTs on the Monad blockchain. It enables users to interact with an AI assistant through NFT-gated access, while leveraging ERC-6551 token-bound accounts to create smart wallets capable of owning assets and interacting with other contracts. The system combines web3 authentication, real-time AI chat, and dynamic NFT customization through component-based composition.
 
